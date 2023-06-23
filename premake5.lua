@@ -62,7 +62,6 @@ project "Eclipse"
 
 		defines
 		{
-			"ELS_PLATFORM_WINDOWS",
 			"GLFW_INCLUDE_NONE",
 			"_CRT_SECURE_NO_WARNINGS"
 		}
@@ -109,7 +108,6 @@ project "Sandbox"
 
 		defines
 		{
-			"ELS_PLATFORM_WINDOWS",
 			"_CRT_SECURE_NO_WARNINGS"
 		}
 

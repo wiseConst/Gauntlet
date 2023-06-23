@@ -7,6 +7,7 @@
 #include "Eclipse/Event/KeyEvent.h"
 
 #include "Eclipse/Renderer/RendererAPI.h"
+#include "Eclipse/Core/Input.h"
 
 #include <GLFW/glfw3.h>
 
@@ -148,7 +149,7 @@ static void GLFWErrorCallback(int error, const char* description)
 	{
 		glfwPollEvents();
 
-		if (glfwGetKey(m_Window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		if (Input::IsKeyPressed(ELS_KEY_ESCAPE))
 		{
 			m_IsRunning = false;
 		}

@@ -6,7 +6,12 @@
 
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
+
+#ifdef ELS_PLATFORM_WINDOWS
+#define GLFW_EXPOSE_NATIVE_WIN32
+#endif
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 
 namespace Eclipse
 {
@@ -93,8 +98,8 @@ void VulkanContext::CreateDebugMessenger()
 
 void VulkanContext::CreateSurface()
 {
-#if ELS_PLATFORM_WINDOWS && 0
-
+    // TODO: Add linux glfwGetX11Window(window);   
+#ifdef ELS_PLATFORM_WINDOWS
     VkWin32SurfaceCreateInfoKHR Win32SurfaceCreateInfo = {};
     Win32SurfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     Win32SurfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
@@ -228,8 +233,8 @@ const std::vector<const char*> VulkanContext::GetRequiredExtensions()
 }
 
 void VulkanContext::BeginRender() {
-    auto& app = Application::Get();
-    app.SubmitToRenderThread([]() { LOG_WARN("Render Thread"); });
+    //auto& app = Application::Get();
+    //app.SubmitToRenderThread([]() { LOG_WARN("Render Thread"); });
 }
 
 void VulkanContext::EndRender() {}

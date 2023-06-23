@@ -4,6 +4,8 @@
 #include "Eclipse/Event/Event.h"
 #include "Eclipse/Renderer/RendererAPI.h"
 
+#include "Inherited.h"
+
 namespace Eclipse
 {
 	class Window;
@@ -16,11 +18,6 @@ namespace Eclipse
 		ApplicationSpecification(const std::string_view& InAppName, uint32_t InWidth, uint32_t InHeight, RendererAPI::EAPI InGraphicsAPI) :AppName(InAppName), Width(InWidth), Height(InHeight),GraphicsAPI(InGraphicsAPI) {}
 
 		~ApplicationSpecification() = default;
-		//ApplicationSpecification(const ApplicationSpecification& app) = delete;
-		//ApplicationSpecification(ApplicationSpecification&& app) = delete;
-
-		//ApplicationSpecification& operator=(const ApplicationSpecification& app) = delete;
-		//ApplicationSpecification& operator=(ApplicationSpecification&& app) = delete;
 
 		std::string_view AppName;
 		uint32_t Width;
@@ -28,16 +25,10 @@ namespace Eclipse
 		RendererAPI::EAPI GraphicsAPI;
 	};
 
-	class Application
+	class Application : private Uncopyable, private Unmovable
 	{
 	public:
 		Application() = delete;
-		Application(const Application& app) = delete;
-		Application(Application&& app) = delete;
-
-		Application& operator=(const Application& app) = delete;
-		Application& operator=(Application&& app) = delete;
-
 		Application(const ApplicationSpecification& InApplicationSpec = ApplicationSpecification());
 		virtual ~Application();
 
@@ -60,6 +51,9 @@ namespace Eclipse
 
 		FORCEINLINE const auto& GetInfo() const { return m_AppInfo; }
 		FORCEINLINE auto& GetInfo() { return m_AppInfo; }
+
+		FORCEINLINE const auto& GetWindow() const { return m_Window; }
+		FORCEINLINE auto& GetWindow() { return m_Window; }
 
 	private:
 		static Application* s_Instance;

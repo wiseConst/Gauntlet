@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PlatformDetection.h"
+
 #include <memory>
 
 #ifdef ELS_DEBUG
@@ -17,6 +19,8 @@
 
 #endif
 
+
+#define VECTOR_SIZE(vec) (sizeof((vec)[0]) * (vec).size())
 
 #define FORCEINLINE __forceinline
 

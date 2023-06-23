@@ -6,6 +6,7 @@
 
 #include "Eclipse/Renderer/Renderer.h"
 #include "Eclipse/Renderer/GraphicsContext.h"
+#include "Input.h"
 
 namespace Eclipse
 {
@@ -24,10 +25,13 @@ namespace Eclipse
 		m_Window->SetWindowCallback(BIND_FN(Application::OnEvent));
 
 		m_Context.reset(GraphicsContext::Create(m_Window));
+
+		Input::Init();
 	}
 
 	Application::~Application()
 	{
+        Input::Destroy();
         Renderer::Shutdown();
 
 		m_Context->Destroy();
@@ -39,11 +43,11 @@ namespace Eclipse
 
 		while (m_Window->IsRunning())
 		{
-            ExecuteGameThreadQueue();
+            //ExecuteGameThreadQueue();
 
             m_Context->BeginRender();
 
-			ExecuteRenderThreadQueue();
+			//ExecuteRenderThreadQueue();
 
 			m_Context->EndRender();
 
