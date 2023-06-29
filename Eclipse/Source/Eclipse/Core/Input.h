@@ -3,8 +3,6 @@
 #include "Core.h"
 #include "InputCodes.h"
 
-#include "Inherited.h"
-
 namespace Eclipse
 {
 class Input : private Uncopyable, private Unmovable

@@ -7,17 +7,11 @@
 
 namespace Eclipse
 {
-class VulkanDevice final
+class VulkanDevice final : private Uncopyable, private Unmovable
 {
   public:
     VulkanDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface);
     VulkanDevice() = delete;
-
-    VulkanDevice(const VulkanDevice& that) = delete;
-    VulkanDevice(VulkanDevice&& that) = delete;
-
-    VulkanDevice& operator=(const VulkanDevice& that) = delete;
-    VulkanDevice& operator=(VulkanDevice&& that) = delete;
 
     ~VulkanDevice() = default;
 
@@ -29,9 +23,16 @@ class VulkanDevice final
         ELS_ASSERT(result == VK_SUCCESS, "Failed to wait for device to finish other operations.");
     }
 
-    FORCEINLINE VkPhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
-    FORCEINLINE VkDevice GetLogicalDevice() const { return m_LogicalDevice; }
-    FORCEINLINE QueueFamilyIndices GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
+    FORCEINLINE bool IsValid() const { return m_PhysicalDevice && m_LogicalDevice; }
+
+    FORCEINLINE const auto& GetPhysicalDevice() const { return m_PhysicalDevice; }
+    FORCEINLINE auto& GetPhysicalDevice() { return m_PhysicalDevice; }
+
+    FORCEINLINE const auto& GetLogicalDevice() const { return m_LogicalDevice; }
+    FORCEINLINE auto& GetLogicalDevice() { return m_LogicalDevice; }
+
+    FORCEINLINE auto& GetQueueFamilyIndices() { return m_QueueFamilyIndices; }
+    FORCEINLINE const auto& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
 
     FORCEINLINE const auto& GetGraphicsQueue() const { return m_GraphicsQueue; }
     FORCEINLINE auto& GetGraphicsQueue() { return m_GraphicsQueue; }
@@ -43,29 +44,29 @@ class VulkanDevice final
     FORCEINLINE auto& GetTransferQueue() { return m_TransferQueue; }
 
     FORCEINLINE const auto& GetMemoryProperties() const { return m_GPUMemoryProperties; }
+    FORCEINLINE auto& GetMemoryProperties() { return m_GPUMemoryProperties; }
+
     FORCEINLINE const auto& GetGPUProperties() const { return m_GPUProperties; }
+    FORCEINLINE auto& GetGPUProperties() { return m_GPUProperties; }
 
   private:
     VkDevice m_LogicalDevice = VK_NULL_HANDLE;
     VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
 
-    VkPhysicalDeviceProperties m_GPUProperties;
-    VkPhysicalDeviceFeatures m_GPUFeatures;
-    VkPhysicalDeviceMemoryProperties m_GPUMemoryProperties;
-
     QueueFamilyIndices m_QueueFamilyIndices;
-    
     VkQueue m_GraphicsQueue = VK_NULL_HANDLE;
     VkQueue m_PresentQueue = VK_NULL_HANDLE;
     VkQueue m_TransferQueue = VK_NULL_HANDLE;
+
+    VkPhysicalDeviceProperties m_GPUProperties;
+    VkPhysicalDeviceFeatures m_GPUFeatures;
+    VkPhysicalDeviceMemoryProperties m_GPUMemoryProperties;
 
     void PickPhysicalDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface);
     void CreateLogicalDevice(const VkSurfaceKHR& InSurface);
 
     bool IsDeviceSuitable(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface);
     bool CheckDeviceExtensionSupport(const VkPhysicalDevice& InPhysicalDevice);
-    const char* GetVendorNameCString(uint32_t vendorID);
-    const char* GetDeviceTypeCString(VkPhysicalDeviceType deviceType);
     uint32_t RateDeviceSuitability(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface);
 };
 

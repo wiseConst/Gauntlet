@@ -5,15 +5,14 @@
 namespace Eclipse
 {
 
-	class Renderer
-	{
-	public:
-		Renderer() = delete;
-		~Renderer() = delete;
+class Renderer : private Uncopyable, private Unmovable
+{
+  public:
+    Renderer() = delete;
+    ~Renderer() = delete;
 
-		static void Init(RendererAPI::EAPI GraphicsAPI);
-		static void Shutdown();
+    static void Init(RendererAPI::EAPI GraphicsAPI);
+    static void Shutdown();
+};
 
-	};
-
-}
+}  // namespace Eclipse

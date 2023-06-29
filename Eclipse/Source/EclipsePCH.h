@@ -25,9 +25,4 @@
 #include <thread>
 #include <mutex>
 
-#ifdef ELS_PLATFORM_WINDOWS
-	#define NOMINMAX  
-	#include <Windows.h>
-#endif
-
 #include <Eclipse/Core/Log.h>

@@ -10,3 +10,4 @@ SpacesBeforeTrailingComments: 2
 AllowShortCaseLabelsOnASingleLine: true
 IndentCaseLabels: true
 AllowShortFunctionsOnASingleLine: Inline
+SortIncludes: false

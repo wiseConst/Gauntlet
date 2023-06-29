@@ -11,12 +11,14 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 IncludeDir = {}
 IncludeDir["GLFW"] = "Eclipse/vendor/GLFW/include"
 IncludeDir["VULKAN"] = "%{VULKAN_PATH}"
+IncludeDir["imgui"] = "Eclipse/vendor/imgui"
 IncludeDir["vma"] =  "Eclipse/vendor/vma/include"
 IncludeDir["stb"] =  "Eclipse/vendor/stb"
-IncludeDir["glm"] =  "Eclipse/vendor"
+IncludeDir["glm"] =  "Eclipse/vendor/glm"
 
 group "Dependencies"
     include "Eclipse/vendor/GLFW"
+    include "Eclipse/vendor/imgui"
     include "Eclipse/vendor/vma"
 group ""
 
@@ -32,6 +34,8 @@ project "Eclipse"
 
     pchheader("EclipsePCH.h")
     pchsource("Eclipse/Source/EclipsePCH.cpp")
+
+    flags {"MultiProcessorCompile"}
 
     files 
     {
@@ -99,7 +103,7 @@ project "Sandbox"
 
     links 
     {
-		"%{wks.name}"
+		"Eclipse"
     }
 
 

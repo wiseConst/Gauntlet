@@ -41,14 +41,16 @@ struct QueueFamilyIndices
         vkGetPhysicalDeviceQueueFamilyProperties(InPhysicalDevice, &QueueFamilyCount, QueueFamilies.data());
 
 #if LOG_VULKAN_INFO
-        LOG_INFO("    QueueFamilyCount:%u", QueueFamilyCount);
+        LOG_INFO("QueueFamilyCount:%u", QueueFamilyCount);
 #endif
+
+        // TODO: Sort out about queue families
 
         int32_t i = 0;
         for (const auto& QueueFamily : QueueFamilies)
         {
 #if LOG_VULKAN_INFO
-            LOG_TRACE(" [%d] queueFamily has {%u} queue(s) which supports operations:", i + 1, QueueFamily.queueCount);
+            LOG_TRACE(" [%d] queueFamily has (%u) queue(s) which supports operations:", i + 1, QueueFamily.queueCount);
 #endif
 
             if (QueueFamily.queueCount <= 0)
@@ -60,16 +62,19 @@ struct QueueFamilyIndices
             if (QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 Indices.SetGraphicsFamily(i);
+                LOG_TRACE("  GRAPHICS");
             }
 
             if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
             {
                 Indices.SetComputeFamily(i);
+                LOG_TRACE("  COMPUTE");
             }
 
             if (QueueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
             {
                 Indices.SetTransferFamily(i);
+                LOG_TRACE("  TRANSFER");
             }
 
             VkBool32 bPresentSupport{VK_FALSE};
@@ -81,6 +86,7 @@ struct QueueFamilyIndices
             if (bPresentSupport)
             {
                 Indices.SetPresentFamily(i);
+                LOG_TRACE("  PRESENT");
             }
 
             if (Indices.IsComplete()) break;

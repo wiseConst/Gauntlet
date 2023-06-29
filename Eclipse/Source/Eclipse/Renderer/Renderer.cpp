@@ -3,13 +3,11 @@
 
 namespace Eclipse
 {
-	void Renderer::Init(RendererAPI::EAPI GraphicsAPI)
-	{
-		RendererAPI::Init(GraphicsAPI);
-	}
-
-	void Renderer::Shutdown()
-	{
-	}
-
+void Renderer::Init(RendererAPI::EAPI GraphicsAPI)
+{
+    RendererAPI::Init(GraphicsAPI);
 }
+
+void Renderer::Shutdown() {}
+
+}  // namespace Eclipse

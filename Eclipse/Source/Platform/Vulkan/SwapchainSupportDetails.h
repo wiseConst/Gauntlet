@@ -11,7 +11,6 @@ struct SwapchainSupportDetails final
     static SwapchainSupportDetails QuerySwapchainSupportDetails(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface)
     {
         SwapchainSupportDetails Details = {};
-
         {
             const auto result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(InPhysicalDevice, InSurface, &Details.SurfaceCapabilities);
             ELS_ASSERT(result == VK_SUCCESS, "Failed to query surface capabilities.");
@@ -48,10 +47,18 @@ struct SwapchainSupportDetails final
 
     static VkSurfaceFormatKHR ChooseBestSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& AvailableFormats)
     {
+        // If Vulkan returned an unknown format, then just force what we want.
+        if (AvailableFormats.size() == 1 && AvailableFormats[0].format == VK_FORMAT_UNDEFINED)
+        {
+            VkSurfaceFormatKHR Format = {};
+            Format.format = VK_FORMAT_B8G8R8A8_SRGB;
+            Format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+            return Format;
+        }
+
         for (const auto& Format : AvailableFormats)
         {
-            if (Format.format == /*VK_FORMAT_B8G8R8A8_UNORM*/ VK_FORMAT_B8G8R8A8_SRGB &&
-                Format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            if (Format.format == VK_FORMAT_B8G8R8A8_SRGB && Format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 return Format;
             }
@@ -67,10 +74,7 @@ struct SwapchainSupportDetails final
 
         for (const auto& PresentMode : AvailablePresentModes)
         {
-            if (PresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
-            {
-                return PresentMode;
-            }
+            if (PresentMode == VK_PRESENT_MODE_MAILBOX_KHR) return PresentMode;  // Battery-drain mode on mobile devices
         }
 
         return VK_PRESENT_MODE_FIFO_KHR;
@@ -82,20 +86,17 @@ struct SwapchainSupportDetails final
         {
             return SurfaceCapabilities.currentExtent;
         }
-        else
-        {
-            int Width{0}, Height{0};
-            glfwGetFramebufferSize(window, &Width, &Height);
 
-            VkExtent2D ActualExtent = {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height)};
+        int32_t Width{0}, Height{0};
+        glfwGetFramebufferSize(window, &Width, &Height);
 
-            ActualExtent.width =
-                std::clamp(ActualExtent.width, SurfaceCapabilities.minImageExtent.width, SurfaceCapabilities.maxImageExtent.width);
-            ActualExtent.height =
-                std::clamp(ActualExtent.height, SurfaceCapabilities.minImageExtent.height, SurfaceCapabilities.maxImageExtent.height);
+        VkExtent2D ActualExtent = {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height)};
+        ActualExtent.width =
+            std::clamp(ActualExtent.width, SurfaceCapabilities.minImageExtent.width, SurfaceCapabilities.maxImageExtent.width);
+        ActualExtent.height =
+            std::clamp(ActualExtent.height, SurfaceCapabilities.minImageExtent.height, SurfaceCapabilities.maxImageExtent.height);
 
-            return ActualExtent;
-        }
+        return ActualExtent;
     }
 
   public:

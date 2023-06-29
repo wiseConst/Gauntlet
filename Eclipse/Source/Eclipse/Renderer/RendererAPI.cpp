@@ -3,5 +3,5 @@
 
 namespace Eclipse
 {
-	RendererAPI::EAPI RendererAPI::s_API = RendererAPI::EAPI::None;
+RendererAPI::EAPI RendererAPI::s_API = RendererAPI::EAPI::None;
 }

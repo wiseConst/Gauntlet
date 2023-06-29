@@ -21,14 +21,14 @@ bool WindowsInput::IsMouseButtonPressedImpl(int Button) const
 
 std::pair<int, int> WindowsInput::GetMousePositionImpl() const
 {
-    std::pair<int, int> MousePosition = {0,0};
+    std::pair<int, int> MousePosition = {0, 0};
     glfwGetWindowPos(GetNativeWindow(), &MousePosition.first, &MousePosition.second);
     return MousePosition;
 }
 
 int WindowsInput::GetMouseXImpl() const
 {
-    const auto [x,y] = GetMousePositionImpl();
+    const auto [x, y] = GetMousePositionImpl();
     return x;
 }
 
@@ -38,7 +38,8 @@ int WindowsInput::GetMouseYImpl() const
     return y;
 }
 
-void WindowsInput::DestroyImpl() {
+void WindowsInput::DestroyImpl()
+{
     delete Input::s_Instance;
 }
 

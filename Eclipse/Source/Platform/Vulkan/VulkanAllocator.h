@@ -1,0 +1,37 @@
+#pragma once
+
+#include "Eclipse/Core/Core.h"
+
+#define VK_NO_PROTOTYPES
+#include <vma/vk_mem_alloc.h>
+
+namespace Eclipse
+{
+
+class VulkanDevice;
+
+class VulkanAllocator final : private Uncopyable, private Unmovable
+{
+  public:
+    VulkanAllocator(const VkInstance& InInstance, const Scoped<VulkanDevice>& InDevice);
+    ~VulkanAllocator() = default;
+
+    VmaAllocation CreateImage(const VkImageCreateInfo& InImageCreateInfo, VkImage* InImage) const;
+    void DestroyImage(VkImage& InImage, VmaAllocation& InAllocation) const;
+
+    VmaAllocation CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer) const;
+    void DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const;
+
+    void* Map(VmaAllocation& InAllocation) const;
+    void Unmap(VmaAllocation& InAllocation) const;
+
+    void Destroy();
+
+  private:
+    VmaAllocator m_Allocator = VK_NULL_HANDLE;
+
+    static uint32_t m_AllocatedImages;
+    static uint32_t m_AllocatedBuffers;
+};
+
+}  // namespace Eclipse

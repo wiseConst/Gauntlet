@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Eclipse/Core/Core.h"
-#include "Eclipse/Core/Inherited.h"
 
 namespace Eclipse
 {
@@ -111,7 +110,7 @@ struct BufferElement
     size_t Offset;
 };
 
-class BufferLayout final : private Uncopyable, private Unmovable
+class BufferLayout final
 {
   public:
     BufferLayout() {}
@@ -153,7 +152,7 @@ class VertexBuffer : private Uncopyable, private Unmovable
     virtual ~VertexBuffer() = default;
 
     virtual const BufferLayout& GetLayout() const = 0;
-    virtual void SetLayout(const BufferLayout& layout) = 0;
+    virtual void SetLayout(const BufferLayout& InLayout) = 0;
 
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy() = 0;

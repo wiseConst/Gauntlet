@@ -6,10 +6,11 @@
 #include "Eclipse/Core/Core.h"
 #include "Eclipse/Renderer/Buffer.h"
 
+#include "VulkanCore.h"
+
 namespace Eclipse
 {
 #define LOG_VULKAN_INFO 0
-
 
 constexpr uint32_t ELS_VK_API_VERSION = VK_API_VERSION_1_3;
 constexpr uint32_t FRAMES_IN_FLIGHT = 2;
@@ -54,6 +55,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
+// TODO: Refacture these 2 functions using classes
 static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPool, const VkDevice& InDevice)
 {
     VkCommandBufferAllocateInfo AllocateInfo = {};
@@ -63,46 +65,32 @@ static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPoo
     AllocateInfo.commandBufferCount = 1;
 
     VkCommandBuffer CommandBuffer;
-    {
-        const auto result = vkAllocateCommandBuffers(InDevice, &AllocateInfo, &CommandBuffer);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to allocate command buffer for single time command!");
-    }
+    VK_CHECK(vkAllocateCommandBuffers(InDevice, &AllocateInfo, &CommandBuffer),
+             "Failed to allocate command buffer for single time command!");
 
     VkCommandBufferBeginInfo BeginInfo = {};
     BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    {
-        const auto result = vkBeginCommandBuffer(CommandBuffer, &BeginInfo);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to begin command buffer for single time command!");
-    }
+    VK_CHECK(vkBeginCommandBuffer(CommandBuffer, &BeginInfo), "Failed to begin command buffer for single time command!");
 
     return CommandBuffer;
 }
 
-static void EndSingleTimeCommands(const VkCommandBuffer& InCommandBuffer,const VkCommandPool& InCommandPool, const VkQueue& InQueue, const VkDevice& InDevice) {
-    {
-        const auto result = vkEndCommandBuffer(InCommandBuffer);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to end command buffer for single time command!");
-    }
-    
+static void EndSingleTimeCommands(const VkCommandBuffer& InCommandBuffer, const VkCommandPool& InCommandPool, const VkQueue& InQueue,
+                                  const VkDevice& InDevice)
+{
+    VK_CHECK(vkEndCommandBuffer(InCommandBuffer), "Failed to end command buffer for single time command!");
+
     VkSubmitInfo SubmitInfo = {};
     SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers = &InCommandBuffer;
-    
-    {
-        const auto result = vkQueueSubmit(InQueue, 1, &SubmitInfo,VK_NULL_HANDLE);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to submit command buffer to the queue!");
-    }
 
-    {
-        const auto result = vkQueueWaitIdle(InQueue);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to wait on queue submit!");
-    }
+    VK_CHECK(vkQueueSubmit(InQueue, 1, &SubmitInfo, VK_NULL_HANDLE), "Failed to submit command buffer to the queue!");
+    VK_CHECK(vkQueueWaitIdle(InQueue), "Failed to wait on queue submit!");
+
     vkFreeCommandBuffers(InDevice, InCommandPool, 1, &InCommandBuffer);
 }
-
 
 enum class EShaderFormat : uint8_t
 {
@@ -162,7 +150,8 @@ static VkVertexInputBindingDescription GetBindingDescription(uint32_t InBindingI
     return BindingDescription;
 }
 
-static VkVertexInputAttributeDescription GetAttributeDescription(uint32_t InBindingID, VkFormat InFormat, uint32_t InLocation, uint32_t InOffset)
+static VkVertexInputAttributeDescription GetAttributeDescription(uint32_t InBindingID, VkFormat InFormat, uint32_t InLocation,
+                                                                 uint32_t InOffset)
 {
     VkVertexInputAttributeDescription AttributeDescription = {};
     AttributeDescription.binding = InBindingID;
@@ -173,7 +162,9 @@ static VkVertexInputAttributeDescription GetAttributeDescription(uint32_t InBind
     return AttributeDescription;
 }
 
-static void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat, VkImageAspectFlags InAspectFlags)
+// TODO: ImageViewSpecification structure for subresourceRange?
+static void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
+                            VkImageAspectFlags InAspectFlags)
 {
     VkImageViewCreateInfo ImageViewCreateInfo = {};
     ImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -181,6 +172,9 @@ static void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, Vk
 
     ImageViewCreateInfo.image = InImage;
     ImageViewCreateInfo.format = InFormat;
+
+    // It determines what is affected by your image operation. (In example you are using this image for depth then you set
+    // VK_IMAGE_ASPECT_DEPTH_BIT)
     ImageViewCreateInfo.subresourceRange.aspectMask = InAspectFlags;
 
     ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
@@ -188,15 +182,36 @@ static void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, Vk
     ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
     ImageViewCreateInfo.subresourceRange.layerCount = 1;
 
-    ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    // We don't need to swizzle ( swap around ) any of the
+    // color channels
+    ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+    ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+    ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
 
+    VK_CHECK(vkCreateImageView(InDevice, &ImageViewCreateInfo, nullptr, InImageView), "Failed to create an image view!");
+}
+
+static VkFormat ChooseSupportedImageFormat(const VkPhysicalDevice& InDevice, const std::vector<VkFormat>& AvailableFormats,
+                                           VkImageTiling InImageTiling, VkFormatFeatureFlags InFormatFeatures)
+{
+    for (auto& Format : AvailableFormats)
     {
-        const auto result = vkCreateImageView(InDevice, &ImageViewCreateInfo, nullptr, InImageView);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to create an image view!");
+        VkFormatProperties FormatProps = {};
+        vkGetPhysicalDeviceFormatProperties(InDevice, Format, &FormatProps);
+
+        if (InImageTiling == VK_IMAGE_TILING_LINEAR && (FormatProps.linearTilingFeatures & InFormatFeatures) == InFormatFeatures)
+        {
+            return Format;
+        }
+        else if (InImageTiling == VK_IMAGE_TILING_OPTIMAL && (FormatProps.optimalTilingFeatures & InFormatFeatures) == InFormatFeatures)
+        {
+            return Format;
+        }
     }
+
+    ELS_ASSERT(false, "Failed to find a supported format!");
+    return VK_FORMAT_UNDEFINED;
 }
 
 }  // namespace Eclipse

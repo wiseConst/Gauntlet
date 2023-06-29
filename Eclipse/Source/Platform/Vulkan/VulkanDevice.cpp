@@ -6,6 +6,70 @@
 
 namespace Eclipse
 {
+static const char* GetVendorNameCString(uint32_t vendorID)
+{
+    switch (vendorID)
+    {
+        case 0x1002:
+        {
+            return "AMD";
+        }
+        case 0x1010:
+        {
+            return "ImgTec";
+        }
+        case 0x10DE:
+        {
+            return "NVIDIA";
+        }
+        case 0x13B5:
+        {
+            return "ARM";
+        }
+        case 0x5143:
+        {
+            return "Qualcomm";
+        }
+        case 0x8086:
+        {
+            return "INTEL";
+        }
+    }
+
+    ELS_ASSERT(false, "Unknown vendor!");
+    return nullptr;
+}
+
+static const char* GetDeviceTypeCString(VkPhysicalDeviceType deviceType)
+{
+    switch (deviceType)
+    {
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+        {
+            return "OTHER";
+        }
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        {
+            return "INTEGRATED_GPU";
+        }
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        {
+            return "DISCRETE_GPU";
+        }
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+        {
+            return "VIRTUAL_GPU";
+        }
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        {
+            return "CPU";
+        }
+    }
+
+    ELS_ASSERT(false, "Unknown device type!");
+    return nullptr;
+}
+
 VulkanDevice::VulkanDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface)
 {
     PickPhysicalDevice(InInstance, InSurface);
@@ -54,7 +118,7 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
 
 void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
 {
-    const float QueuePriority = 1.0f;  // [0.0,1.0]
+    const float QueuePriority = 1.0f;  // [0.0, 1.0]
     m_QueueFamilyIndices = QueueFamilyIndices::FindQueueFamilyIndices(InSurface, m_PhysicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos = {};
@@ -63,20 +127,18 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
 
     for (auto QueueFamily : UniqueQueueFamilies)
     {
-        VkDeviceQueueCreateInfo queueCI = {};
-        queueCI.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCI.pQueuePriorities = &QueuePriority;
-        queueCI.queueCount = 1;
-        queueCI.queueFamilyIndex = QueueFamily;
-        queueCI.pNext = nullptr;
-        QueueCreateInfos.push_back(queueCI);
+        VkDeviceQueueCreateInfo QueueCreateInfo = {};
+        QueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        QueueCreateInfo.pQueuePriorities = &QueuePriority;
+        QueueCreateInfo.queueCount = 1;
+        QueueCreateInfo.queueFamilyIndex = QueueFamily;
+        QueueCreateInfos.push_back(QueueCreateInfo);
     }
 
     VkDeviceCreateInfo deviceCI = {};
     deviceCI.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCI.pQueueCreateInfos = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
-    deviceCI.pNext = nullptr;
 
     VkPhysicalDeviceFeatures features = {};
     features.samplerAnisotropy = VK_TRUE;
@@ -92,13 +154,15 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
 
     {
         const auto result = vkCreateDevice(m_PhysicalDevice, &deviceCI, nullptr, &m_LogicalDevice);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to create logical device && queues!")
+        ELS_ASSERT(result == VK_SUCCESS, "Failed to create vulkan logical device && queues!")
     }
     volkLoadDevice(m_LogicalDevice);
 
     vkGetDeviceQueue(m_LogicalDevice, m_QueueFamilyIndices.GetGraphicsFamily(), 0, &m_GraphicsQueue);
     vkGetDeviceQueue(m_LogicalDevice, m_QueueFamilyIndices.GetPresentFamily(), 0, &m_PresentQueue);
     vkGetDeviceQueue(m_LogicalDevice, m_QueueFamilyIndices.GetTransferFamily(), 0, &m_TransferQueue);
+
+    ELS_ASSERT(m_GraphicsQueue && m_PresentQueue && m_TransferQueue, "Failed to retrieve queue handles!");
 
     /* BY VOLK IMPLEMENTATION
        1)  For applications that use just one VkDevice object, load device
@@ -195,70 +259,6 @@ bool VulkanDevice::IsDeviceSuitable(const VkPhysicalDevice& InPhysicalDevice, co
            bIsSwapchainAdequate;
 }
 
-const char* VulkanDevice::GetVendorNameCString(uint32_t vendorID)
-{
-    switch (vendorID)
-    {
-        case 0x1002:
-        {
-            return "AMD";
-        }
-        case 0x1010:
-        {
-            return "ImgTec";
-        }
-        case 0x10DE:
-        {
-            return "NVIDIA";
-        }
-        case 0x13B5:
-        {
-            return "ARM";
-        }
-        case 0x5143:
-        {
-            return "Qualcomm";
-        }
-        case 0x8086:
-        {
-            return "INTEL";
-        }
-    }
-
-    ELS_ASSERT(false, "Unknown vendor!");
-    return nullptr;
-}
-
-const char* VulkanDevice::GetDeviceTypeCString(VkPhysicalDeviceType deviceType)
-{
-    switch (deviceType)
-    {
-        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-        {
-            return "OTHER";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        {
-            return "INTEGRATED_GPU";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        {
-            return "DISCRETE_GPU";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-        {
-            return "VIRTUAL_GPU";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_CPU:
-        {
-            return "CPU";
-        }
-    }
-
-    ELS_ASSERT(false, "Unknown device type!");
-    return nullptr;
-}
-
 uint32_t VulkanDevice::RateDeviceSuitability(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface)
 {
     if (!IsDeviceSuitable(InPhysicalDevice, InSurface))
@@ -267,8 +267,8 @@ uint32_t VulkanDevice::RateDeviceSuitability(const VkPhysicalDevice& InPhysicalD
         return 0;
     }
 
-    uint32_t score = 0;
     // Discrete GPUs have a significant performance advantage
+    uint32_t score = 0;
     switch (m_GPUProperties.deviceType)
     {
         case VK_PHYSICAL_DEVICE_TYPE_OTHER:
