@@ -62,8 +62,11 @@ class VulkanCommandPool final : private Uncopyable, private Unmovable
     VulkanCommandPool() = delete;
     ~VulkanCommandPool() = default;
 
-    FORCEINLINE const auto& GetCommandBuffer(const uint32_t Index) const { return m_CommandBuffers[Index]; }
-    FORCEINLINE auto& GetCommandBuffer(const uint32_t Index) { return m_CommandBuffers[Index]; }
+    FORCEINLINE const auto& GetCommandBuffer(const uint32_t Index = 0) const { return m_CommandBuffers[Index]; }
+    FORCEINLINE auto& GetCommandBuffer(const uint32_t Index = 0) { return m_CommandBuffers[Index]; }
+
+    FORCEINLINE const auto& Get() const { return m_CommandPool; }
+    FORCEINLINE auto& Get() { return m_CommandPool; }
 
     void Destroy();
 

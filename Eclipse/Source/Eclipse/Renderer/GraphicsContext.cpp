@@ -7,6 +7,7 @@
 namespace Eclipse
 {
 GraphicsContext* GraphicsContext::s_Context = nullptr;
+GraphicsContext::RenderStats GraphicsContext::s_RenderStats;
 
 GraphicsContext* GraphicsContext::Create(Scoped<Window>& InWindow)
 {

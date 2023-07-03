@@ -38,11 +38,9 @@ class Mesh
         m_VertexBuffer.reset(VertexBuffer::Create(VertexBufferInfo));
     }
 
-    template <typename T> 
-    FORCEINLINE const Ref<T> GetVertexBuffer() const { return std::static_pointer_cast<T>(m_VertexBuffer); }
+    template <typename T> FORCEINLINE const Ref<T> GetVertexBuffer() const { return std::static_pointer_cast<T>(m_VertexBuffer); }
 
-    template <typename T> 
-    FORCEINLINE Ref<T> GetVertexBuffer() { return std::static_pointer_cast<T>(m_VertexBuffer); }
+    template <typename T> FORCEINLINE Ref<T> GetVertexBuffer() { return std::static_pointer_cast<T>(m_VertexBuffer); }
 
     FORCEINLINE const auto& GetVertexBuffer() const { return m_VertexBuffer; }
     FORCEINLINE auto& GetVertexBuffer() { return m_VertexBuffer; }

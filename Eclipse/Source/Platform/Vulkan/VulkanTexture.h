@@ -61,6 +61,8 @@ class VulkanImage final
     FORCEINLINE const auto& GetFormat() const { return m_ImageSpecification.Format; }
     FORCEINLINE auto& GetFormat() { return m_ImageSpecification.Format; }
 
+    FORCEINLINE void SetExtent(const VkExtent3D& InExtent) { m_ImageSpecification.Extent = InExtent; }
+
     static VkFormat ChooseSupportedImageFormat(const VkPhysicalDevice& InDevice, const std::vector<VkFormat>& AvailableFormats,
                                                VkImageTiling InImageTiling, VkFormatFeatureFlags InFormatFeatures);
 

@@ -51,14 +51,17 @@ struct SwapchainSupportDetails final
         if (AvailableFormats.size() == 1 && AvailableFormats[0].format == VK_FORMAT_UNDEFINED)
         {
             VkSurfaceFormatKHR Format = {};
-            Format.format = VK_FORMAT_B8G8R8A8_SRGB;
+            // ImGui uses VK_FORMAT_B8G8R8A8_UNORM
+            Format.format = VK_FORMAT_B8G8R8A8_UNORM;  // VK_FORMAT_B8G8R8A8_SRGB;
             Format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
             return Format;
         }
 
         for (const auto& Format : AvailableFormats)
         {
-            if (Format.format == VK_FORMAT_B8G8R8A8_SRGB && Format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            // ImGui uses VK_FORMAT_B8G8R8A8_UNORM
+            if (Format.format == VK_FORMAT_B8G8R8A8_UNORM /*VK_FORMAT_B8G8R8A8_SRGB*/ &&
+                Format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 return Format;
             }

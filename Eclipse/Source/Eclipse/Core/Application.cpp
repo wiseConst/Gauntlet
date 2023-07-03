@@ -6,7 +6,9 @@
 
 #include "Eclipse/Renderer/GraphicsContext.h"
 #include "Eclipse/Renderer/Renderer.h"
+#include "ThreadPool.h"
 #include "Input.h"
+#include "Eclipse/ImGui/ImGuiLayer.h"
 
 namespace Eclipse
 {
@@ -28,6 +30,8 @@ Application::Application(const ApplicationSpecification& InApplicationSpec) : m_
     m_ThreadPool.reset(new ThreadPool());
 
     Input::Init();
+    m_ImGuiLayer.reset(ImGuiLayer::Create());
+    m_ImGuiLayer->OnAttach();
 }
 
 void Application::Run()
@@ -42,9 +46,19 @@ void Application::Run()
         if (!m_Window->IsMinimized())
         {
             m_Context->BeginRender();
+            m_ImGuiLayer->BeginRender();
 
             m_LayerQueue.OnUpdate(m_Timestep);
 
+            static bool bShowRenderStats = true;
+            if (bShowRenderStats)
+            {
+                ImGui::Begin("RenderStats Window", &bShowRenderStats);
+                ImGui::Text("CPU wait time: %0.4fms", m_Context->GetStats().CPUWaitTime);
+                ImGui::End();
+            }
+
+            m_ImGuiLayer->EndRender();
             m_Context->EndRender();
         }
 
@@ -67,7 +81,9 @@ Application::~Application()
     Input::Destroy();
     Renderer::Shutdown();
 
+    m_ImGuiLayer->OnDetach();
     m_Context->Destroy();
+    s_Instance = nullptr;
 }
 
 }  // namespace Eclipse

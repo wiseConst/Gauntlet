@@ -5,6 +5,7 @@
 #include <volk/volk.h>
 
 #include "SwapchainSupportDetails.h"
+#include "VulkanTexture.h"
 
 // TODO: Add struct SwapchainSpecification to make it configurable
 
@@ -31,7 +32,8 @@ class VulkanDevice;
 class VulkanSwapchain final : private Uncopyable, private Unmovable
 {
   public:
-    VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface);
+    VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface,
+                    const ImageSpecification& InImageSpecification = ImageSpecification());
     ~VulkanSwapchain() = default;
 
     FORCEINLINE bool IsValid() const { return m_Swapchain && m_SwapchainImages.size() > 0; }
@@ -48,6 +50,12 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     FORCEINLINE auto GetCurrentFrameIndex() const { return m_FrameIndex; }
     FORCEINLINE auto GetImageCount() const { return m_SwapchainImageCount; }
 
+    FORCEINLINE const auto& GetDepthFormat() const { return m_DepthImage->GetFormat(); }
+    FORCEINLINE auto& GetDepthFormat() { return m_DepthImage->GetFormat(); }
+
+    FORCEINLINE const auto& GetDepthImageView() const { return m_DepthImage->GetView(); }
+    FORCEINLINE auto& GetDepthImageView() { return m_DepthImage->GetView(); }
+
     bool TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence = VK_NULL_HANDLE);
     bool TryPresentImage(const VkSemaphore& InRenderFinishedSemaphore);
 
@@ -58,6 +66,7 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
     VkSwapchainKHR m_OldSwapchain = VK_NULL_HANDLE;
 
+    Scoped<VulkanImage> m_DepthImage;
     Scoped<VulkanDevice>& m_Device;
     VkSurfaceKHR& m_Surface;
 

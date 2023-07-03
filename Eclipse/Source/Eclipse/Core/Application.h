@@ -5,14 +5,15 @@
 #include "Eclipse/Event/Event.h"
 #include "Eclipse/Renderer/RendererAPI.h"
 
-#include "ThreadPool.h"
 #include "Eclipse/Layer/LayerQueue.h"
 #include "Timestep.h"
 
 namespace Eclipse
 {
 class Window;
+class ThreadPool;
 class GraphicsContext;
+class ImGuiLayer;
 
 struct ApplicationSpecification final
 {
@@ -57,6 +58,8 @@ class Application : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetWindow() const { return m_Window; }
     FORCEINLINE auto& GetWindow() { return m_Window; }
 
+    FORCEINLINE void PushLayer(Layer* InLayer) { m_LayerQueue.Enqueue(InLayer); }
+
   private:
     static Application* s_Instance;
     ApplicationSpecification m_AppInfo;
@@ -64,6 +67,7 @@ class Application : private Uncopyable, private Unmovable
     Scoped<Window> m_Window;
     Scoped<GraphicsContext> m_Context;
     Scoped<ThreadPool> m_ThreadPool;
+    Scoped<ImGuiLayer> m_ImGuiLayer;
 
     LayerQueue m_LayerQueue;
     Timestep m_Timestep;

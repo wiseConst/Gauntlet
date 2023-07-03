@@ -12,17 +12,14 @@ namespace Eclipse
 
 VulkanImage::VulkanImage(const ImageSpecification& InImageSpecification) : m_ImageSpecification(InImageSpecification)
 {
-    Create();
 }
 
 void VulkanImage::Create()
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
-    ELS_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
-    m_ImageSpecification.Extent.width = Context.GetSwapchain()->GetImageExtent().width;
-    m_ImageSpecification.Extent.height = Context.GetSwapchain()->GetImageExtent().height;
+    m_ImageSpecification.Extent = m_ImageSpecification.Extent;
 
     ELS_ASSERT(m_ImageSpecification.ImageViewFormat != VK_FORMAT_UNDEFINED, "Image view format is undefined!");
     ELS_ASSERT(m_ImageSpecification.Format != VK_FORMAT_UNDEFINED, "Image format is undefined!");

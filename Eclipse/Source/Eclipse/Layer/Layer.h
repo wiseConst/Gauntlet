@@ -7,6 +7,7 @@ namespace Eclipse
 class Layer : private Uncopyable, private Unmovable
 {
   public:
+    Layer() = default;
     Layer(const std::string_view& InLayerName) : m_LayerName(InLayerName) {}
     virtual ~Layer() = default;
 

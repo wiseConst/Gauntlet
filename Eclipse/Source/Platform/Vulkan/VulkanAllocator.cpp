@@ -2,6 +2,7 @@
 #include "VulkanAllocator.h"
 
 #include "VulkanDevice.h"
+#include "VulkanTexture.h"
 
 namespace Eclipse
 {

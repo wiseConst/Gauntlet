@@ -20,7 +20,7 @@
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
 
-#ifdef ELS_PLATFORM_WINDOWS && 0
+#ifdef ELS_PLATFORM_WINDOWS
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif
 #include <GLFW/glfw3.h>
@@ -40,7 +40,13 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
 
     m_Device.reset(new VulkanDevice(m_Instance, m_Surface));
     m_Allocator.reset(new VulkanAllocator(m_Instance, m_Device));
-    m_Swapchain.reset(new VulkanSwapchain(m_Device, m_Surface));
+
+    ImageSpecification DepthImageSpec = {};
+    DepthImageSpec.Format = VK_FORMAT_D32_SFLOAT;
+    DepthImageSpec.Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    DepthImageSpec.ImageViewAspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+    DepthImageSpec.ImageViewFormat = VK_FORMAT_D32_SFLOAT;
+    m_Swapchain.reset(new VulkanSwapchain(m_Device, m_Surface, DepthImageSpec));
 
     {
         CommandPoolSpecification CommandPoolSpec = {};
@@ -59,14 +65,6 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
     }
 
     CreateSyncObjects();
-
-    ImageSpecification ImageSpec = {};
-    ImageSpec.Format = VK_FORMAT_D32_SFLOAT;
-    ImageSpec.Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    ImageSpec.ImageViewAspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
-    ImageSpec.ImageViewFormat = VK_FORMAT_D32_SFLOAT;
-
-    m_DepthImage.reset(new VulkanImage(ImageSpec));
 
     CreateGlobalRenderPass();
     Ref<VulkanShader> VertexShader(new VulkanShader("Resources/Shaders/FlatColor.vert.spv"));
@@ -360,9 +358,16 @@ void VulkanContext::CreateSyncObjects()
     FenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    vkCreateFence(m_Device->GetLogicalDevice(), &FenceCreateInfo, nullptr, &m_InFlightFence);
-    vkCreateSemaphore(m_Device->GetLogicalDevice(), &SemaphoreCreateInfo, nullptr, &m_RenderFinishedSemaphore);
-    vkCreateSemaphore(m_Device->GetLogicalDevice(), &SemaphoreCreateInfo, nullptr, &m_ImageAcquiredSemaphore);
+    m_InFlightFences.resize(FRAMES_IN_FLIGHT);
+    m_RenderFinishedSemaphores.resize(FRAMES_IN_FLIGHT);
+    m_ImageAcquiredSemaphores.resize(FRAMES_IN_FLIGHT);
+
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
+    {
+        vkCreateFence(m_Device->GetLogicalDevice(), &FenceCreateInfo, nullptr, &m_InFlightFences[i]);
+        vkCreateSemaphore(m_Device->GetLogicalDevice(), &SemaphoreCreateInfo, nullptr, &m_RenderFinishedSemaphores[i]);
+        vkCreateSemaphore(m_Device->GetLogicalDevice(), &SemaphoreCreateInfo, nullptr, &m_ImageAcquiredSemaphores[i]);
+    }
 }
 
 void VulkanContext::CreateGlobalRenderPass()
@@ -379,7 +384,7 @@ void VulkanContext::CreateGlobalRenderPass()
         Attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         Attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        Attachments[1].format = m_DepthImage->GetFormat();
+        Attachments[1].format = m_Swapchain->GetDepthFormat();
         Attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
         Attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         Attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -428,11 +433,12 @@ void VulkanContext::CreateGlobalRenderPass()
         Dependencies[1].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
         Dependencies[1].srcAccessMask = 0;
         Dependencies[1].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        // This dependency tells Vulkan that the depth attachment in a renderpass cannot be used before previous renderpasses have finished using it.
+        // This dependency tells Vulkan that the depth attachment in a renderpass cannot be used before previous renderpasses have finished
+        // using it.
 
         RenderPassSpec.Dependencies = Dependencies;
 
-        RenderPassSpec.DepthImageView = m_DepthImage->GetView();
+        RenderPassSpec.DepthImageView = m_Swapchain->GetDepthImageView();
         m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
     }
 }
@@ -442,32 +448,34 @@ void VulkanContext::RecreateSwapchain()
     if (m_Window->IsMinimized()) return;  // m_Window->HandleMinimized(); // Blocking loop
     m_Device->WaitDeviceOnFinish();
 
-    m_DepthImage->Destroy();
     m_GlobalRenderPass->Destroy();
     m_Swapchain->Destroy();
 
     m_Swapchain->Create();
-    m_DepthImage->Create();
     CreateGlobalRenderPass();
 
-    LOG_WARN("Swapchain recreated, new window size: (%u, %u).",m_Swapchain->GetImageExtent().width,m_Swapchain->GetImageExtent().height);
+    LOG_WARN("Swapchain recreated, new window size: (%u, %u).", m_Swapchain->GetImageExtent().width, m_Swapchain->GetImageExtent().height);
 }
 
 void VulkanContext::BeginRender()
 {
-    // Firstly wait for GPU to finish drawing therefore set fence to signaled.
-    VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFence, VK_TRUE, UINT64_MAX), "Failed to wait for fences!");
+    m_StartCPUWaitTime = (float)glfwGetTime();
 
-    const auto Result = m_Swapchain->TryAcquireNextImage(m_ImageAcquiredSemaphore);
-    if (!Result)
+    // Firstly wait for GPU to finish drawing therefore set fence to signaled.
+    VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
+             "Failed to wait for fences!");
+
+    const auto bIsAcquired = m_Swapchain->TryAcquireNextImage(m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()]);
+    if (!bIsAcquired)
     {
         RecreateSwapchain();  // Recreate and return, next cycle will be correct image extent.
         return;
     }
     // Next set fence state to unsignaled.
-    VK_CHECK(vkResetFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFence), "Failed to reset fences!");
+    VK_CHECK(vkResetFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
+             "Failed to reset fences!");
 
-    auto& CommandBuffer = m_GraphicsCommandPool->GetCommandBuffer(0);
+    auto& CommandBuffer = m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
     CommandBuffer.BeginRecording();
 
     std::vector<VkClearValue> ClearValues(2);
@@ -500,11 +508,11 @@ void VulkanContext::BeginRender()
     CommandBuffer.BindPushConstants(m_TrianglePipeline->GetLayout(), m_TrianglePipeline->GetPushConstantsShaderStageFlags(), 0,
                                     m_TrianglePipeline->GetPushConstantsSize(), &PushConstants);
     CommandBuffer.Draw(m_MonkeyMesh->GetVertexBuffer()->GetCount() /*m_TriangleVertexBuffer->GetCount()*/);
-}  // namespace Eclipse
+}
 
 void VulkanContext::EndRender()
 {
-    auto& CommandBuffer = m_GraphicsCommandPool->GetCommandBuffer(0);
+    auto& CommandBuffer = m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
     m_GlobalRenderPass->End(CommandBuffer.Get());
 
     CommandBuffer.EndRecording();
@@ -516,19 +524,26 @@ void VulkanContext::EndRender()
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers = &CommandBuffer.Get();
     SubmitInfo.waitSemaphoreCount = 1;
-    SubmitInfo.pWaitSemaphores = &m_ImageAcquiredSemaphore;  // Wait for semaphore signal until we acuired image from the swapchain
+    SubmitInfo.pWaitSemaphores = &m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Wait for semaphore signal until we
+                                                                                                   // acuired image from the swapchain
     SubmitInfo.signalSemaphoreCount = 1;
-    SubmitInfo.pSignalSemaphores = &m_RenderFinishedSemaphore;  // Signal semaphore when render finished
+    SubmitInfo.pSignalSemaphores =
+        &m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Signal semaphore when render finished
     SubmitInfo.pWaitDstStageMask = WaitStages.data();
 
     // Submit command buffer to the queue and execute it.
     // InFlightFence will now block until the graphic commands finish execution
-    VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &SubmitInfo, m_InFlightFence), "Failed to submit command buffes to the queue.");
+    VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &SubmitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
+             "Failed to submit command buffes to the queue.");
+
+    // CPU wait time calculation
+    const float CpuWaitTime = (float)glfwGetTime() - m_StartCPUWaitTime;
+    s_RenderStats.CPUWaitTime = CpuWaitTime * 1000.0f;
 }
 
 void VulkanContext::SwapBuffers()
 {
-    const auto bIsPresentedSuccessfully = m_Swapchain->TryPresentImage(m_RenderFinishedSemaphore);
+    const auto bIsPresentedSuccessfully = m_Swapchain->TryPresentImage(m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()]);
     if (!bIsPresentedSuccessfully)
     {
         RecreateSwapchain();
@@ -539,12 +554,10 @@ void VulkanContext::SetVSync(bool IsVSync)
 {
     m_Device->WaitDeviceOnFinish();
 
-    m_DepthImage->Destroy();
     m_TrianglePipeline->Destroy();
     m_Swapchain->Destroy();
 
     m_Swapchain->Create();
-    m_DepthImage->Create();
     m_TrianglePipeline->Create();
 }
 
@@ -556,14 +569,16 @@ void VulkanContext::Destroy()
     m_TriangleVertexBuffer->Destroy();
     m_TrianglePipeline->Destroy();
 
-    m_DepthImage->Destroy();
     m_MonkeyMesh->Destroy();
 
     m_GlobalRenderPass->Destroy();
 
-    vkDestroyFence(m_Device->GetLogicalDevice(), m_InFlightFence, nullptr);
-    vkDestroySemaphore(m_Device->GetLogicalDevice(), m_RenderFinishedSemaphore, nullptr);
-    vkDestroySemaphore(m_Device->GetLogicalDevice(), m_ImageAcquiredSemaphore, nullptr);
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
+    {
+        vkDestroyFence(m_Device->GetLogicalDevice(), m_InFlightFences[i], nullptr);
+        vkDestroySemaphore(m_Device->GetLogicalDevice(), m_RenderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(m_Device->GetLogicalDevice(), m_ImageAcquiredSemaphores[i], nullptr);
+    }
 
     m_TransferCommandPool->Destroy();
     m_GraphicsCommandPool->Destroy();

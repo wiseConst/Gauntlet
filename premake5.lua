@@ -50,6 +50,7 @@ project "Eclipse"
         "%{prj.name}/vendor",
         "%{prj.name}/Source",
         "%{IncludeDir.GLFW}",
+        "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.stb}",
         "%{IncludeDir.VULKAN}/Include",

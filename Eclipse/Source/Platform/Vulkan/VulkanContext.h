@@ -21,7 +21,6 @@ class VulkanShader;
 class VulkanPipeline;
 class VulkanVertexBuffer;
 class VulkanMesh;
-class VulkanImage;
 
 class VulkanContext final : public GraphicsContext
 {
@@ -34,6 +33,9 @@ class VulkanContext final : public GraphicsContext
     void SwapBuffers() final override;
     void SetVSync(bool IsVSync) final override;
     void Destroy() final override;
+
+    FORCEINLINE const auto& GetInstance() const { return m_Instance; }
+    FORCEINLINE auto& GetInstance() { return m_Instance; }
 
     FORCEINLINE const auto& GetDevice() const { return m_Device; }
     FORCEINLINE auto& GetDevice() { return m_Device; }
@@ -49,6 +51,9 @@ class VulkanContext final : public GraphicsContext
 
     FORCEINLINE const auto& GetGraphicsCommandPool() const { return m_GraphicsCommandPool; }
     FORCEINLINE auto& GetGraphicsCommandPool() { return m_GraphicsCommandPool; }
+
+    FORCEINLINE const auto& GetGlobalRenderPass() const { return m_GlobalRenderPass; }
+    FORCEINLINE auto& GetGlobalRenderPass() { return m_GlobalRenderPass; }
 
     FORCEINLINE VkBool32 IsDestroying() const { return m_bIsDestroying; }
 
@@ -71,14 +76,15 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanVertexBuffer> m_TriangleVertexBuffer;
 
     Scoped<VulkanMesh> m_MonkeyMesh;
-    Scoped<VulkanImage> m_DepthImage;
 
     // Sync objects GPU-GPU.
-    VkSemaphore m_RenderFinishedSemaphore;
-    VkSemaphore m_ImageAcquiredSemaphore;
+    std::vector<VkSemaphore> m_RenderFinishedSemaphores;
+    std::vector<VkSemaphore> m_ImageAcquiredSemaphores;
 
     // Sync objects CPU-GPU
-    VkFence m_InFlightFence;
+    std::vector<VkFence> m_InFlightFences;
+
+    float m_StartCPUWaitTime = 0.0f;
 
     void CreateInstance();
     void CreateDebugMessenger();

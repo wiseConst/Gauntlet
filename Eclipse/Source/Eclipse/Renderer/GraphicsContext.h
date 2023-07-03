@@ -2,8 +2,6 @@
 
 #include <Eclipse/Core/Core.h>
 
-// TODO: Mb I should something like RenderStats? CPU wait time? GPU? SYNC?
-
 namespace Eclipse
 {
 
@@ -26,11 +24,18 @@ class GraphicsContext : private Uncopyable, private Unmovable
     static GraphicsContext* Create(Scoped<Window>& InWindow);
 
     FORCEINLINE static auto& Get() { return *s_Context; }
+    
+    FORCEINLINE static auto& GetStats() { return s_RenderStats; }
 
   protected:
     Scoped<Window>& m_Window;
 
     static GraphicsContext* s_Context;
+
+    static struct RenderStats
+    {
+        float CPUWaitTime = 0.0f;
+    } s_RenderStats;
 };
 
 }  // namespace Eclipse

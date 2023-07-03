@@ -13,8 +13,14 @@
 
 namespace Eclipse
 {
-VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface) : m_Device(InDevice), m_Surface(InSurface)
+VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface, const ImageSpecification& InImageSpecification)
+    : m_Device(InDevice), m_Surface(InSurface), m_DepthImage(nullptr)
 {
+    // By impl
+    if (InImageSpecification.ImageViewAspectFlags != VK_IMAGE_ASPECT_NONE)
+    {
+        m_DepthImage.reset(new VulkanImage(InImageSpecification));
+    }
     Create();
 }
 
@@ -45,7 +51,7 @@ bool VulkanSwapchain::TryPresentImage(const VkSemaphore& InRenderFinishedSemapho
     const auto result = vkQueuePresentKHR(m_Device->GetPresentQueue(), &PresentInfo);
     if (result == VK_SUCCESS)
     {
-        ++m_FrameIndex;
+        m_FrameIndex = (m_FrameIndex + 1) % FRAMES_IN_FLIGHT;
         return true;
     }
 
@@ -126,6 +132,10 @@ void VulkanSwapchain::Create()
         VulkanImage::CreateImageView(m_Device->GetLogicalDevice(), m_SwapchainImages[i], &m_SwapchainImageViews[i],
                                      m_SwapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     }
+
+    // Depth image creation
+    m_DepthImage->SetExtent({m_SwapchainImageExtent.width, m_SwapchainImageExtent.height, 1});
+    if (m_DepthImage) m_DepthImage->Create();
 }
 
 void VulkanSwapchain::Destroy()
@@ -134,6 +144,8 @@ void VulkanSwapchain::Destroy()
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     m_OldSwapchain = m_Swapchain;
+
+    if (m_DepthImage) m_DepthImage->Destroy();
 
     if (Context.IsDestroying())
     {

@@ -21,7 +21,7 @@ class Texture
     virtual ~Texture();
 
     static stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
-                               ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
+                                      ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
 
     static FORCEINLINE void UnloadImage(stbi_uc* InPixels) { stbi_image_free(InPixels); }
 

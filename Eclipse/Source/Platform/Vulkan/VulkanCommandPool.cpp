@@ -35,7 +35,7 @@ void VulkanCommandPool::AllocateCommandBuffers()
     auto& Context = (VulkanContext&)VulkanContext::Get();
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    m_CommandBuffers.resize(1);
+    m_CommandBuffers.resize(FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo CommandBufferAllocateInfo = {};
     CommandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
