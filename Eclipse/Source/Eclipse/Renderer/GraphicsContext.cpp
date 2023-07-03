@@ -6,7 +6,6 @@
 
 namespace Eclipse
 {
-// Should not be [delete], it's just the pointer of "Application.h" m_Context.
 GraphicsContext* GraphicsContext::s_Context = nullptr;
 
 GraphicsContext* GraphicsContext::Create(Scoped<Window>& InWindow)

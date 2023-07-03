@@ -30,14 +30,6 @@ Application::Application(const ApplicationSpecification& InApplicationSpec) : m_
     Input::Init();
 }
 
-Application::~Application()
-{
-    Input::Destroy();
-    Renderer::Shutdown();
-
-    m_Context->Destroy();
-}
-
 void Application::Run()
 {
     LOG_INFO("Application running!");
@@ -45,7 +37,7 @@ void Application::Run()
     while (m_Window->IsRunning())
     {
         m_Timestep.Update();
-        LOG_INFO("dt: %fms", m_Timestep.GetDeltaTime());
+        // LOG_INFO("dt: %fms", m_Timestep.GetDeltaTime());
 
         if (!m_Window->IsMinimized())
         {
@@ -67,7 +59,15 @@ void Application::OnEvent(Event& e)
         m_Window->SetIsRunning(false);
     }
 
-    LOG_TRACE("%s", e.Format().c_str());
+    // LOG_TRACE("%s", e.Format().c_str());
+}
+
+Application::~Application()
+{
+    Input::Destroy();
+    Renderer::Shutdown();
+
+    m_Context->Destroy();
 }
 
 }  // namespace Eclipse

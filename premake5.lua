@@ -11,10 +11,11 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 IncludeDir = {}
 IncludeDir["GLFW"] = "Eclipse/vendor/GLFW/include"
 IncludeDir["VULKAN"] = "%{VULKAN_PATH}"
-IncludeDir["imgui"] = "Eclipse/vendor/imgui"
+IncludeDir["ImGui"] = "Eclipse/vendor/imgui"
 IncludeDir["vma"] =  "Eclipse/vendor/vma/include"
 IncludeDir["stb"] =  "Eclipse/vendor/stb"
 IncludeDir["glm"] =  "Eclipse/vendor/glm"
+IncludeDir["tinyobjloader"] = "Eclipse/vendor/tinyobjloader"
 
 group "Dependencies"
     include "Eclipse/vendor/GLFW"
@@ -52,12 +53,14 @@ project "Eclipse"
         "%{IncludeDir.glm}",
         "%{IncludeDir.stb}",
         "%{IncludeDir.VULKAN}/Include",
-        "%{IncludeDir.vma}/Include"
+        "%{IncludeDir.vma}/Include",
+        "%{IncludeDir.tinyobjloader}"
     }
 
     links
     {
         "GLFW",
+        "ImGui",
         "VulkanMemoryAllocator"
     }
 

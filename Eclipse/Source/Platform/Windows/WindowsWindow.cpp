@@ -164,8 +164,11 @@ void WindowsWindow::OnUpdate()
 {
     glfwPollEvents();
 
-    auto& Context = GraphicsContext::Get();
-    Context.SwapBuffers();
+    if (!IsMinimized())
+    {
+        auto& Context = GraphicsContext::Get();
+        Context.SwapBuffers();
+    }
 
     if (Input::IsKeyPressed(ELS_KEY_ESCAPE))
     {
@@ -179,8 +182,9 @@ void WindowsWindow::HandleMinimized()
     glfwGetFramebufferSize(m_Window, &Width, &Height);
     while (Width == 0 || Height == 0)
     {
-        glfwWaitEvents();
+        if (!IsRunning()) return;
 
+        glfwWaitEvents();
         glfwGetFramebufferSize(m_Window, &Width, &Height);
     }
 }
@@ -190,7 +194,7 @@ void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
     int32_t Width = 0;
     int32_t Height = 0;
     int32_t Channels = 0;
-    stbi_uc* Pixels = LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
+    stbi_uc* Pixels = Texture::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
 
     GLFWimage IconImage = {};
     IconImage.pixels = Pixels;
@@ -198,7 +202,7 @@ void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
     IconImage.height = Height;
 
     glfwSetWindowIcon(m_Window, 1, &IconImage);
-    UnloadImage(Pixels);
+    Texture::UnloadImage(Pixels);
 }
 
 void WindowsWindow::SetVSync(bool IsVsync)

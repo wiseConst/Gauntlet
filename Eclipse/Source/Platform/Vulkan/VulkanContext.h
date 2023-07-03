@@ -15,7 +15,13 @@ class VulkanDevice;
 class VulkanAllocator;
 class VulkanSwapchain;
 class VulkanCommandPool;
+
 class VulkanRenderPass;
+class VulkanShader;
+class VulkanPipeline;
+class VulkanVertexBuffer;
+class VulkanMesh;
+class VulkanImage;
 
 class VulkanContext final : public GraphicsContext
 {
@@ -44,6 +50,8 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetGraphicsCommandPool() const { return m_GraphicsCommandPool; }
     FORCEINLINE auto& GetGraphicsCommandPool() { return m_GraphicsCommandPool; }
 
+    FORCEINLINE VkBool32 IsDestroying() const { return m_bIsDestroying; }
+
   private:
     VkInstance m_Instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
@@ -55,7 +63,15 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanCommandPool> m_TransferCommandPool;
     Scoped<VulkanCommandPool> m_GraphicsCommandPool;
 
+    VkBool32 m_bIsDestroying{VK_FALSE};
+
     Scoped<VulkanRenderPass> m_GlobalRenderPass;
+
+    Scoped<VulkanPipeline> m_TrianglePipeline;
+    Scoped<VulkanVertexBuffer> m_TriangleVertexBuffer;
+
+    Scoped<VulkanMesh> m_MonkeyMesh;
+    Scoped<VulkanImage> m_DepthImage;
 
     // Sync objects GPU-GPU.
     VkSemaphore m_RenderFinishedSemaphore;
@@ -70,6 +86,7 @@ class VulkanContext final : public GraphicsContext
     void CreateSyncObjects();
     void CreateGlobalRenderPass();
 
+    // TODO: Refactor this func
     void RecreateSwapchain();
 
     bool CheckVulkanAPISupport() const;

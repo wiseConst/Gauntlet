@@ -53,16 +53,13 @@ void VulkanRenderPass::CreateFramebuffers()
     ELS_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
     m_Framebuffers.resize(Context.GetSwapchain()->GetImageCount());
 
-    std::vector<VkImageView> Attachments;
+    std::vector<VkImageView> Attachments(1);
     if (m_RenderPassSpecification.DepthImageView)
     {
         Attachments.resize(2);
         Attachments[1] = m_RenderPassSpecification.DepthImageView;
     }
-    else
-        Attachments.resize(1);
 
-    // TOTHINK: FramebufferSpec? for layers
     // VkFrameBuffer is what maps attachments to a renderpass. That's really all it is.
     VkFramebufferCreateInfo FramebufferCreateInfo = {};
     FramebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

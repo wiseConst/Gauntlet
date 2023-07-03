@@ -3,12 +3,12 @@
 
 namespace Eclipse
 {
-stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
+stbi_uc* Texture::LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
                            ELoadImageType InLoadImageType)
 
 {
     ELS_ASSERT(InFilePath.data(), "File path is zero! %s", __FUNCTION__);
-
+    
     int DesiredChannels = 0;
     switch (InLoadImageType)
     {
@@ -35,7 +35,7 @@ stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth
     }
 
     auto Pixels = stbi_load(InFilePath.data(), OutWidth, OutHeight, OutChannels, DesiredChannels);
-    ELS_ASSERT(Pixels && OutWidth && OutHeight && OutChannels, "Failed to load image! %s", __FUNCTION__);
+    ELS_ASSERT(Pixels && OutWidth && OutHeight && OutChannels, "Failed to load image!");
 
     return Pixels;
 }

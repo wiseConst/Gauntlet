@@ -14,12 +14,18 @@ enum class ELoadImageType : uint8_t
     RGB_ALPHA,
 };
 
-stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
-                           ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
-
-FORCEINLINE void UnloadImage(stbi_uc* InPixels)
+class Texture
 {
-    stbi_image_free(InPixels);
-}
+  public:
+    Texture() = delete;
+    virtual ~Texture();
+
+    static stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
+                               ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
+
+    static FORCEINLINE void UnloadImage(stbi_uc* InPixels) { stbi_image_free(InPixels); }
+
+  private:
+};
 
 }  // namespace Eclipse

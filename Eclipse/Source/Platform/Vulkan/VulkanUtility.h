@@ -92,55 +92,25 @@ static void EndSingleTimeCommands(const VkCommandBuffer& InCommandBuffer, const 
     vkFreeCommandBuffers(InDevice, InCommandPool, 1, &InCommandBuffer);
 }
 
-enum class EShaderFormat : uint8_t
+static VkFormat EclipseFormatToVulkan(EShaderDataType InFormat)
 {
-    FLOAT = 0,
-    vec2,
-    vec3,
-    vec4,
-    ivec2,
-    uvec4,
-    DOUBLE
-};
-
-static EShaderFormat ConvertShaderDataTypeToHumanFormat(EShaderDataType InType)
-{
-    switch (InType)
-    {
-        case EShaderDataType::Float: return EShaderFormat::FLOAT;
-        case EShaderDataType::Float2: return EShaderFormat::vec2;
-        case EShaderDataType::Float3: return EShaderFormat::vec3;
-        case EShaderDataType::Float4: return EShaderFormat::vec4;
-        case EShaderDataType::Int2:
-            return EShaderFormat::ivec2;
-            // case EShaderDataType::Int4: return uvec4;
-            // case EShaderDataType::DOUBLE: DOUBLE;
-    }
-
-    ELS_ASSERT(false, "Unknown ShaderDataType!");
-    return EShaderFormat::FLOAT;
-}
-
-static VkFormat ConvertHumanFormatToVulkan(EShaderFormat InFormat)
-{
-
     switch (InFormat)
     {
-        case EShaderFormat::FLOAT: return VK_FORMAT_R32_SFLOAT;
-        case EShaderFormat::vec2: return VK_FORMAT_R32G32_SFLOAT;
-        case EShaderFormat::vec3: return VK_FORMAT_R32G32B32_SFLOAT;
-        case EShaderFormat::vec4: return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case EShaderFormat::ivec2: return VK_FORMAT_R32G32_SINT;
-        case EShaderFormat::uvec4: return VK_FORMAT_R32G32B32A32_UINT;
-        case EShaderFormat::DOUBLE: VK_FORMAT_R64_SFLOAT;
+        case EShaderDataType::FLOAT: return VK_FORMAT_R32_SFLOAT;
+        case EShaderDataType::Vec2: return VK_FORMAT_R32G32_SFLOAT;
+        case EShaderDataType::Vec3: return VK_FORMAT_R32G32B32_SFLOAT;
+        case EShaderDataType::Vec4: return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case EShaderDataType::Ivec2: return VK_FORMAT_R32G32_SINT;
+        case EShaderDataType::Uvec4: return VK_FORMAT_R32G32B32A32_UINT;
+        case EShaderDataType::Double: VK_FORMAT_R64_SFLOAT;
     }
 
     ELS_ASSERT(false, "Unknown format!");
     return VK_FORMAT_UNDEFINED;
 }
 
-static VkVertexInputBindingDescription GetBindingDescription(uint32_t InBindingID, uint32_t InStride,
-                                                             VkVertexInputRate InInputRate = VK_VERTEX_INPUT_RATE_VERTEX)
+static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t InBindingID, uint32_t InStride,
+                                                                   VkVertexInputRate InInputRate = VK_VERTEX_INPUT_RATE_VERTEX)
 {
     VkVertexInputBindingDescription BindingDescription = {};
     BindingDescription.stride = InStride;
@@ -150,8 +120,8 @@ static VkVertexInputBindingDescription GetBindingDescription(uint32_t InBindingI
     return BindingDescription;
 }
 
-static VkVertexInputAttributeDescription GetAttributeDescription(uint32_t InBindingID, VkFormat InFormat, uint32_t InLocation,
-                                                                 uint32_t InOffset)
+static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t InBindingID, VkFormat InFormat, uint32_t InLocation,
+                                                                       uint32_t InOffset)
 {
     VkVertexInputAttributeDescription AttributeDescription = {};
     AttributeDescription.binding = InBindingID;
@@ -160,58 +130,6 @@ static VkVertexInputAttributeDescription GetAttributeDescription(uint32_t InBind
     AttributeDescription.offset = InOffset;
 
     return AttributeDescription;
-}
-
-// TODO: ImageViewSpecification structure for subresourceRange?
-static void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
-                            VkImageAspectFlags InAspectFlags)
-{
-    VkImageViewCreateInfo ImageViewCreateInfo = {};
-    ImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    ImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-
-    ImageViewCreateInfo.image = InImage;
-    ImageViewCreateInfo.format = InFormat;
-
-    // It determines what is affected by your image operation. (In example you are using this image for depth then you set
-    // VK_IMAGE_ASPECT_DEPTH_BIT)
-    ImageViewCreateInfo.subresourceRange.aspectMask = InAspectFlags;
-
-    ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-    ImageViewCreateInfo.subresourceRange.levelCount = 1;
-    ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount = 1;
-
-    // We don't need to swizzle ( swap around ) any of the
-    // color channels
-    ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-    ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-    ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-    ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-
-    VK_CHECK(vkCreateImageView(InDevice, &ImageViewCreateInfo, nullptr, InImageView), "Failed to create an image view!");
-}
-
-static VkFormat ChooseSupportedImageFormat(const VkPhysicalDevice& InDevice, const std::vector<VkFormat>& AvailableFormats,
-                                           VkImageTiling InImageTiling, VkFormatFeatureFlags InFormatFeatures)
-{
-    for (auto& Format : AvailableFormats)
-    {
-        VkFormatProperties FormatProps = {};
-        vkGetPhysicalDeviceFormatProperties(InDevice, Format, &FormatProps);
-
-        if (InImageTiling == VK_IMAGE_TILING_LINEAR && (FormatProps.linearTilingFeatures & InFormatFeatures) == InFormatFeatures)
-        {
-            return Format;
-        }
-        else if (InImageTiling == VK_IMAGE_TILING_OPTIMAL && (FormatProps.optimalTilingFeatures & InFormatFeatures) == InFormatFeatures)
-        {
-            return Format;
-        }
-    }
-
-    ELS_ASSERT(false, "Failed to find a supported format!");
-    return VK_FORMAT_UNDEFINED;
 }
 
 }  // namespace Eclipse

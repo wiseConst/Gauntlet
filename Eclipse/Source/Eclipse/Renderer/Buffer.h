@@ -5,11 +5,13 @@
 namespace Eclipse
 {
 
-enum class EBufferUsageFlags
+enum class EBufferUsage
 {
     VERTEX_BUFFER = 0,
     INDEX_BUFFER,
     UNIFORM_BUFFER,
+    STAGING_BUFFER,  // Means transfer source
+    TRANSFER_DST,
     NONE
 };
 
@@ -18,19 +20,19 @@ struct BufferInfo
   public:
     BufferInfo()
     {
-        Usage = EBufferUsageFlags::NONE;
+        Usage = EBufferUsage::NONE;
         Size = 0;
         Count = 0;
         Data = nullptr;
     }
 
-    BufferInfo(EBufferUsageFlags usage, uint64_t size, uint64_t count, void* data) : Usage(usage), Size(size), Count(count), Data(data) {}
+    BufferInfo(EBufferUsage usage, uint64_t size, uint64_t count, void* data) : Usage(usage), Size(size), Count(count), Data(data) {}
 
     virtual ~BufferInfo() = default;
 
-    EBufferUsageFlags Usage;
-    uint64_t Size;
-    uint64_t Count;
+    EBufferUsage Usage;
+    size_t Size;  // Size in bytes
+    size_t Count;
 
     void* Data = nullptr;
 };
@@ -38,16 +40,18 @@ struct BufferInfo
 enum class EShaderDataType : uint8_t
 {
     None = 0,
-    Float,
-    Float2,
-    Float3,
-    Float4,
+    FLOAT,
+    Vec2,
+    Vec3,
+    Vec4,
     Mat3,
     Mat4,
     Int,
-    Int2,
-    Int3,
-    Int4,
+    Ivec2,
+    Ivec3,
+    Ivec4,
+    Uvec4,
+    Double,
     Bool
 };
 
@@ -55,16 +59,18 @@ static uint32_t ShaderDataTypeSize(EShaderDataType InType)
 {
     switch (InType)
     {
-        case EShaderDataType::Float: return 4;
-        case EShaderDataType::Float2: return 4 * 2;
-        case EShaderDataType::Float3: return 4 * 3;
-        case EShaderDataType::Float4: return 4 * 4;
+        case EShaderDataType::FLOAT: return 4;
+        case EShaderDataType::Vec2: return 4 * 2;
+        case EShaderDataType::Vec3: return 4 * 3;
+        case EShaderDataType::Vec4: return 4 * 4;
         case EShaderDataType::Mat3: return 4 * 3 * 3;
         case EShaderDataType::Mat4: return 4 * 4 * 4;
         case EShaderDataType::Int: return 4;
-        case EShaderDataType::Int2: return 4 * 2;
-        case EShaderDataType::Int3: return 4 * 3;
-        case EShaderDataType::Int4: return 4 * 4;
+        case EShaderDataType::Ivec2: return 4 * 2;
+        case EShaderDataType::Ivec3: return 4 * 3;
+        case EShaderDataType::Ivec4: return 4 * 4;
+        case EShaderDataType::Uvec4: return 4 * 4;
+        case EShaderDataType::Double: return 8;
         case EShaderDataType::Bool: return 1;
     }
 
@@ -77,7 +83,7 @@ struct BufferElement
   public:
     BufferElement() = default;
 
-    BufferElement(EShaderDataType InType, const std::string& InName)
+    BufferElement(EShaderDataType InType, const std::string_view& InName)
         : Name(InName), Type(InType), Size(ShaderDataTypeSize(InType)), Offset(0)
     {
     }
@@ -86,16 +92,18 @@ struct BufferElement
     {
         switch (Type)
         {
-            case EShaderDataType::Float: return 1;
-            case EShaderDataType::Float2: return 2;
-            case EShaderDataType::Float3: return 3;
-            case EShaderDataType::Float4: return 4;
+            case EShaderDataType::FLOAT: return 1;
+            case EShaderDataType::Vec2: return 2;
+            case EShaderDataType::Vec3: return 3;
+            case EShaderDataType::Vec4: return 4;
             case EShaderDataType::Mat3: return 3 * 3;
             case EShaderDataType::Mat4: return 4 * 4;
             case EShaderDataType::Int: return 1;
-            case EShaderDataType::Int2: return 2;
-            case EShaderDataType::Int3: return 3;
-            case EShaderDataType::Int4: return 4;
+            case EShaderDataType::Ivec2: return 2;
+            case EShaderDataType::Ivec3: return 3;
+            case EShaderDataType::Ivec4: return 4;
+            case EShaderDataType::Uvec4: return 4;
+            case EShaderDataType::Double: return 1;
             case EShaderDataType::Bool: return 1;
         }
 
@@ -104,7 +112,7 @@ struct BufferElement
     }
 
   public:
-    std::string Name;
+    std::string_view Name;
     EShaderDataType Type;
     uint32_t Size;
     size_t Offset;
@@ -113,9 +121,13 @@ struct BufferElement
 class BufferLayout final
 {
   public:
-    BufferLayout() {}
+    BufferLayout() : m_Stride(0) {}
+    ~BufferLayout() = default;
 
-    BufferLayout(const std::initializer_list<BufferElement>& InElements) : m_Elements(InElements) { CalculateOffsetsAndStride(); }
+    BufferLayout(const std::initializer_list<BufferElement>& InElements) : m_Elements(InElements), m_Stride(0)
+    {
+        CalculateOffsetsAndStride();
+    }
 
     FORCEINLINE uint32_t GetStride() const { return m_Stride; }
     FORCEINLINE const std::vector<BufferElement>& GetElements() const { return m_Elements; }
@@ -128,15 +140,15 @@ class BufferLayout final
 
   private:
     std::vector<BufferElement> m_Elements;
-    uint32_t m_Stride = 0;
+    uint32_t m_Stride;
 
     void CalculateOffsetsAndStride()
     {
         m_Stride = 0;
-        for (auto& element : m_Elements)
+        for (auto& Element : m_Elements)
         {
-            element.Offset = m_Stride;
-            m_Stride += element.Size;
+            Element.Offset = m_Stride;
+            m_Stride += Element.Size;
         }
     }
 };

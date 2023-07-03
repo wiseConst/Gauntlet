@@ -13,29 +13,6 @@ VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<Vulk
     VmaVulkanFunctions vmaVulkanFunctions = {};
     vmaVulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
     vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-    vmaVulkanFunctions.vkAllocateMemory = vkAllocateMemory;
-    vmaVulkanFunctions.vkBindBufferMemory = vkBindBufferMemory;
-    vmaVulkanFunctions.vkBindBufferMemory2KHR = vkBindBufferMemory2KHR;
-    vmaVulkanFunctions.vkBindImageMemory = vkBindImageMemory;
-    vmaVulkanFunctions.vkBindImageMemory2KHR = vkBindImageMemory2KHR;
-    vmaVulkanFunctions.vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements;
-    vmaVulkanFunctions.vkGetDeviceBufferMemoryRequirements = vkGetDeviceBufferMemoryRequirements;
-    vmaVulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2KHR;
-    vmaVulkanFunctions.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2KHR;
-    vmaVulkanFunctions.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2KHR;
-    vmaVulkanFunctions.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
-    vmaVulkanFunctions.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
-    vmaVulkanFunctions.vkAllocateMemory = vkAllocateMemory;
-    vmaVulkanFunctions.vkMapMemory = vkMapMemory;
-    vmaVulkanFunctions.vkFreeMemory = vkFreeMemory;
-    vmaVulkanFunctions.vkUnmapMemory = vkUnmapMemory;
-    vmaVulkanFunctions.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
-    vmaVulkanFunctions.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
-    vmaVulkanFunctions.vkCreateBuffer = vkCreateBuffer;
-    vmaVulkanFunctions.vkDestroyBuffer = vkDestroyBuffer;
-    vmaVulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
-    vmaVulkanFunctions.vkCreateImage = vkCreateImage;
-    vmaVulkanFunctions.vkDestroyImage = vkDestroyImage;
 
     VmaAllocatorCreateInfo AllocatorCreateInfo = {};
     AllocatorCreateInfo.instance = InInstance;
@@ -54,7 +31,8 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreat
 {
     VmaAllocationCreateInfo AllocationCreateInfo = {};
     AllocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    // AllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    AllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    AllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     VmaAllocation Allocation = {};
     const auto result = vmaCreateImage(m_Allocator, &InImageCreateInfo, &AllocationCreateInfo, InImage, &Allocation, nullptr);
@@ -75,9 +53,14 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
 {
     VmaAllocationCreateInfo AllocationCreateInfo = {};
     AllocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    // AllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-    VmaAllocation Allocation = {};
+    // if (InBufferCreateInfo.usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) // Staging buffer case
+    //{
+    AllocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    AllocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    //}
+
+    VmaAllocation Allocation = VK_NULL_HANDLE;
     const auto result = vmaCreateBuffer(m_Allocator, &InBufferCreateInfo, &AllocationCreateInfo, InBuffer, &Allocation, nullptr);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create buffer via VMA!");
 

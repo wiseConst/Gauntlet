@@ -62,19 +62,25 @@ struct QueueFamilyIndices
             if (QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 Indices.SetGraphicsFamily(i);
+#if LOG_VULKAN_INFO
                 LOG_TRACE("  GRAPHICS");
+#endif
             }
 
             if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
             {
                 Indices.SetComputeFamily(i);
+#if LOG_VULKAN_INFO
                 LOG_TRACE("  COMPUTE");
+#endif
             }
 
             if (QueueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
             {
                 Indices.SetTransferFamily(i);
+#if LOG_VULKAN_INFO
                 LOG_TRACE("  TRANSFER");
+#endif
             }
 
             VkBool32 bPresentSupport{VK_FALSE};
@@ -86,7 +92,9 @@ struct QueueFamilyIndices
             if (bPresentSupport)
             {
                 Indices.SetPresentFamily(i);
+#if LOG_VULKAN_INFO
                 LOG_TRACE("  PRESENT");
+#endif
             }
 
             if (Indices.IsComplete()) break;

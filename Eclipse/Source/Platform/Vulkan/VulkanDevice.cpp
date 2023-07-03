@@ -76,11 +76,6 @@ VulkanDevice::VulkanDevice(const VkInstance& InInstance, const VkSurfaceKHR& InS
     CreateLogicalDevice(InSurface);
 }
 
-void VulkanDevice::Destroy()
-{
-    vkDestroyDevice(m_LogicalDevice, nullptr);
-}
-
 void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface)
 {
     uint32_t GPUsCount = 0;
@@ -96,34 +91,32 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
     }
 
     LOG_INFO("Available GPUs: %u", GPUsCount);
-
-    std::multimap<uint32_t, VkPhysicalDevice> Candidates;
-    for (const auto& PhysDevice : PhysicalDevices)
+    std::multimap<uint32_t, GPUInfo> Candidates;
+    for (const auto& PhysicalDevice : PhysicalDevices)
     {
-        const uint32_t Score = RateDeviceSuitability(PhysDevice, InSurface);
-        Candidates.insert(std::make_pair(Score, PhysDevice));
+        GPUInfo CurrentGPU = {};
+        CurrentGPU.PhysicalDevice = PhysicalDevice;
+
+        const uint32_t Score = RateDeviceSuitability(CurrentGPU, InSurface);
+        Candidates.insert(std::make_pair(Score, CurrentGPU));
     }
 
     if (Candidates.rbegin()->first > 0)
     {
-        m_PhysicalDevice = Candidates.rbegin()->second;
+        m_GPUInfo = Candidates.rbegin()->second;
     }
-    ELS_ASSERT(m_PhysicalDevice, "Failed to find suitable GPU");
-
-    vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_GPUProperties);
-    vkGetPhysicalDeviceFeatures(m_PhysicalDevice, &m_GPUFeatures);
-    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &m_GPUMemoryProperties);
-    LOG_INFO("Chosen GPU: %s", m_GPUProperties.deviceName);
+    ELS_ASSERT(m_GPUInfo.PhysicalDevice, "Failed to find suitable GPU");
+    LOG_INFO("Chosen GPU: %s", m_GPUInfo.GPUProperties.deviceName);
 }
 
 void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
 {
     const float QueuePriority = 1.0f;  // [0.0, 1.0]
-    m_QueueFamilyIndices = QueueFamilyIndices::FindQueueFamilyIndices(InSurface, m_PhysicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos = {};
-    std::set<uint32_t> UniqueQueueFamilies{m_QueueFamilyIndices.GetGraphicsFamily(), m_QueueFamilyIndices.GetPresentFamily(),
-                                           m_QueueFamilyIndices.GetTransferFamily()};
+    std::set<uint32_t> UniqueQueueFamilies{m_GPUInfo.QueueFamilyIndices.GetGraphicsFamily(),
+                                           m_GPUInfo.QueueFamilyIndices.GetPresentFamily(),
+                                           m_GPUInfo.QueueFamilyIndices.GetTransferFamily()};
 
     for (auto QueueFamily : UniqueQueueFamilies)
     {
@@ -153,16 +146,16 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     deviceCI.ppEnabledLayerNames = nullptr;
 
     {
-        const auto result = vkCreateDevice(m_PhysicalDevice, &deviceCI, nullptr, &m_LogicalDevice);
+        const auto result = vkCreateDevice(m_GPUInfo.PhysicalDevice, &deviceCI, nullptr, &m_GPUInfo.LogicalDevice);
         ELS_ASSERT(result == VK_SUCCESS, "Failed to create vulkan logical device && queues!")
     }
-    volkLoadDevice(m_LogicalDevice);
+    volkLoadDevice(m_GPUInfo.LogicalDevice);
 
-    vkGetDeviceQueue(m_LogicalDevice, m_QueueFamilyIndices.GetGraphicsFamily(), 0, &m_GraphicsQueue);
-    vkGetDeviceQueue(m_LogicalDevice, m_QueueFamilyIndices.GetPresentFamily(), 0, &m_PresentQueue);
-    vkGetDeviceQueue(m_LogicalDevice, m_QueueFamilyIndices.GetTransferFamily(), 0, &m_TransferQueue);
+    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetGraphicsFamily(), 0, &m_GPUInfo.GraphicsQueue);
+    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetPresentFamily(), 0, &m_GPUInfo.PresentQueue);
+    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetTransferFamily(), 0, &m_GPUInfo.TransferQueue);
 
-    ELS_ASSERT(m_GraphicsQueue && m_PresentQueue && m_TransferQueue, "Failed to retrieve queue handles!");
+    ELS_ASSERT(m_GPUInfo.GraphicsQueue && m_GPUInfo.PresentQueue && m_GPUInfo.TransferQueue, "Failed to retrieve queue handles!");
 
     /* BY VOLK IMPLEMENTATION
        1)  For applications that use just one VkDevice object, load device
@@ -175,93 +168,9 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
      */
 }
 
-bool VulkanDevice::IsDeviceSuitable(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface)
+uint32_t VulkanDevice::RateDeviceSuitability(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSurface)
 {
-    // Query GPU properties(device name, limits, etc..)
-    vkGetPhysicalDeviceProperties(InPhysicalDevice, &m_GPUProperties);
-
-    // Query GPU features(geometry shader support, multiViewport support)
-    vkGetPhysicalDeviceFeatures(InPhysicalDevice, &m_GPUFeatures);
-
-    // Query GPU memory properties
-    vkGetPhysicalDeviceMemoryProperties(InPhysicalDevice, &m_GPUMemoryProperties);
-
-    VkPhysicalDeviceDriverProperties driverProps = {};
-    driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
-
-    VkPhysicalDeviceProperties2 gpuProps = {};
-    gpuProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    gpuProps.pNext = &driverProps;
-    vkGetPhysicalDeviceProperties2(InPhysicalDevice, &gpuProps);
-
-#if LOG_VULKAN_INFO
-    LOG_INFO("GPU info:");
-    LOG_TRACE(" Renderer: %s", m_GPUProperties.deviceName);
-    LOG_TRACE(" Vendor: %s/%u", GetVendorNameCString(m_GPUProperties.vendorID), m_GPUProperties.vendorID);
-    LOG_TRACE(" %s %s", driverProps.driverName, driverProps.driverInfo);
-    LOG_TRACE(" API Version %u.%u.%u", VK_API_VERSION_MAJOR(m_GPUProperties.apiVersion), VK_API_VERSION_MINOR(m_GPUProperties.apiVersion),
-              VK_API_VERSION_PATCH(m_GPUProperties.apiVersion));
-    LOG_INFO(" Device Type: %s", GetDeviceTypeCString(m_GPUProperties.deviceType));
-    LOG_INFO(" Max Push Constants Size(depends on gpu): %u", m_GPUProperties.limits.maxPushConstantsSize);
-    LOG_INFO(" Max memory allocations: %u", m_GPUProperties.limits.maxMemoryAllocationCount);
-    LOG_INFO(" Max sampler allocations: %u", m_GPUProperties.limits.maxSamplerAllocationCount);
-
-    LOG_INFO(" Memory types: %u", m_GPUMemoryProperties.memoryTypeCount);
-    for (uint32_t i = 0; i < m_GPUMemoryProperties.memoryTypeCount; ++i)
-    {
-        LOG_INFO("  HeapIndex: %u", m_GPUMemoryProperties.memoryTypes[i].heapIndex);
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) LOG_INFO("    DEVICE_LOCAL_BIT");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) LOG_INFO("    HOST_VISIBLE_BIT");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) LOG_INFO("    HOST_COHERENT_BIT");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) LOG_INFO("    HOST_CACHED_BIT");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
-            LOG_INFO("    LAZILY_ALLOCATED_BIT");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) LOG_INFO("    PROTECTED_BIT");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD)
-            LOG_INFO("    DEVICE_COHERENT_BIT_AMD");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD)
-            LOG_INFO("    UNCACHED_BIT_AMD");
-
-        if (m_GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV)
-            LOG_INFO("    RDMA_CAPABLE_BIT_NV");
-    }
-
-    LOG_INFO(" Memory heaps: %u", m_GPUMemoryProperties.memoryHeapCount);
-    for (uint32_t i = 0; i < m_GPUMemoryProperties.memoryHeapCount; ++i)
-    {
-        LOG_INFO("  Size: %u MB", m_GPUMemoryProperties.memoryHeaps[i].size / 1024 / 1024);
-
-        if (m_GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) LOG_INFO("    HEAP_DEVICE_LOCAL_BIT");
-
-        if (m_GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) LOG_INFO("    HEAP_MULTI_INSTANCE_BIT");
-    }
-#endif
-
-    QueueFamilyIndices indices = QueueFamilyIndices::FindQueueFamilyIndices(InSurface, InPhysicalDevice);
-
-    bool bIsSwapchainAdequate = false;
-    const bool bIsDeviceExtensionsSupported = CheckDeviceExtensionSupport(InPhysicalDevice);
-    if (bIsDeviceExtensionsSupported)
-    {
-        SwapchainSupportDetails Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(InPhysicalDevice, InSurface);
-        bIsSwapchainAdequate = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
-    }
-
-    return m_GPUFeatures.samplerAnisotropy && m_GPUFeatures.geometryShader && indices.IsComplete() && bIsDeviceExtensionsSupported &&
-           bIsSwapchainAdequate;
-}
-
-uint32_t VulkanDevice::RateDeviceSuitability(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface)
-{
-    if (!IsDeviceSuitable(InPhysicalDevice, InSurface))
+    if (!IsDeviceSuitable(InGPUInfo, InSurface))
     {
         LOG_WARN("GPU above is not suitable");
         return 0;
@@ -269,7 +178,7 @@ uint32_t VulkanDevice::RateDeviceSuitability(const VkPhysicalDevice& InPhysicalD
 
     // Discrete GPUs have a significant performance advantage
     uint32_t score = 0;
-    switch (m_GPUProperties.deviceType)
+    switch (InGPUInfo.GPUProperties.deviceType)
     {
         case VK_PHYSICAL_DEVICE_TYPE_OTHER:
         {
@@ -299,14 +208,107 @@ uint32_t VulkanDevice::RateDeviceSuitability(const VkPhysicalDevice& InPhysicalD
     }
 
     // Maximum possible size of textures affects graphics quality
-    score += m_GPUProperties.limits.maxImageDimension2D;
+    score += InGPUInfo.GPUProperties.limits.maxImageDimension2D;
 
-    score += m_GPUProperties.limits.maxViewports;
+    score += InGPUInfo.GPUProperties.limits.maxViewports;
 
     // Maximum size of fast(-accessible) uniform data in shaders.
-    score += m_GPUProperties.limits.maxPushConstantsSize;
+    score += InGPUInfo.GPUProperties.limits.maxPushConstantsSize;
 
     return score;
+}
+
+bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSurface)
+{
+    // Query GPU properties(device name, limits, etc..)
+    vkGetPhysicalDeviceProperties(InGPUInfo.PhysicalDevice, &InGPUInfo.GPUProperties);
+
+    // Query GPU features(geometry shader support, multiViewport support)
+    vkGetPhysicalDeviceFeatures(InGPUInfo.PhysicalDevice, &InGPUInfo.GPUFeatures);
+
+    // Query GPU memory properties
+    vkGetPhysicalDeviceMemoryProperties(InGPUInfo.PhysicalDevice, &InGPUInfo.GPUMemoryProperties);
+
+    VkPhysicalDeviceDriverProperties driverProps = {};
+    driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+
+    VkPhysicalDeviceProperties2 gpuProps = {};
+    gpuProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    gpuProps.pNext = &driverProps;
+    vkGetPhysicalDeviceProperties2(InGPUInfo.PhysicalDevice, &gpuProps);
+
+#if LOG_VULKAN_INFO
+    LOG_INFO("GPU info:");
+    LOG_TRACE(" Renderer: %s", InGPUInfo.GPUProperties.deviceName);
+    LOG_TRACE(" Vendor: %s/%u", GetVendorNameCString(InGPUInfo.GPUProperties.vendorID), InGPUInfo.GPUProperties.vendorID);
+    LOG_TRACE(" %s %s", driverProps.driverName, driverProps.driverInfo);
+    LOG_TRACE(" API Version %u.%u.%u", VK_API_VERSION_MAJOR(InGPUInfo.GPUProperties.apiVersion),
+              VK_API_VERSION_MINOR(InGPUInfo.GPUProperties.apiVersion), VK_API_VERSION_PATCH(InGPUInfo.GPUProperties.apiVersion));
+    LOG_INFO(" Device Type: %s", GetDeviceTypeCString(InGPUInfo.GPUProperties.deviceType));
+    LOG_INFO(" Max Push Constants Size(depends on gpu): %u", InGPUInfo.GPUProperties.limits.maxPushConstantsSize);
+    LOG_INFO(" Max Sampler Anisotropy %u", InGPUInfo.GPUProperties.limits.maxSamplerAnisotropy);
+    LOG_INFO(" Max Sampler Allocations: %u", InGPUInfo.GPUProperties.limits.maxSamplerAllocationCount);
+    LOG_INFO(" Min Uniform Buffer Offset Alignment: %u", InGPUInfo.GPUProperties.limits.minUniformBufferOffsetAlignment);
+    LOG_INFO(" Min Memory Map Alignment: %u", InGPUInfo.GPUProperties.limits.minMemoryMapAlignment);
+    LOG_INFO(" Min Storage Buffer Offset Alignment: %u", InGPUInfo.GPUProperties.limits.minStorageBufferOffsetAlignment);
+    LOG_INFO(" Max Memory Allocations: %u", InGPUInfo.GPUProperties.limits.maxMemoryAllocationCount);
+
+    LOG_INFO(" Memory types: %u", InGPUInfo.GPUMemoryProperties.memoryTypeCount);
+    for (uint32_t i = 0; i < InGPUInfo.GPUMemoryProperties.memoryTypeCount; ++i)
+    {
+        LOG_INFO("  HeapIndex: %u", InGPUInfo.GPUMemoryProperties.memoryTypes[i].heapIndex);
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            LOG_INFO("    DEVICE_LOCAL_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+            LOG_INFO("    HOST_VISIBLE_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+            LOG_INFO("    HOST_COHERENT_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+            LOG_INFO("    HOST_CACHED_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
+            LOG_INFO("    LAZILY_ALLOCATED_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) LOG_INFO("    PROTECTED_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD)
+            LOG_INFO("    DEVICE_COHERENT_BIT_AMD");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD)
+            LOG_INFO("    UNCACHED_BIT_AMD");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV)
+            LOG_INFO("    RDMA_CAPABLE_BIT_NV");
+    }
+
+    LOG_INFO(" Memory heaps: %u", InGPUInfo.GPUMemoryProperties.memoryHeapCount);
+    for (uint32_t i = 0; i < InGPUInfo.GPUMemoryProperties.memoryHeapCount; ++i)
+    {
+        LOG_INFO("  Size: %u MB", InGPUInfo.GPUMemoryProperties.memoryHeaps[i].size / 1024 / 1024);
+
+        if (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) LOG_INFO("    HEAP_DEVICE_LOCAL_BIT");
+
+        if (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) LOG_INFO("    HEAP_MULTI_INSTANCE_BIT");
+    }
+#endif
+
+    QueueFamilyIndices Indices = QueueFamilyIndices::FindQueueFamilyIndices(InSurface, InGPUInfo.PhysicalDevice);
+    InGPUInfo.QueueFamilyIndices = Indices;
+
+    bool bIsSwapchainAdequate = false;
+    const bool bIsDeviceExtensionsSupported = CheckDeviceExtensionSupport(InGPUInfo.PhysicalDevice);
+    if (bIsDeviceExtensionsSupported)
+    {
+        SwapchainSupportDetails Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(InGPUInfo.PhysicalDevice, InSurface);
+        bIsSwapchainAdequate = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
+    }
+
+    return InGPUInfo.GPUFeatures.samplerAnisotropy && InGPUInfo.GPUFeatures.geometryShader && Indices.IsComplete() &&
+           bIsDeviceExtensionsSupported && bIsSwapchainAdequate;
 }
 
 bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& InPhysicalDevice)
@@ -326,10 +328,17 @@ bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& InPhysica
     std::set<std::string> RequiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
     for (const auto& Ext : AvailableExtensions)
     {
+        if (RequiredExtensions.empty()) return true;
+
         RequiredExtensions.erase(Ext.extensionName);
     }
 
     return RequiredExtensions.empty();
+}
+
+void VulkanDevice::Destroy()
+{
+    vkDestroyDevice(m_GPUInfo.LogicalDevice, nullptr);
 }
 
 }  // namespace Eclipse

@@ -1,0 +1,1 @@
+![Eclipse](./Resources/EclipseLogo.jpg)

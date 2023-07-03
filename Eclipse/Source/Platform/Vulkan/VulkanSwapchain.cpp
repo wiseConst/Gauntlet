@@ -3,6 +3,8 @@
 
 #include "VulkanCore.h"
 #include "VulkanDevice.h"
+#include "VulkanContext.h"
+#include "VulkanTexture.h"
 
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
@@ -14,7 +16,6 @@ namespace Eclipse
 VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface) : m_Device(InDevice), m_Surface(InSurface)
 {
     Create();
-    LOG_INFO("Vulkan swapchain created!");
 }
 
 bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence)
@@ -22,6 +23,11 @@ bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSema
     const auto result =
         vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain, UINT64_MAX, InImageAcquiredSemaphore, InFence, &m_ImageIndex);
     if (result == VK_SUCCESS) return true;
+
+    if (result != VK_SUBOPTIMAL_KHR || result != VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        ELS_ASSERT(false, "Failed to acquire image from the swapchain! Result is: %s", GetStringVulkanResult(result));
+    }
 
     return false;
 }
@@ -99,7 +105,14 @@ void VulkanSwapchain::Create()
     VK_CHECK(vkCreateSwapchainKHR(m_Device->GetLogicalDevice(), &SwapchainCreateInfo, nullptr, &m_Swapchain),
              "Failed to create vulkan swapchain!");
 
-    // TODO: Handle old swapchain
+    if (m_OldSwapchain)
+    {
+        for (uint32_t i = 0; i < m_SwapchainImageCount; ++i)
+        {
+            vkDestroyImageView(m_Device->GetLogicalDevice(), m_SwapchainImageViews[i], nullptr);
+        }
+        vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_OldSwapchain, nullptr);
+    }
 
     VK_CHECK(vkGetSwapchainImagesKHR(m_Device->GetLogicalDevice(), m_Swapchain, &m_SwapchainImageCount, nullptr));
     ELS_ASSERT(m_SwapchainImageCount > 0, "Failed to retrieve swapchain images!");
@@ -110,22 +123,26 @@ void VulkanSwapchain::Create()
     m_SwapchainImageViews.resize(m_SwapchainImages.size());
     for (uint32_t i = 0; i < m_SwapchainImageViews.size(); ++i)
     {
-        CreateImageView(m_Device->GetLogicalDevice(), m_SwapchainImages[i], &m_SwapchainImageViews[i], m_SwapchainImageFormat.format,
-                        VK_IMAGE_ASPECT_COLOR_BIT);
+        VulkanImage::CreateImageView(m_Device->GetLogicalDevice(), m_SwapchainImages[i], &m_SwapchainImageViews[i],
+                                     m_SwapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 }
 
 void VulkanSwapchain::Destroy()
 {
-    vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_Swapchain, nullptr);
-    vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_OldSwapchain, nullptr);
+    auto& Context = (VulkanContext&)VulkanContext::Get();
+    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    m_Swapchain = VK_NULL_HANDLE;
-    m_OldSwapchain = VK_NULL_HANDLE;
+    m_OldSwapchain = m_Swapchain;
 
-    for (auto& ImageView : m_SwapchainImageViews)
+    if (Context.IsDestroying())
     {
-        vkDestroyImageView(m_Device->GetLogicalDevice(), ImageView, nullptr);
+        vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_Swapchain, nullptr);
+
+        for (auto& ImageView : m_SwapchainImageViews)
+        {
+            vkDestroyImageView(m_Device->GetLogicalDevice(), ImageView, nullptr);
+        }
     }
 }
 

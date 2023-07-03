@@ -14,7 +14,7 @@ class GraphicsContext : private Uncopyable, private Unmovable
   public:
     GraphicsContext() = delete;
     GraphicsContext(Scoped<Window>& InWindow) : m_Window(InWindow) {}
-    virtual ~GraphicsContext() = default;
+    virtual ~GraphicsContext() { s_Context = nullptr; };
 
     virtual void BeginRender() = 0;
     virtual void EndRender() = 0;
