@@ -15,7 +15,7 @@
 	url = https://github.com/nothings/stb.git
 [submodule "Eclipse/vendor/imgui"]
 	path = Eclipse/vendor/imgui
-	url = https://github.com/TheCherno/imgui
+	url = https://github.com/wiseConst/imgui.git
 [submodule "Eclipse/vendor/tinyobjloader"]
 	path = Eclipse/vendor/tinyobjloader
 	url = https://github.com/tinyobjloader/tinyobjloader.git
