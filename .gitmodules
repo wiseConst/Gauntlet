@@ -1,6 +1,3 @@
-[submodule "Eclipse/vendor/GLFW"]
-	path = Eclipse/vendor/GLFW
-	url = https://github.com/TheCherno/glfw.git
 [submodule "Eclipse/vendor/glm"]
 	path = Eclipse/vendor/glm
 	url = https://github.com/g-truc/glm.git
