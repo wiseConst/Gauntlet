@@ -3,10 +3,8 @@
 #include "Eclipse/Core/Core.h"
 #include "Eclipse/Renderer/GraphicsContext.h"
 
-#ifdef ELS_PLATFORM_WINDOWS
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
 #include <volk/volk.h>
+#include <glm/glm.hpp>
 
 namespace Eclipse
 {
@@ -17,15 +15,14 @@ class VulkanSwapchain;
 class VulkanCommandPool;
 
 class VulkanRenderPass;
-class VulkanShader;
 class VulkanPipeline;
-class VulkanVertexBuffer;
-class VulkanMesh;
 
 class VulkanContext final : public GraphicsContext
 {
   public:
+    VulkanContext() = delete;
     VulkanContext(Scoped<Window>& InWindow);
+    ~VulkanContext() = default;
 
     void BeginRender() final override;
     void EndRender() final override;
@@ -57,6 +54,10 @@ class VulkanContext final : public GraphicsContext
 
     FORCEINLINE VkBool32 IsDestroying() const { return m_bIsDestroying; }
 
+    FORCEINLINE void SetClearColor(const glm::vec4& InColor) { ClearColor = {InColor.r, InColor.g, InColor.b, InColor.a}; }
+
+    FORCEINLINE void AddPipelineToRebuild(const Ref<VulkanPipeline>& InPipeline) { m_PipelinesToRebuild.emplace_back(InPipeline); }
+
   private:
     VkInstance m_Instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
@@ -69,13 +70,9 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanCommandPool> m_GraphicsCommandPool;
 
     VkBool32 m_bIsDestroying{VK_FALSE};
+    VkClearColorValue ClearColor = {0.1f, 0.1f, 0.1f, 1.0};
 
-    Scoped<VulkanRenderPass> m_GlobalRenderPass;
-
-    Scoped<VulkanPipeline> m_TrianglePipeline;
-    Scoped<VulkanVertexBuffer> m_TriangleVertexBuffer;
-
-    Scoped<VulkanMesh> m_MonkeyMesh;
+    Scoped<VulkanRenderPass> m_GlobalRenderPass;  // Tied with Swapchain.
 
     // Sync objects GPU-GPU.
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
@@ -84,7 +81,7 @@ class VulkanContext final : public GraphicsContext
     // Sync objects CPU-GPU
     std::vector<VkFence> m_InFlightFences;
 
-    float m_StartCPUWaitTime = 0.0f;
+    std::vector<Ref<VulkanPipeline>> m_PipelinesToRebuild;
 
     void CreateInstance();
     void CreateDebugMessenger();
@@ -92,7 +89,6 @@ class VulkanContext final : public GraphicsContext
     void CreateSyncObjects();
     void CreateGlobalRenderPass();
 
-    // TODO: Refactor this func
     void RecreateSwapchain();
 
     bool CheckVulkanAPISupport() const;

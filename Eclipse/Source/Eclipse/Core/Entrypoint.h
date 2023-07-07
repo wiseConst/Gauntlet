@@ -1,4 +1,5 @@
 #pragma once
+#include <Eclipse/Core/PlatformDetection.h>
 
 #ifdef ELS_PLATFORM_WINDOWS
 

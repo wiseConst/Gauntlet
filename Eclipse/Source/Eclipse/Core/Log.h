@@ -37,29 +37,29 @@ class Log final
     static void Output(ELogLevel InLogLevel, const char* InMessage, ...);
 };
 
-#define LOG_FATAL(message, ...) Log::Output(ELogLevel::LL_FATAL, message, ##__VA_ARGS__)
-#define LOG_ERROR(message, ...) Log::Output(ELogLevel::LL_ERROR, message, ##__VA_ARGS__)
+#define LOG_FATAL(message, ...) Eclipse::Log::Output(ELogLevel::LL_FATAL, message, ##__VA_ARGS__)
+#define LOG_ERROR(message, ...) Eclipse::Log::Output(ELogLevel::LL_ERROR, message, ##__VA_ARGS__)
 
 #if LOG_WARN_ENABLED
-#define LOG_WARN(message, ...) Log::Output(ELogLevel::LL_WARN, message, ##__VA_ARGS__)
+#define LOG_WARN(message, ...) Eclipse::Log::Output(ELogLevel::LL_WARN, message, ##__VA_ARGS__)
 #else
 #define LOG_WARN(message, ...)
 #endif
 
 #if LOG_INFO_ENABLED
-#define LOG_INFO(message, ...) Log::Output(ELogLevel::LL_INFO, message, ##__VA_ARGS__)
+#define LOG_INFO(message, ...) Eclipse::Log::Output(ELogLevel::LL_INFO, message, ##__VA_ARGS__)
 #else
 #define LOG_INFO(message, ...)
 #endif
 
 #if LOG_DEBUG_ENABLED
-#define LOG_DEBUG(message, ...) Log::Output(ELogLevel::LL_DEBUG, message, ##__VA_ARGS__)
+#define LOG_DEBUG(message, ...) Eclipse::Log::Output(ELogLevel::LL_DEBUG, message, ##__VA_ARGS__)
 #else
 #define LOG_DEBUG(message, ...)
 #endif
 
 #if LOG_TRACE_ENABLED
-#define LOG_TRACE(message, ...) Log::Output(ELogLevel::LL_TRACE, message, ##__VA_ARGS__)
+#define LOG_TRACE(message, ...) Eclipse::Log::Output(Eclipse::ELogLevel::LL_TRACE, message, ##__VA_ARGS__)
 #else
 #define LOG_TRACE(message, ...)
 #endif

@@ -5,38 +5,6 @@
 namespace Eclipse
 {
 
-enum class EBufferUsage
-{
-    VERTEX_BUFFER = 0,
-    INDEX_BUFFER,
-    UNIFORM_BUFFER,
-    STAGING_BUFFER,  // Means transfer source
-    TRANSFER_DST,
-    NONE
-};
-
-struct BufferInfo
-{
-  public:
-    BufferInfo()
-    {
-        Usage = EBufferUsage::NONE;
-        Size = 0;
-        Count = 0;
-        Data = nullptr;
-    }
-
-    BufferInfo(EBufferUsage usage, uint64_t size, uint64_t count, void* data) : Usage(usage), Size(size), Count(count), Data(data) {}
-
-    virtual ~BufferInfo() = default;
-
-    EBufferUsage Usage;
-    size_t Size;  // Size in bytes
-    size_t Count;
-
-    void* Data = nullptr;
-};
-
 enum class EShaderDataType : uint8_t
 {
     None = 0,
@@ -87,6 +55,8 @@ struct BufferElement
         : Name(InName), Type(InType), Size(ShaderDataTypeSize(InType)), Offset(0)
     {
     }
+
+    ~BufferElement() = default;
 
     uint32_t GetComponentCount() const
     {
@@ -144,7 +114,6 @@ class BufferLayout final
 
     void CalculateOffsetsAndStride()
     {
-        m_Stride = 0;
         for (auto& Element : m_Elements)
         {
             Element.Offset = m_Stride;
@@ -153,23 +122,62 @@ class BufferLayout final
     }
 };
 
+enum EBufferUsageFlags
+{
+    NONE = BIT(0),
+    STAGING_BUFFER = BIT(1),  // Means transfer source
+    TRANSFER_DST = BIT(2),
+    UNIFORM_BUFFER = BIT(4),
+    INDEX_BUFFER = BIT(6),
+    VERTEX_BUFFER = BIT(7),
+};
+
+typedef uint32_t EBufferUsage;
+
+struct BufferInfo
+{
+  public:
+    BufferInfo()
+    {
+        Usage = EBufferUsageFlags::NONE;
+        Size = 0;
+        Count = 0;
+        Data = nullptr;
+    }
+
+    BufferInfo(EBufferUsage InBufferUsage, const uint64_t InSize, const uint64_t InCount, void* InData)
+        : Usage(InBufferUsage), Size(InSize), Count(InCount), Data(InData)
+    {
+    }
+
+    virtual ~BufferInfo() = default;
+
+    BufferLayout Layout;
+    EBufferUsage Usage;
+    size_t Size;  // Size in bytes
+    size_t Count;
+
+    void* Data = nullptr;
+};
+
 // VERTEX
 
 class VertexBuffer : private Uncopyable, private Unmovable
 {
   public:
     VertexBuffer() = delete;
-    VertexBuffer(const BufferInfo& InBufferInfo);
+    VertexBuffer(BufferInfo& InBufferInfo);
 
     virtual ~VertexBuffer() = default;
 
     virtual const BufferLayout& GetLayout() const = 0;
     virtual void SetLayout(const BufferLayout& InLayout) = 0;
+    virtual void SetData(const void* InData, const size_t InDataSize) = 0;
 
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy() = 0;
 
-    static VertexBuffer* Create(const BufferInfo& InBufferInfo);
+    static VertexBuffer* Create(BufferInfo& InBufferInfo);
 };
 
 // INDEX
@@ -178,13 +186,13 @@ class IndexBuffer : private Uncopyable, private Unmovable
 {
   public:
     IndexBuffer() = delete;
-    IndexBuffer(const BufferInfo& InBufferInfo);
+    IndexBuffer(BufferInfo& InBufferInfo);
 
     virtual ~IndexBuffer() = default;
     virtual uint64_t GetCount() const = 0;
 
     virtual void Destroy() = 0;
 
-    static IndexBuffer* Create(const BufferInfo& InBufferInfo);
+    static IndexBuffer* Create(BufferInfo& InBufferInfo);
 };
 }  // namespace Eclipse

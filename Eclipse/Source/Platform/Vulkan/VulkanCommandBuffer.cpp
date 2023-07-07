@@ -22,17 +22,15 @@ void VulkanCommandBuffer::SetViewportAndScissors() const
 
     VkViewport Viewport = {};
     Viewport.x = 0.0f;
-    Viewport.y = 0.0f;
+    Viewport.y = static_cast<float>(Swapchain->GetImageExtent().height);
     Viewport.width = static_cast<float>(Swapchain->GetImageExtent().width);
-    Viewport.height = static_cast<float>(Swapchain->GetImageExtent().height);
+    Viewport.height = -static_cast<float>(Swapchain->GetImageExtent().height);
     Viewport.minDepth = 0.0f;
     Viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(m_CommandBuffer, 0U, 1U, &Viewport);
+    vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);
 
-    VkRect2D Scissor = {};
-    Scissor.offset = {0, 0};
-    Scissor.extent = Swapchain->GetImageExtent();
-    vkCmdSetScissor(m_CommandBuffer, 0U, 1U, &Scissor);
+    VkRect2D Scissor = {{0.0f, 0.0f}, Swapchain->GetImageExtent()};
+    vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
 }
 
 }  // namespace Eclipse

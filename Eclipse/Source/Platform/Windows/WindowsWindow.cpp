@@ -6,10 +6,10 @@
 #include "Eclipse/Event/MouseEvent.h"
 #include "Eclipse/Event/WindowEvent.h"
 
-#include "Eclipse/Core/Input.h"
 #include "Eclipse/Renderer/RendererAPI.h"
-#include "Eclipse/Renderer/Texture.h"
 #include "Eclipse/Renderer/GraphicsContext.h"
+#include "Eclipse/Renderer/Image.h"
+#include "Eclipse/Core/Input.h"
 
 #include <GLFW/glfw3.h>
 
@@ -36,7 +36,7 @@ WindowsWindow::WindowsWindow(const WindowSpecification& InWindowSpec) : Window(I
 
 void WindowsWindow::Init()
 {
-    LOG_INFO("Creating window %s (%u, %u)", m_WindowSpec.Name.data(), m_WindowSpec.Width, m_WindowSpec.Height);
+    LOG_INFO("Creating window %s (%u, %u)", m_WindowSpec.Title.data(), m_WindowSpec.Width, m_WindowSpec.Height);
 
     if (!s_GLFWInitialized)
     {
@@ -56,7 +56,7 @@ void WindowsWindow::Init()
         }
     }
 
-    m_Window = glfwCreateWindow(static_cast<int>(m_WindowSpec.Width), static_cast<int>(m_WindowSpec.Height), m_WindowSpec.Name.data(),
+    m_Window = glfwCreateWindow(static_cast<int>(m_WindowSpec.Width), static_cast<int>(m_WindowSpec.Height), m_WindowSpec.Title.data(),
                                 nullptr, nullptr);
 
     glfwSetWindowUserPointer(m_Window, this);
@@ -194,7 +194,7 @@ void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
     int32_t Width = 0;
     int32_t Height = 0;
     int32_t Channels = 0;
-    stbi_uc* Pixels = Texture::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
+    stbi_uc* Pixels = ImageUtils::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
 
     GLFWimage IconImage = {};
     IconImage.pixels = Pixels;
@@ -202,7 +202,7 @@ void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
     IconImage.height = Height;
 
     glfwSetWindowIcon(m_Window, 1, &IconImage);
-    Texture::UnloadImage(Pixels);
+    ImageUtils::UnloadImage(Pixels);
 }
 
 void WindowsWindow::SetVSync(bool IsVsync)
@@ -212,6 +212,14 @@ void WindowsWindow::SetVSync(bool IsVsync)
 
     auto& Context = GraphicsContext::Get();
     Context.SetVSync(IsVsync);
+}
+
+void WindowsWindow::SetWindowTitle(const std::string_view& InTitle)
+{
+    ELS_ASSERT(InTitle.data(), "Window title is not valid!");
+
+    glfwSetWindowTitle(m_Window, InTitle.data());
+    m_WindowSpec.Title = InTitle;
 }
 
 void WindowsWindow::Shutdown()

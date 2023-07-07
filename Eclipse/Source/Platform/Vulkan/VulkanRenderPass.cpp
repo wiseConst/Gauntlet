@@ -10,6 +10,11 @@ namespace Eclipse
 VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& InRenderPassSpecification)
     : m_RenderPassSpecification(InRenderPassSpecification)
 {
+    Create();
+}
+
+void VulkanRenderPass::Create()
+{
     auto& Context = (VulkanContext&)VulkanContext::Get();
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 

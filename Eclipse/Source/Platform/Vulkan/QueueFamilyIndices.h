@@ -75,7 +75,8 @@ struct QueueFamilyIndices
 #endif
             }
 
-            if (QueueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            // Dedicated transfer queue.
+            if (QueueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && !(QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
             {
                 Indices.SetTransferFamily(i);
 #if LOG_VULKAN_INFO
@@ -97,11 +98,18 @@ struct QueueFamilyIndices
 #endif
             }
 
+#if !LOG_VULKAN_INFO
             if (Indices.IsComplete()) break;
+#endif
 
             ++i;
         }
 
+        // From vulkan-tutorial.com: Any queue family with VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT capabilities already implicitly
+        // support VK_QUEUE_TRANSFER_BIT operations.
+        if (Indices.TransferFamily == UINT32_MAX) Indices.TransferFamily = Indices.GraphicsFamily;
+
+        ELS_ASSERT(Indices.IsComplete(), "QueueFamilyIndices wasn't setup correctly!");
         return Indices;
     }
 

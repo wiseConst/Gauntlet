@@ -6,25 +6,13 @@
 #include "VulkanDevice.h"
 #include "VulkanAllocator.h"
 #include "VulkanSwapchain.h"
-
 #include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
-
 #include "VulkanRenderPass.h"
-#include "VulkanShader.h"
 #include "VulkanPipeline.h"
-#include "VulkanBuffer.h"
-#include "VulkanMesh.h"
-#include "VulkanTexture.h"
 
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
-
-#ifdef ELS_PLATFORM_WINDOWS
-#define GLFW_EXPOSE_NATIVE_WIN32
-#endif
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
 
 namespace Eclipse
 {
@@ -41,12 +29,7 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
     m_Device.reset(new VulkanDevice(m_Instance, m_Surface));
     m_Allocator.reset(new VulkanAllocator(m_Instance, m_Device));
 
-    ImageSpecification DepthImageSpec = {};
-    DepthImageSpec.Format = VK_FORMAT_D32_SFLOAT;
-    DepthImageSpec.Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    DepthImageSpec.ImageViewAspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
-    DepthImageSpec.ImageViewFormat = VK_FORMAT_D32_SFLOAT;
-    m_Swapchain.reset(new VulkanSwapchain(m_Device, m_Surface, DepthImageSpec));
+    m_Swapchain.reset(new VulkanSwapchain(m_Device, m_Surface));
 
     {
         CommandPoolSpecification CommandPoolSpec = {};
@@ -67,77 +50,6 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
     CreateSyncObjects();
 
     CreateGlobalRenderPass();
-    Ref<VulkanShader> VertexShader(new VulkanShader("Resources/Shaders/FlatColor.vert.spv"));
-    Ref<VulkanShader> FragmentShader(new VulkanShader("Resources/Shaders/FlatColor.frag.spv"));
-
-    m_MonkeyMesh.reset(new VulkanMesh("Resources/Models/Monkey/monkey_smooth.obj"));
-
-    std::vector<Vertex> VertexData(3);
-    VertexData[0].Position = {1.0f, 1.0f, 0.0f};
-    VertexData[0].Color = {1.0f, 0.0f, 0.0f};
-
-    VertexData[1].Position = {-1.0f, 1.0f, 0.0f};
-    VertexData[1].Color = {0.0f, 1.0f, 0.0f};
-
-    VertexData[2].Position = {0.0f, -1.0f, 0.0f};
-    VertexData[2].Color = {0.0f, 0.0f, 1.0f};
-
-    BufferInfo VertexBufferInfo = {};
-    VertexBufferInfo.Usage = EBufferUsage::VERTEX_BUFFER;
-    VertexBufferInfo.Data = (void*)VertexData.data();
-    VertexBufferInfo.Count = VertexData.size();
-    VertexBufferInfo.Size = VertexData.size() * sizeof(VertexData[0]);
-
-    BufferLayout VertexBufferLayout = {
-        {EShaderDataType::Vec3, "InPosition"},  //
-        {EShaderDataType::Vec3, "InNormal"},    //
-        {EShaderDataType::Vec3, "InColor"}      //
-    };                                          //
-    m_TriangleVertexBuffer.reset(new VulkanVertexBuffer(VertexBufferInfo));
-    m_TriangleVertexBuffer->SetLayout(VertexBufferLayout);
-
-    {
-        PipelineSpecification PipelineSpec = {};
-        PipelineSpec.RenderPass = m_GlobalRenderPass->Get();
-        PipelineSpec.FrontFace = EFrontFace::FRONT_FACE_CLOCKWISE;
-        PipelineSpec.PolygonMode = EPolygonMode::POLYGON_MODE_FILL;
-        PipelineSpec.PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        PipelineSpec.CullMode = ECullMode::CULL_MODE_NONE;
-
-        PipelineSpec.ShaderStages.resize(2);
-        PipelineSpec.ShaderStages[0].Shader = VertexShader;
-        PipelineSpec.ShaderStages[0].Stage = EShaderStage::SHADER_STAGE_VERTEX;
-
-        PipelineSpec.ShaderStages[1].Shader = FragmentShader;
-        PipelineSpec.ShaderStages[1].Stage = EShaderStage::SHADER_STAGE_FRAGMENT;
-
-        std::vector<VkVertexInputAttributeDescription> ShaderAttributeDescriptions(VertexBufferLayout.GetElements().size());
-        for (uint32_t i = 0; i < ShaderAttributeDescriptions.size(); ++i)
-        {
-            ShaderAttributeDescriptions[i] = GetShaderAttributeDescription(
-                0, EclipseFormatToVulkan(VertexBufferLayout.GetElements()[i].Type), i, VertexBufferLayout.GetElements()[i].Offset);
-        }
-
-        PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
-        PipelineSpec.ShaderBindingDescriptions = {GetShaderBindingDescription(0, VertexBufferLayout.GetStride())};
-
-        VkPushConstantRange PushConstantRange = {};
-        PushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // accessible only in vertex shader
-        PushConstantRange.offset = 0;
-        PushConstantRange.size = sizeof(MeshPushConstants);
-
-        PipelineSpec.PushConstantRanges = {PushConstantRange};
-        PipelineSpec.bDepthTest = VK_TRUE;
-        PipelineSpec.bDepthWrite = VK_TRUE;
-        PipelineSpec.DepthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-
-        m_TrianglePipeline.reset(new VulkanPipeline(PipelineSpec));
-
-        VertexShader->DestroyModule();
-        FragmentShader->DestroyModule();
-    }
-
-    LOG_TRACE("Mesh Push Constants size: %u", m_TrianglePipeline->GetPushConstantsSize());
 }
 
 void VulkanContext::CreateInstance()
@@ -213,19 +125,6 @@ void VulkanContext::CreateDebugMessenger()
 
 void VulkanContext::CreateSurface()
 {
-    /* Some thoughts about surface creation dependent on OS
-    * Well maybe I shouldn't float bout "pedantic" surface creation because GLFW is cross-platform && handles such vkCreateXxxSurfaceKHR.
-#ifdef ELS_PLATFORM_WINDOWS
-    VkWin32SurfaceCreateInfoKHR Win32SurfaceCreateInfo = {};
-    Win32SurfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    Win32SurfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
-    Win32SurfaceCreateInfo.hwnd = glfwGetWin32Window((GLFWwindow*)m_Window->GetNativeWindow());
-
-    const auto result = vkCreateWin32SurfaceKHR(m_Instance, &Win32SurfaceCreateInfo, nullptr, &m_Surface);
-    ELS_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
-#else
-#endif
-*/
     const auto result = glfwCreateWindowSurface(m_Instance, (GLFWwindow*)m_Window->GetNativeWindow(), nullptr, &m_Surface);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
 }
@@ -417,29 +316,24 @@ void VulkanContext::CreateGlobalRenderPass()
          * This is a problem when using depth buffers, because one frame could overwrite the depth buffer
          * while a previous frame is still rendering to it.
          */
-        std::vector<VkSubpassDependency> Dependencies(2);
-        // We keep the subpass dependency for the color attachment we were already using:
+        std::vector<VkSubpassDependency> Dependencies(1);
         Dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
         Dependencies[0].dstSubpass = 0;
-        Dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;  // before bottom pipe bit
-        Dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        Dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        Dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         Dependencies[0].srcAccessMask = 0;
-        Dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-        // We also add a new subpass dependency that synchronizes accesses to depth attachments.
-        Dependencies[1].srcSubpass = VK_SUBPASS_EXTERNAL;
-        Dependencies[1].dstSubpass = 0;
-        Dependencies[1].srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        Dependencies[1].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        Dependencies[1].srcAccessMask = 0;
-        Dependencies[1].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        // This dependency tells Vulkan that the depth attachment in a renderpass cannot be used before previous renderpasses have finished
-        // using it.
+        Dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
         RenderPassSpec.Dependencies = Dependencies;
 
         RenderPassSpec.DepthImageView = m_Swapchain->GetDepthImageView();
-        m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
+        if (!m_GlobalRenderPass)
+            m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
+        else  // SWAPCHAIN RECREATION CASE
+        {
+            m_GlobalRenderPass->SetRenderPassSpecification(RenderPassSpec);
+            m_GlobalRenderPass->Create();
+        }
     }
 }
 
@@ -448,19 +342,28 @@ void VulkanContext::RecreateSwapchain()
     if (m_Window->IsMinimized()) return;  // m_Window->HandleMinimized(); // Blocking loop
     m_Device->WaitDeviceOnFinish();
 
+    for (auto& PipelineToRebuild : m_PipelinesToRebuild)
+    {
+        PipelineToRebuild->Destroy();
+    }
+
     m_GlobalRenderPass->Destroy();
     m_Swapchain->Destroy();
 
     m_Swapchain->Create();
     CreateGlobalRenderPass();
 
+    for (auto& PipelineToRebuild : m_PipelinesToRebuild)
+    {
+        PipelineToRebuild->SetRenderPass(m_GlobalRenderPass->Get());
+        PipelineToRebuild->Create();
+    }
+
     LOG_WARN("Swapchain recreated, new window size: (%u, %u).", m_Swapchain->GetImageExtent().width, m_Swapchain->GetImageExtent().height);
 }
 
 void VulkanContext::BeginRender()
 {
-    m_StartCPUWaitTime = (float)glfwGetTime();
-
     // Firstly wait for GPU to finish drawing therefore set fence to signaled.
     VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
              "Failed to wait for fences!");
@@ -479,35 +382,11 @@ void VulkanContext::BeginRender()
     CommandBuffer.BeginRecording();
 
     std::vector<VkClearValue> ClearValues(2);
-    ClearValues[0].color = {0.0f, 1.0f, 1.0f, 1.0f};
+    ClearValues[0].color = ClearColor;
     ClearValues[1].depthStencil.depth = 1.0f;
 
     m_GlobalRenderPass->Begin(CommandBuffer.Get(), ClearValues);
-
     CommandBuffer.SetViewportAndScissors();
-    CommandBuffer.BindPipeline(m_TrianglePipeline->Get());
-
-    VkDeviceSize Offset = 0;
-    CommandBuffer.BindVertexBuffers(0, 1, &m_MonkeyMesh->GetVertexBuffer<VulkanVertexBuffer>()->Get(), &Offset);
-
-    // View matrix
-    glm::vec3 CameraPos = {0.f, 0.f, -5.f};
-    glm::mat4 View = glm::translate(glm::mat4(1.f), CameraPos);
-
-    // Projection matrix
-    glm::mat4 Projection = glm::perspective(
-        glm::radians(90.0f), (float)m_Swapchain->GetImageExtent().width / (float)m_Swapchain->GetImageExtent().height, 0.001f, 100.0f);
-    Projection[1][1] *= -1;
-
-    // Model matrix
-    glm::mat4 Model = glm::rotate(glm::mat4(1.0f), glm::radians(m_Swapchain->GetCurrentFrameIndex() * 0.4f), glm::vec3(0, 1, 0));
-    MeshPushConstants PushConstants = {};
-    PushConstants.RenderMatrix = Projection * View * Model;
-
-    // Upload the matrix to the GPU via push constants
-    CommandBuffer.BindPushConstants(m_TrianglePipeline->GetLayout(), m_TrianglePipeline->GetPushConstantsShaderStageFlags(), 0,
-                                    m_TrianglePipeline->GetPushConstantsSize(), &PushConstants);
-    CommandBuffer.Draw(m_MonkeyMesh->GetVertexBuffer()->GetCount() /*m_TriangleVertexBuffer->GetCount()*/);
 }
 
 void VulkanContext::EndRender()
@@ -518,7 +397,6 @@ void VulkanContext::EndRender()
     CommandBuffer.EndRecording();
 
     std::vector<VkPipelineStageFlags> WaitStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-
     VkSubmitInfo SubmitInfo = {};
     SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     SubmitInfo.commandBufferCount = 1;
@@ -535,10 +413,6 @@ void VulkanContext::EndRender()
     // InFlightFence will now block until the graphic commands finish execution
     VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &SubmitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to submit command buffes to the queue.");
-
-    // CPU wait time calculation
-    const float CpuWaitTime = (float)glfwGetTime() - m_StartCPUWaitTime;
-    s_RenderStats.CPUWaitTime = CpuWaitTime * 1000.0f;
 }
 
 void VulkanContext::SwapBuffers()
@@ -554,22 +428,15 @@ void VulkanContext::SetVSync(bool IsVSync)
 {
     m_Device->WaitDeviceOnFinish();
 
-    m_TrianglePipeline->Destroy();
     m_Swapchain->Destroy();
 
     m_Swapchain->Create();
-    m_TrianglePipeline->Create();
 }
 
 void VulkanContext::Destroy()
 {
     m_Device->WaitDeviceOnFinish();
     m_bIsDestroying = VK_TRUE;
-
-    m_TriangleVertexBuffer->Destroy();
-    m_TrianglePipeline->Destroy();
-
-    m_MonkeyMesh->Destroy();
 
     m_GlobalRenderPass->Destroy();
 

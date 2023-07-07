@@ -7,25 +7,25 @@
 
 namespace Eclipse
 {
+enum class EEventType : uint8_t
+{
+    MouseMovedEvent = 0,
+    MouseScrolledEvent,
+    MouseButtonPressedEvent,
+    MouseButtonReleasedEvent,
+    MouseButtonRepeatedEvent,
+
+    KeyButtonPressedEvent,
+    KeyButtonReleasedEvent,
+    KeyButtonRepeatedEvent,
+
+    WindowResizeEvent,
+    WindowCloseEvent
+};
+
 class Event
 {
   public:
-    enum class EventType : uint8_t
-    {
-        MouseMovedEvent = 0,
-        MouseScrolledEvent,
-        MouseButtonPressedEvent,
-        MouseButtonReleasedEvent,
-        MouseButtonRepeatedEvent,
-
-        KeyButtonPressedEvent,
-        KeyButtonReleasedEvent,
-        KeyButtonRepeatedEvent,
-
-        WindowResizeEvent,
-        WindowCloseEvent
-    };
-
     Event() = delete;
     virtual ~Event() = default;
 
@@ -41,9 +41,9 @@ class Event
     virtual std::string Format() const = 0;
 
   protected:
-    Event(const std::string& name, EventType type) : m_Name(name), m_Type(type) {}
+    Event(const std::string& name, EEventType type) : m_Name(name), m_Type(type) {}
 
-    EventType m_Type;
+    EEventType m_Type;
     std::string m_Name;
 };
 }  // namespace Eclipse

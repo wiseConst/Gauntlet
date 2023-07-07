@@ -17,7 +17,7 @@ class ThreadPool final : private Uncopyable, private Unmovable
     template <typename F, typename... Args> void Enqueue(F&& f, Args&&... InArgs)
     {
         {
-            std::scoped_lock<std::mutex> Lock(m_Mutex);
+            std::scoped_lock<std::mutex> Lock(m_QueueMutex);
             m_TaskQueue.emplace(std::bind(std::forward<F>(f), std::forward<Args>(InArgs)...));
         }
 
@@ -30,7 +30,7 @@ class ThreadPool final : private Uncopyable, private Unmovable
     std::vector<std::thread> m_Threads;
 
     std::condition_variable m_CondVar;
-    std::mutex m_Mutex;
+    std::mutex m_QueueMutex;
     std::queue<Task> m_TaskQueue;
     bool m_IsShutdownRequested;
 

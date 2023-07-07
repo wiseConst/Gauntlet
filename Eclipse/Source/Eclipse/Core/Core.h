@@ -30,10 +30,9 @@
 
 #endif
 
-#define VECTOR_SIZE(vec) (sizeof((vec)[0]) * (vec).size())
-
 #define FORCEINLINE __forceinline
-
+#define NODISCARD [[nodiscard]]
+#define BIT(x) (1 << (x))
 #define BIND_EVENT_FN(fn) std::bind(&fn, this, std::placeholders::_1)
 
 // Stolen from vulkan_core.h

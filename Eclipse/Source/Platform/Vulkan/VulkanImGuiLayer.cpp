@@ -47,9 +47,12 @@ void VulkanImGuiLayer::OnAttach()
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    // Enable Docking
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;  // Enable Docking
+
+    // --------------------------- DEPTH RENDERPASS ISSUES ---------------------------
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Multi-Viewport / Platform Windows
+
     // io.ConfigViewportsNoAutoMerge = true;
     // io.ConfigViewportsNoTaskBarIcon = true;
 
@@ -78,15 +81,66 @@ void VulkanImGuiLayer::OnAttach()
     InitInfo.Allocator = VK_NULL_HANDLE;
     ImGui_ImplVulkan_Init(&InitInfo, Context.GetGlobalRenderPass()->Get());
 
-    auto CommandBuffer = BeginSingleTimeCommands(Context.GetGraphicsCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
+    auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetGraphicsCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
     ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
-    EndSingleTimeCommands(CommandBuffer, Context.GetGraphicsCommandPool()->Get(), Context.GetDevice()->GetGraphicsQueue(),
-                          Context.GetDevice()->GetLogicalDevice());
+    Utility::EndSingleTimeCommands(CommandBuffer, Context.GetGraphicsCommandPool()->Get(), Context.GetDevice()->GetGraphicsQueue(),
+                                   Context.GetDevice()->GetLogicalDevice());
     Context.GetDevice()->WaitDeviceOnFinish();
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
+    SetStyle();
+    LOG_INFO("ImGui created!");
+}
+
+void VulkanImGuiLayer::OnDetach()
+{
+    const auto& Context = (VulkanContext&)VulkanContext::Get();
+    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    Context.GetDevice()->WaitDeviceOnFinish();
+    vkDestroyDescriptorPool(Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void VulkanImGuiLayer::BeginRender()
+{
+    // Start the Dear ImGui frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    /*static bool ShowDemoWindow = true;
+    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
+}
+
+void VulkanImGuiLayer::EndRender()
+{
+    const auto& Context = (VulkanContext&)VulkanContext::Get();
+
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(
+        ImGui::GetDrawData(), Context.GetGraphicsCommandPool()->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex()).Get());
+
+    // Update and Render additional Platform Windows
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        GLFWwindow* BackupCurrentContext = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(BackupCurrentContext);
+    }
+}
+
+void VulkanImGuiLayer::SetStyle()
+{
+
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
     ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         style.WindowRounding = 0.0f;
@@ -146,8 +200,8 @@ void VulkanImGuiLayer::OnAttach()
     style.Colors[ImGuiCol_TabUnfocused] = ImVec4(0.137f, 0.137f, 0.137f, 1.000f);
     style.Colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.258f, 0.258f, 0.258f, 1.000f);
 
-    // style.Colors[ImGuiCol_DockingPreview] = ImVec4(0.4f, 0.67f, 1.000f, 0.781f);
-    // style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.137f, 0.137f, 0.137f, 1.000f);
+    style.Colors[ImGuiCol_DockingPreview] = ImVec4(0.4f, 0.67f, 1.000f, 0.781f);
+    style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.137f, 0.137f, 0.137f, 1.000f);
 
     style.Colors[ImGuiCol_TableRowBg] = ImVec4(0.160f, 0.160f, 0.160f, 1.000f);
     style.Colors[ImGuiCol_TableRowBgAlt] = ImVec4(0.160f, 0.160f, 0.160f, 1.000f);
@@ -166,7 +220,7 @@ void VulkanImGuiLayer::OnAttach()
     style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
     style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
 
-    /*style.ChildRounding = 0;
+    style.ChildRounding = 0;
     style.FrameRounding = 0;
     style.GrabMinSize = 7.0f;
     style.PopupRounding = 2.0f;
@@ -175,50 +229,7 @@ void VulkanImGuiLayer::OnAttach()
     style.TabBorderSize = 0.0f;
     style.TabRounding = 0.0f;
     style.WindowRounding = 0.0f;
-    style.WindowBorderSize = 10.f;*/
-    LOG_INFO("ImGui created!");
-}
-
-void VulkanImGuiLayer::OnDetach()
-{
-    const auto& Context = (VulkanContext&)VulkanContext::Get();
-    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
-
-    Context.GetDevice()->WaitDeviceOnFinish();
-    vkDestroyDescriptorPool(Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
-
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-}
-
-void VulkanImGuiLayer::BeginRender()
-{
-    // Start the Dear ImGui frame
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    static bool ShowDemoWindow = true;
-    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);
-}
-
-void VulkanImGuiLayer::EndRender()
-{
-    const auto& Context = (VulkanContext&)VulkanContext::Get();
-
-    ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Context.GetGraphicsCommandPool()->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex()).Get());
-
-    // Update and Render additional Platform Windows
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        GLFWwindow* BackupCurrentContext = glfwGetCurrentContext();
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-        glfwMakeContextCurrent(BackupCurrentContext);
-    }
+    style.WindowBorderSize = 5.f;
 }
 
 }  // namespace Eclipse

@@ -90,7 +90,10 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
         ELS_ASSERT(result == VK_SUCCESS && GPUsCount > 0, "Failed to retrieve gpu count.")
     }
 
+#if LOG_VULKAN_INFO
     LOG_INFO("Available GPUs: %u", GPUsCount);
+#endif
+
     std::multimap<uint32_t, GPUInfo> Candidates;
     for (const auto& PhysicalDevice : PhysicalDevices)
     {
@@ -106,7 +109,7 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
         m_GPUInfo = Candidates.rbegin()->second;
     }
     ELS_ASSERT(m_GPUInfo.PhysicalDevice, "Failed to find suitable GPU");
-    LOG_INFO("Chosen GPU: %s", m_GPUInfo.GPUProperties.deviceName);
+    LOG_INFO("Renderer: %s", m_GPUInfo.GPUProperties.deviceName);
 }
 
 void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
@@ -259,40 +262,45 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
         LOG_INFO("  HeapIndex: %u", InGPUInfo.GPUMemoryProperties.memoryTypes[i].heapIndex);
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-            LOG_INFO("    DEVICE_LOCAL_BIT");
+            LOG_TRACE("    DEVICE_LOCAL_BIT");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            LOG_INFO("    HOST_VISIBLE_BIT");
+            LOG_TRACE("    HOST_VISIBLE_BIT");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-            LOG_INFO("    HOST_COHERENT_BIT");
+            LOG_TRACE("    HOST_COHERENT_BIT");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
-            LOG_INFO("    HOST_CACHED_BIT");
+            LOG_TRACE("    HOST_CACHED_BIT");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
-            LOG_INFO("    LAZILY_ALLOCATED_BIT");
+            LOG_TRACE("    LAZILY_ALLOCATED_BIT");
 
-        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) LOG_INFO("    PROTECTED_BIT");
+        if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) LOG_TRACE("    PROTECTED_BIT");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD)
             LOG_INFO("    DEVICE_COHERENT_BIT_AMD");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD)
-            LOG_INFO("    UNCACHED_BIT_AMD");
+            LOG_TRACE("    UNCACHED_BIT_AMD");
 
         if (InGPUInfo.GPUMemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV)
-            LOG_INFO("    RDMA_CAPABLE_BIT_NV");
+            LOG_TRACE("    RDMA_CAPABLE_BIT_NV");
     }
 
     LOG_INFO(" Memory heaps: %u", InGPUInfo.GPUMemoryProperties.memoryHeapCount);
     for (uint32_t i = 0; i < InGPUInfo.GPUMemoryProperties.memoryHeapCount; ++i)
     {
-        LOG_INFO("  Size: %u MB", InGPUInfo.GPUMemoryProperties.memoryHeaps[i].size / 1024 / 1024);
+        LOG_TRACE("  Size: %u MB", InGPUInfo.GPUMemoryProperties.memoryHeaps[i].size / 1024 / 1024);
 
-        if (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) LOG_INFO("    HEAP_DEVICE_LOCAL_BIT");
+        if (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) LOG_TRACE("    HEAP_DEVICE_LOCAL_BIT");
 
-        if (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) LOG_INFO("    HEAP_MULTI_INSTANCE_BIT");
+        if (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT)
+            LOG_TRACE("    HEAP_MULTI_INSTANCE_BIT");
+
+        if ((InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) == 0 &&
+            (InGPUInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) == 0)
+            LOG_TRACE("    HEAP_SYSTEM_RAM");
     }
 #endif
 

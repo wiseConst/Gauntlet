@@ -5,25 +5,7 @@
 #include <volk/volk.h>
 
 #include "SwapchainSupportDetails.h"
-#include "VulkanTexture.h"
-
-// TODO: Add struct SwapchainSpecification to make it configurable
-
-/* struct SwapchainSpecification
-{
-  public:
-    enum EImageUsage // or the only SwapchainImageUsage ??
-    {
-        IMAGE_USAGE_TRANSFER_SRC = 0,
-        IMAGE_USAGE_TRANSFER_DST,
-        IMAGE_USAGE_SAMPLED,
-
-    };
-
-    bool clipped ?
-
-    int32_t imageArrayLayers?
-};*/
+#include "VulkanImage.h"
 
 namespace Eclipse
 {
@@ -32,13 +14,16 @@ class VulkanDevice;
 class VulkanSwapchain final : private Uncopyable, private Unmovable
 {
   public:
-    VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface,
-                    const ImageSpecification& InImageSpecification = ImageSpecification());
+    VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface);
     ~VulkanSwapchain() = default;
 
     FORCEINLINE bool IsValid() const { return m_Swapchain && m_SwapchainImages.size() > 0; }
     FORCEINLINE const auto& GetImageFormat() const { return m_SwapchainImageFormat.format; }
     FORCEINLINE auto& GetImageFormat() { return m_SwapchainImageFormat.format; }
+    FORCEINLINE const float GetAspectRatio() const
+    {
+        return m_SwapchainImageExtent.height == 0 ? 1.0f : m_SwapchainImageExtent.width / (float)m_SwapchainImageExtent.height;
+    }
 
     FORCEINLINE const auto& GetImageExtent() const { return m_SwapchainImageExtent; }
     FORCEINLINE auto& GetImageExtent() { return m_SwapchainImageExtent; }
@@ -50,8 +35,8 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     FORCEINLINE auto GetCurrentFrameIndex() const { return m_FrameIndex; }
     FORCEINLINE auto GetImageCount() const { return m_SwapchainImageCount; }
 
-    FORCEINLINE const auto& GetDepthFormat() const { return m_DepthImage->GetFormat(); }
-    FORCEINLINE auto& GetDepthFormat() { return m_DepthImage->GetFormat(); }
+    FORCEINLINE const auto GetDepthFormat() const { return m_DepthImage->GetFormat(); }
+    FORCEINLINE auto GetDepthFormat() { return m_DepthImage->GetFormat(); }
 
     FORCEINLINE const auto& GetDepthImageView() const { return m_DepthImage->GetView(); }
     FORCEINLINE auto& GetDepthImageView() { return m_DepthImage->GetView(); }

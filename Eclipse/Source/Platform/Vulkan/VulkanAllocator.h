@@ -19,7 +19,8 @@ class VulkanAllocator final : private Uncopyable, private Unmovable
     VmaAllocation CreateImage(const VkImageCreateInfo& InImageCreateInfo, VkImage* InImage) const;
     void DestroyImage(VkImage& InImage, VmaAllocation& InAllocation) const;
 
-    VmaAllocation CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer) const;
+    VmaAllocation CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer,
+                               VmaMemoryUsage InMemoryUsage = VMA_MEMORY_USAGE_AUTO) const;
     void DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const;
 
     void* Map(VmaAllocation& InAllocation) const;
@@ -29,9 +30,6 @@ class VulkanAllocator final : private Uncopyable, private Unmovable
 
   private:
     VmaAllocator m_Allocator = VK_NULL_HANDLE;
-
-    static uint32_t m_AllocatedImages;
-    static uint32_t m_AllocatedBuffers;
 };
 
 }  // namespace Eclipse

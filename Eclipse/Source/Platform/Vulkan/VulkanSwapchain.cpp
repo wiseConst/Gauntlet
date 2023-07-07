@@ -4,7 +4,7 @@
 #include "VulkanCore.h"
 #include "VulkanDevice.h"
 #include "VulkanContext.h"
-#include "VulkanTexture.h"
+#include "VulkanImage.h"
 
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
@@ -13,15 +13,19 @@
 
 namespace Eclipse
 {
-VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface, const ImageSpecification& InImageSpecification)
+VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface)
     : m_Device(InDevice), m_Surface(InSurface), m_DepthImage(nullptr)
 {
-    // By impl
-    if (InImageSpecification.ImageViewAspectFlags != VK_IMAGE_ASPECT_NONE)
-    {
-        m_DepthImage.reset(new VulkanImage(InImageSpecification));
-    }
     Create();
+
+    // Depth Buffer
+    ImageSpecification DepthImageSpec;
+    DepthImageSpec.Usage = EImageUsage::Attachment;
+    DepthImageSpec.Format = EImageFormat::DEPTH32F;
+    DepthImageSpec.Height = m_SwapchainImageExtent.height;
+    DepthImageSpec.Width = m_SwapchainImageExtent.width;
+
+    m_DepthImage.reset(new VulkanImage(DepthImageSpec));
 }
 
 bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence)
@@ -90,9 +94,7 @@ void VulkanSwapchain::Create()
         Details.ChooseBestExtent(Details.SurfaceCapabilities, static_cast<GLFWwindow*>(Application::Get().GetWindow()->GetNativeWindow()));
     SwapchainCreateInfo.imageExtent = m_SwapchainImageExtent;
 
-    // VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT - This is a color image I'm rendering into.
-    // VK_IMAGE_USAGE_TRANSFER_SRC_BIT - I'll be copying this image somewhere. ( screenshot, postprocess )
-    SwapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT /* | VK_IMAGE_USAGE_TRANSFER_SRC_BIT*/;
+    SwapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     if (m_Device->GetQueueFamilyIndices().GetGraphicsFamily() != m_Device->GetQueueFamilyIndices().GetPresentFamily())
     {
@@ -104,8 +106,6 @@ void VulkanSwapchain::Create()
     else
     {
         SwapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        SwapchainCreateInfo.queueFamilyIndexCount = 0;
-        SwapchainCreateInfo.pQueueFamilyIndices = nullptr;
     }
 
     VK_CHECK(vkCreateSwapchainKHR(m_Device->GetLogicalDevice(), &SwapchainCreateInfo, nullptr, &m_Swapchain),
@@ -118,6 +118,7 @@ void VulkanSwapchain::Create()
             vkDestroyImageView(m_Device->GetLogicalDevice(), m_SwapchainImageViews[i], nullptr);
         }
         vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_OldSwapchain, nullptr);
+        m_OldSwapchain = VK_NULL_HANDLE;
     }
 
     VK_CHECK(vkGetSwapchainImagesKHR(m_Device->GetLogicalDevice(), m_Swapchain, &m_SwapchainImageCount, nullptr));
@@ -129,13 +130,15 @@ void VulkanSwapchain::Create()
     m_SwapchainImageViews.resize(m_SwapchainImages.size());
     for (uint32_t i = 0; i < m_SwapchainImageViews.size(); ++i)
     {
-        VulkanImage::CreateImageView(m_Device->GetLogicalDevice(), m_SwapchainImages[i], &m_SwapchainImageViews[i],
-                                     m_SwapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
+        ImageUtils::CreateImageView(m_Device->GetLogicalDevice(), m_SwapchainImages[i], &m_SwapchainImageViews[i],
+                                    m_SwapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
-    // Depth image creation
-    m_DepthImage->SetExtent({m_SwapchainImageExtent.width, m_SwapchainImageExtent.height, 1});
-    if (m_DepthImage) m_DepthImage->Create();
+    if (m_DepthImage)
+    {
+        m_DepthImage->SetExtent(m_SwapchainImageExtent);
+        m_DepthImage->Create();
+    }
 }
 
 void VulkanSwapchain::Destroy()

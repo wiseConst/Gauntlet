@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Eclipse/Core/Core.h"
+#include "Eclipse/Event/Event.h"
 
 namespace Eclipse
 {
@@ -12,6 +13,7 @@ class Layer : private Uncopyable, private Unmovable
     virtual ~Layer() = default;
 
     virtual void OnUpdate(const float DeltaTime) = 0;
+    virtual void OnEvent(Event& InEvent) = 0;
 
     virtual void OnAttach() = 0;
     virtual void OnDetach() = 0;

@@ -53,20 +53,22 @@ struct PipelineSpecification
   public:
     PipelineSpecification()
     {
-        DescriptorSetLayouts.resize(0);
-        PushConstantRanges.resize(0);
-        ShaderAttributeDescriptions.resize(0);
-        ShaderBindingDescriptions.resize(0);
         ShaderStages.resize(0);
 
+        DescriptorSetLayouts.resize(0);
+        PushConstantRanges.resize(0);
+
+        ShaderAttributeDescriptions.resize(0);
+        ShaderBindingDescriptions.resize(0);
+
         LineWidth = 1.0f;
-        FrontFace = EFrontFace::FRONT_FACE_CLOCKWISE;
+        FrontFace = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         PolygonMode = EPolygonMode::POLYGON_MODE_FILL;
         CullMode = ECullMode::CULL_MODE_NONE;
 
         RenderPass = VK_NULL_HANDLE;
         PrimitiveRestartEnable = VK_FALSE;
-        PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_POINT_LIST;
+        PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // No depth testing by default.
         bDepthTest = VK_FALSE;
@@ -141,6 +143,8 @@ class VulkanPipeline final
     }
 
     FORCEINLINE auto& GetPushConstantsSize(const uint32_t Index = 0) { return m_PipelineSpecification.PushConstantRanges[Index].size; }
+
+    FORCEINLINE void SetRenderPass(const VkRenderPass& InRenderPass) { m_PipelineSpecification.RenderPass = InRenderPass; }
 
   private:
     VkPipeline m_Pipeline = VK_NULL_HANDLE;

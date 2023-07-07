@@ -12,8 +12,8 @@ namespace Eclipse
 {
 #define LOG_VULKAN_INFO 0
 
-constexpr uint32_t ELS_VK_API_VERSION = VK_API_VERSION_1_3;
-constexpr uint32_t FRAMES_IN_FLIGHT = 2;
+static constexpr uint32_t ELS_VK_API_VERSION = VK_API_VERSION_1_3;
+static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
 const std::vector<const char*> VulkanLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME};
@@ -55,7 +55,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-// TODO: Refacture these 2 functions using classes
+namespace Utility
+{
+
 static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPool, const VkDevice& InDevice)
 {
     VkCommandBufferAllocateInfo AllocateInfo = {};
@@ -64,7 +66,7 @@ static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPoo
     AllocateInfo.commandPool = InCommandPool;
     AllocateInfo.commandBufferCount = 1;
 
-    VkCommandBuffer CommandBuffer;
+    VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
     VK_CHECK(vkAllocateCommandBuffers(InDevice, &AllocateInfo, &CommandBuffer),
              "Failed to allocate command buffer for single time command!");
 
@@ -92,7 +94,7 @@ static void EndSingleTimeCommands(const VkCommandBuffer& InCommandBuffer, const 
     vkFreeCommandBuffers(InDevice, InCommandPool, 1, &InCommandBuffer);
 }
 
-static VkFormat EclipseFormatToVulkan(EShaderDataType InFormat)
+static VkFormat EclipseShaderDataTypeToVulkan(EShaderDataType InFormat)
 {
     switch (InFormat)
     {
@@ -113,9 +115,9 @@ static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t InBi
                                                                    VkVertexInputRate InInputRate = VK_VERTEX_INPUT_RATE_VERTEX)
 {
     VkVertexInputBindingDescription BindingDescription = {};
+    BindingDescription.binding = InBindingID;
     BindingDescription.stride = InStride;
     BindingDescription.inputRate = InInputRate;
-    BindingDescription.binding = InBindingID;
 
     return BindingDescription;
 }
@@ -131,5 +133,70 @@ static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t 
 
     return AttributeDescription;
 }
+
+static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t InBinding, const uint32_t InDescriptorCount,
+                                                                  VkDescriptorType InDescriptorType, VkShaderStageFlags InStageFlags,
+                                                                  VkSampler* InImmutableSamplers = VK_NULL_HANDLE)
+{
+    VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding = {};
+    DescriptorSetLayoutBinding.binding = InBinding;
+    DescriptorSetLayoutBinding.descriptorCount = InDescriptorCount;
+    DescriptorSetLayoutBinding.descriptorType = InDescriptorType;
+    DescriptorSetLayoutBinding.stageFlags = InStageFlags;
+    DescriptorSetLayoutBinding.pImmutableSamplers = InImmutableSamplers;
+
+    return DescriptorSetLayoutBinding;
+}
+
+static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType InDescriptorType, const uint32_t InBinding,
+                                                  VkDescriptorSet InDescriptorSet, const uint32_t InDescriptorCount,
+                                                  VkDescriptorBufferInfo* InBufferInfo, VkBufferView* InTexelBufferView = VK_NULL_HANDLE,
+                                                  const uint32_t InArrayElement = 0)
+{
+    VkWriteDescriptorSet WriteDescriptorSet = {};
+    WriteDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    WriteDescriptorSet.descriptorType = InDescriptorType;
+    WriteDescriptorSet.dstBinding = InBinding;
+    WriteDescriptorSet.dstSet = InDescriptorSet;
+    WriteDescriptorSet.descriptorCount = InDescriptorCount;
+    WriteDescriptorSet.pBufferInfo = InBufferInfo;
+    WriteDescriptorSet.pTexelBufferView = InTexelBufferView;
+    WriteDescriptorSet.dstArrayElement = InArrayElement;
+
+    return WriteDescriptorSet;
+}
+
+static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType InDescriptorType, const uint32_t InBinding,
+                                                  VkDescriptorSet InDescriptorSet, const uint32_t InDescriptorCount,
+                                                  VkDescriptorImageInfo* InImageInfo, VkBufferView* InTexelBufferView = VK_NULL_HANDLE,
+                                                  const uint32_t InArrayElement = 0)
+{
+    VkWriteDescriptorSet WriteDescriptorSet = {};
+    WriteDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    WriteDescriptorSet.descriptorType = InDescriptorType;
+    WriteDescriptorSet.dstBinding = InBinding;
+    WriteDescriptorSet.dstSet = InDescriptorSet;
+    WriteDescriptorSet.descriptorCount = InDescriptorCount;
+    WriteDescriptorSet.pImageInfo = InImageInfo;
+    WriteDescriptorSet.pTexelBufferView = InTexelBufferView;
+    WriteDescriptorSet.dstArrayElement = InArrayElement;
+
+    return WriteDescriptorSet;
+}
+
+static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescriptorPool& InDescriptorPool,
+                                                                const uint32_t InDescriptorSetCount,
+                                                                VkDescriptorSetLayout* InDescriptorSetLayouts)
+{
+    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {};
+    DescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    DescriptorSetAllocateInfo.descriptorPool = InDescriptorPool;
+    DescriptorSetAllocateInfo.descriptorSetCount = InDescriptorSetCount;
+    DescriptorSetAllocateInfo.pSetLayouts = InDescriptorSetLayouts;
+
+    return DescriptorSetAllocateInfo;
+}
+
+}  // namespace Utility
 
 }  // namespace Eclipse

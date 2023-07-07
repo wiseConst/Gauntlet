@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Eclipse/Core/Core.h"
+#include "Eclipse/Renderer/CoreRendererStructs.h"
 #include <vector>
 
 #define GLM_DEPTH_ZERO_TO_ONE
@@ -12,30 +13,28 @@
 
 #include "Buffer.h"
 
+#include "Eclipse/Core/Application.h"
+
+#include <GLFW/glfw3.h>
+
 namespace Eclipse
 {
-
-struct Vertex
-{
-    glm::vec3 Position;
-    glm::vec3 Normal;
-    glm::vec3 Color;
-};
 
 class Mesh
 {
   public:
-    Mesh(const std::string_view& InFilePath)
+    Mesh(const BufferInfo& InBufferInfo) : m_FilePath("NONE"), m_VertexBufferInfo(InBufferInfo)
     {
-        LoadFromObj(InFilePath);
+        Application::Get().GetThreadPool()->Enqueue([this] { LoadMesh(); });
+        // std::async(std::launch::async, [this] { LoadMesh(); });
+        // LoadMesh();
+    }
 
-        BufferInfo VertexBufferInfo = {};
-        VertexBufferInfo.Usage = EBufferUsage::VERTEX_BUFFER;
-        VertexBufferInfo.Count = m_Vertices.size();
-        VertexBufferInfo.Size = m_Vertices.size() * sizeof(m_Vertices[0]);
-        VertexBufferInfo.Data = m_Vertices.data();
-
-        m_VertexBuffer.reset(VertexBuffer::Create(VertexBufferInfo));
+    Mesh(const std::string_view& InFilePath) : m_FilePath(InFilePath)
+    {
+        Application::Get().GetThreadPool()->Enqueue([this] { LoadMesh(); });
+        // std::async(std::launch::async, [this] { LoadMesh(); });
+        // LoadMesh();
     }
 
     template <typename T> FORCEINLINE const Ref<T> GetVertexBuffer() const { return std::static_pointer_cast<T>(m_VertexBuffer); }
@@ -49,11 +48,40 @@ class Mesh
     virtual void Destroy() { m_VertexBuffer->Destroy(); }
 
   protected:
-    std::vector<Vertex> m_Vertices;
+    BufferInfo m_VertexBufferInfo;
     Ref<VertexBuffer> m_VertexBuffer;
+    const std::string_view m_FilePath;
 
   private:
-    bool LoadFromObj(const std::string_view& InFilePath)
+    void LoadMesh()
+    {
+        if (strcmp(m_FilePath.data(), "NONE") != 0)
+        {
+            std::vector<Vertex> OutVertexData;
+            LoadObject(m_FilePath, OutVertexData);
+
+            BufferLayout VertexBufferLayout = {
+                {EShaderDataType::Vec3, "InPosition"},  //
+                {EShaderDataType::Vec3, "InNormal"},    //
+                {EShaderDataType::Vec3, "InColor"}      //
+            };                                          //
+
+            BufferInfo VertexBufferInfo = {};
+            VertexBufferInfo.Usage = EBufferUsageFlags::VERTEX_BUFFER;
+            VertexBufferInfo.Count = OutVertexData.size();
+            VertexBufferInfo.Size = OutVertexData.size() * sizeof(OutVertexData[0]);
+            VertexBufferInfo.Data = OutVertexData.data();
+            VertexBufferInfo.Layout = VertexBufferLayout;
+
+            m_VertexBuffer.reset(VertexBuffer::Create(VertexBufferInfo));
+        }
+        else
+        {
+            m_VertexBuffer.reset(VertexBuffer::Create(m_VertexBufferInfo));
+        }
+    }
+
+    void LoadObject(const std::string_view& InFilePath, std::vector<Vertex>& OutVertexData)
     {
         // Attributes will contain the vertex arrays of the file
         tinyobj::attrib_t Attributes = {};
@@ -79,7 +107,7 @@ class Mesh
         {
             LOG_ERROR("TinyObjWarn: %s", Error);
 
-            return false;
+            return;
         }
 
         // Loop over shapes
@@ -121,13 +149,11 @@ class Mesh
                     // we are setting the vertex color as the vertex normal. This is just for display purposes
                     new_vert.Color = new_vert.Normal;
 
-                    m_Vertices.push_back(new_vert);
+                    OutVertexData.push_back(new_vert);
                 }
                 index_offset += fv;
             }
         }
-
-        return true;
     }
 };
 

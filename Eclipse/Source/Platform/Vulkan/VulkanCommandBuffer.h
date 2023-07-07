@@ -39,11 +39,10 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         vkCmdPushConstants(m_CommandBuffer, InPipelineLayout, InShaderStageFlags, InOffset, InSize, InValues);
     }
 
-    FORCEINLINE void BindDescriptorSets(VkPipelineLayout InPipelineLayout,
+    FORCEINLINE void BindDescriptorSets(VkPipelineLayout InPipelineLayout, const uint32_t InFirstSet = 0,
+                                        const uint32_t InDescriptorCount = 0, VkDescriptorSet* InDescriptorSets = VK_NULL_HANDLE,
                                         VkPipelineBindPoint InPipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        const uint32_t InFirstSet = 0, const uint32_t InDescriptorCount = 0,
-                                        VkDescriptorSet* InDescriptorSets = VK_NULL_HANDLE, const uint32_t InDynamicOffsetCount = 0,
-                                        uint32_t* InDynamicOffsets = nullptr) const
+                                        const uint32_t InDynamicOffsetCount = 0, uint32_t* InDynamicOffsets = nullptr) const
     {
         vkCmdBindDescriptorSets(m_CommandBuffer, InPipelineBindPoint, InPipelineLayout, InFirstSet, InDescriptorCount, InDescriptorSets,
                                 InDynamicOffsetCount, InDynamicOffsets);

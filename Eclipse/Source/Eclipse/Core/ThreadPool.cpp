@@ -6,7 +6,7 @@ namespace Eclipse
 ThreadPool::ThreadPool() : m_MainId(std::this_thread::get_id())
 {
     Init();
-    LOG_INFO("ThreadPool created!");
+    LOG_INFO("ThreadPool created! Thread usage limit: %u", m_ThreadCount);
 }
 
 ThreadPool::~ThreadPool()
@@ -20,7 +20,6 @@ void ThreadPool::Init()
     m_ThreadCount = std::thread::hardware_concurrency() - 1;  // Without MainThread that uses our applicaiton
     m_IsShutdownRequested = false;
 
-    LOG_INFO("Limiting thread usage to: %u", m_ThreadCount);
     for (uint32_t i = 0; i < m_ThreadCount; ++i)
     {
         m_Threads.emplace_back(
@@ -32,7 +31,7 @@ void ThreadPool::Init()
                 {
                     Task task;
                     {
-                        std::unique_lock<std::mutex> Lock(m_Mutex);
+                        std::unique_lock<std::mutex> Lock(m_QueueMutex);
                         m_CondVar.wait(Lock, [this] { return m_IsShutdownRequested || !m_TaskQueue.empty(); });
 
                         if (m_IsShutdownRequested && m_TaskQueue.empty()) return;
@@ -49,7 +48,7 @@ void ThreadPool::Init()
 void ThreadPool::Shutdown()
 {
     {
-        std::unique_lock<std::mutex> Lock(m_Mutex);
+        std::unique_lock<std::mutex> Lock(m_QueueMutex);
         m_IsShutdownRequested = true;
     }
 

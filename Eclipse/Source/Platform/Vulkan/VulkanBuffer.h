@@ -18,15 +18,18 @@ struct AllocatedBuffer : private Uncopyable, private Unmovable
     VkBuffer Buffer;           // A handle to a GPU side Vulkan buffer
 };
 
+// VERTEX BUFFER
+
 class VulkanVertexBuffer final : public VertexBuffer
 {
   public:
     VulkanVertexBuffer() = delete;
-    VulkanVertexBuffer(const BufferInfo& InBufferInfo);
+    VulkanVertexBuffer(BufferInfo& InBufferInfo);
     ~VulkanVertexBuffer() = default;
 
     FORCEINLINE const BufferLayout& GetLayout() const final override { return m_Layout; }
     FORCEINLINE void SetLayout(const BufferLayout& InLayout) final override { m_Layout = InLayout; }
+    void SetData(const void* InData, const size_t InDataSize) final override;
 
     FORCEINLINE uint64_t GetCount() const final override { return m_VertexCount; }
     void Destroy() final override;
@@ -40,11 +43,13 @@ class VulkanVertexBuffer final : public VertexBuffer
     uint64_t m_VertexCount = 0;
 };
 
+// INDEX BUFFER
+
 class VulkanIndexBuffer final : public IndexBuffer
 {
   public:
     VulkanIndexBuffer() = delete;
-    VulkanIndexBuffer(const BufferInfo& InBufferInfo);
+    VulkanIndexBuffer(BufferInfo& InBufferInfo);
     ~VulkanIndexBuffer() = default;
 
     uint64_t GetCount() const final override { return m_IndicesCount; }
@@ -57,5 +62,18 @@ class VulkanIndexBuffer final : public IndexBuffer
     AllocatedBuffer m_AllocatedBuffer;
     uint64_t m_IndicesCount = 0;
 };
+
+namespace BufferUtils
+{
+VkBufferUsageFlags EclipseBufferUsageToVulkan(const EBufferUsage InBufferUsage);
+
+void CreateBuffer(const EBufferUsage InBufferUsage, const VkDeviceSize InSize, AllocatedBuffer& InOutAllocatedBuffer,
+                  VmaMemoryUsage InMemoryUsage = VMA_MEMORY_USAGE_AUTO);
+
+void CopyBuffer(VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize);
+
+void DestroyBuffer(AllocatedBuffer& InBuffer);
+
+}  // namespace BufferUtils
 
 }  // namespace Eclipse

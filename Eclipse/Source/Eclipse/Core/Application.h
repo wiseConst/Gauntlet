@@ -6,12 +6,11 @@
 #include "Eclipse/Renderer/RendererAPI.h"
 
 #include "Eclipse/Layer/LayerQueue.h"
-#include "Timestep.h"
+#include "ThreadPool.h"
 
 namespace Eclipse
 {
 class Window;
-class ThreadPool;
 class GraphicsContext;
 class ImGuiLayer;
 
@@ -19,7 +18,7 @@ struct ApplicationSpecification final
 {
   public:
     ApplicationSpecification()
-        : AppName("Eclipse Engine"), WindowLogoPath("Resources/Logo/Eclipse.jpg"), Width(980), Height(540),
+        : AppName("Eclipse Engine"), WindowLogoPath("Resources/Logo/Eclipse.jpg"), Width(1280), Height(720),
           GraphicsAPI(RendererAPI::EAPI::Vulkan)
     {
     }
@@ -50,7 +49,8 @@ class Application : private Uncopyable, private Unmovable
 
     FORCEINLINE static Application& Get() { return *s_Instance; }
 
-    template <typename F, typename... Args> FORCEINLINE void Submit(F&& f, Args&&... InArgs) { m_ThreadPool->Enqueue(f, InArgs); }
+    FORCEINLINE const auto& GetThreadPool() const { return m_ThreadPool; }
+    FORCEINLINE auto& GetThreadPool() { return m_ThreadPool; }
 
     FORCEINLINE const auto& GetInfo() const { return m_AppInfo; }
     FORCEINLINE auto& GetInfo() { return m_AppInfo; }
@@ -70,7 +70,7 @@ class Application : private Uncopyable, private Unmovable
     Scoped<ImGuiLayer> m_ImGuiLayer;
 
     LayerQueue m_LayerQueue;
-    Timestep m_Timestep;
+    float m_LastFrameTime = 0.0f;
 };
 
 Scoped<Application> CreateApplication();

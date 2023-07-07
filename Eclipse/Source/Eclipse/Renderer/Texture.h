@@ -1,31 +1,23 @@
 #pragma once
 
 #include "Eclipse/Core/Core.h"
-#include <stb/stb_image.h>
+#include "Image.h"
 
 namespace Eclipse
 {
 
-enum class ELoadImageType : uint8_t
-{
-    GREY = 0,
-    GREY_ALPHA,
-    RGB,
-    RGB_ALPHA,
-};
-
-class Texture
+class Texture2D
 {
   public:
-    Texture() = delete;
-    virtual ~Texture();
+    Texture2D() = default;
+    virtual ~Texture2D() = default;
 
-    static stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
-                                      ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
+    virtual const uint32_t GetWidth() const = 0;
+    virtual const uint32_t GetHeight() const = 0;
 
-    static FORCEINLINE void UnloadImage(stbi_uc* InPixels) { stbi_image_free(InPixels); }
+    virtual void Destroy() = 0;
 
-  private:
+    static Ref<Texture2D> Create(const std::string_view& TextureFilePath);
 };
 
 }  // namespace Eclipse

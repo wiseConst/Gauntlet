@@ -12,6 +12,7 @@ class LayerQueue final : private Uncopyable, private Unmovable
 {
   public:
     LayerQueue() = default;
+
     ~LayerQueue()
     {
         for (auto* Layer : m_Queue)
@@ -42,6 +43,12 @@ class LayerQueue final : private Uncopyable, private Unmovable
         InLayer->OnAttach();
         m_Queue.emplace_back(InLayer);
     }
+
+    FORCEINLINE const auto begin() const { return m_Queue.begin(); }
+    FORCEINLINE const auto end() const { return m_Queue.end(); }
+
+    FORCEINLINE auto begin() { return m_Queue.begin(); }
+    FORCEINLINE auto end() { return m_Queue.end(); }
 
   private:
     std::vector<Layer*> m_Queue;

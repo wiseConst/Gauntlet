@@ -8,7 +8,7 @@ class KeyButtonPressedEvent final : public Event
 {
   public:
     KeyButtonPressedEvent(int key, int scancode)
-        : Event("KeyButtonPressedEvent", EventType::KeyButtonPressedEvent), m_Key(key), m_Scancode(scancode)
+        : Event("KeyButtonPressedEvent", EEventType::KeyButtonPressedEvent), m_Key(key), m_Scancode(scancode)
     {
     }
 
@@ -27,7 +27,7 @@ class KeyButtonReleasedEvent final : public Event
 {
   public:
     KeyButtonReleasedEvent(int key, int scancode)
-        : Event("KeyButtonReleasedEvent", EventType::KeyButtonReleasedEvent), m_Key(key), m_Scancode(scancode)
+        : Event("KeyButtonReleasedEvent", EEventType::KeyButtonReleasedEvent), m_Key(key), m_Scancode(scancode)
     {
     }
 
@@ -46,7 +46,7 @@ class KeyButtonRepeatedEvent final : public Event
 {
   public:
     KeyButtonRepeatedEvent(int key, int scancode, int action, int count)
-        : Event("KeyButtonRepeatedEvent", EventType::KeyButtonRepeatedEvent), m_Key(key), m_Scancode(scancode), m_Action(action),
+        : Event("KeyButtonRepeatedEvent", EEventType::KeyButtonRepeatedEvent), m_Key(key), m_Scancode(scancode), m_Action(action),
           m_Count(count)
     {
     }

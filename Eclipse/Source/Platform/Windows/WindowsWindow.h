@@ -15,12 +15,13 @@ class WindowsWindow final : public Window
 
     ~WindowsWindow();
 
-    FORCEINLINE void SetWindowCallback(const EventCallbackFn& InFnCallback) final override { m_CallbackFn = InFnCallback; }
     void OnUpdate() final override;
-
     void HandleMinimized() final override;
+
     void SetWindowLogo(const std::string_view& InFilePath) final override;
+    void SetWindowTitle(const std::string_view& InTitle) final override;
     void SetVSync(bool IsVsync) final override;
+    FORCEINLINE void SetWindowCallback(const EventCallbackFn& InFnCallback) final override { m_CallbackFn = InFnCallback; }
 
     FORCEINLINE void* GetNativeWindow() const final override { return m_Window; }
 

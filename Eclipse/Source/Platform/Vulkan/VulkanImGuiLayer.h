@@ -21,5 +21,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
 
   private:
     VkDescriptorPool m_ImGuiDescriptorPool = VK_NULL_HANDLE;
+
+    void SetStyle();
 };
 }  // namespace Eclipse

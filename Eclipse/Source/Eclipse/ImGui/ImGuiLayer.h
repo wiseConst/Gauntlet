@@ -3,19 +3,20 @@
 #include "Eclipse/Core/Core.h"
 #include "Eclipse/Layer/Layer.h"
 
-#include <imgui.h>
+#include <imgui/imgui.h>
 
 namespace Eclipse
 {
 
-class ImGuiLayer : public Layer, private Uncopyable, private Unmovable
+class ImGuiLayer : public Layer
 {
   public:
     ImGuiLayer(const std::string_view& InDebugName) : Layer(InDebugName) {}
     ImGuiLayer() = default;
     virtual ~ImGuiLayer() = default;
 
-    virtual void OnUpdate(const float DeltaTime){};
+    virtual void OnUpdate(const float DeltaTime) {}
+    virtual void OnEvent(Event& InEvent) {}
 
     virtual void OnAttach() = 0;
     virtual void OnDetach() = 0;

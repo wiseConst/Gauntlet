@@ -8,9 +8,9 @@ namespace Eclipse
 {
 // VERTEX
 
-VertexBuffer::VertexBuffer(const BufferInfo& InBufferInfo) {}
+VertexBuffer::VertexBuffer(BufferInfo& InBufferInfo) {}
 
-VertexBuffer* VertexBuffer::Create(const BufferInfo& InBufferInfo)
+VertexBuffer* VertexBuffer::Create(BufferInfo& InBufferInfo)
 {
     switch (RendererAPI::Get())
     {
@@ -31,9 +31,9 @@ VertexBuffer* VertexBuffer::Create(const BufferInfo& InBufferInfo)
 
 // INDEX
 
-IndexBuffer::IndexBuffer(const BufferInfo& InBufferInfo) {}
+IndexBuffer::IndexBuffer(BufferInfo& InBufferInfo) {}
 
-IndexBuffer* IndexBuffer::Create(const BufferInfo& InBufferInfo)
+IndexBuffer* IndexBuffer::Create(BufferInfo& InBufferInfo)
 {
     switch (RendererAPI::Get())
     {

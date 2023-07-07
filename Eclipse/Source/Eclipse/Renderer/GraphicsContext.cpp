@@ -2,12 +2,10 @@
 #include "GraphicsContext.h"
 
 #include "Platform/Vulkan/VulkanContext.h"
-#include "RendererAPI.h"
 
 namespace Eclipse
 {
 GraphicsContext* GraphicsContext::s_Context = nullptr;
-GraphicsContext::RenderStats GraphicsContext::s_RenderStats;
 
 GraphicsContext* GraphicsContext::Create(Scoped<Window>& InWindow)
 {
@@ -15,7 +13,7 @@ GraphicsContext* GraphicsContext::Create(Scoped<Window>& InWindow)
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            LOG_INFO("Using Vulkan Graphics API!");
+            LOG_INFO("RHI: Vulkan!");
             return new VulkanContext(InWindow);
         }
         case RendererAPI::EAPI::None:

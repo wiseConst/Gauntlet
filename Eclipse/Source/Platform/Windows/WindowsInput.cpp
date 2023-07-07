@@ -11,12 +11,14 @@ namespace Eclipse
 
 bool WindowsInput::IsKeyPressedImpl(int KeyCode) const
 {
-    return glfwGetKey(GetNativeWindow(), KeyCode) == GLFW_PRESS;
+    const auto State = glfwGetKey(GetNativeWindow(), KeyCode);
+    return State == GLFW_PRESS || State == GLFW_REPEAT;
 }
 
 bool WindowsInput::IsMouseButtonPressedImpl(int Button) const
 {
-    return glfwGetMouseButton(GetNativeWindow(), Button) == GLFW_PRESS;
+    const auto State = glfwGetMouseButton(GetNativeWindow(), Button);
+    return State == GLFW_PRESS || State == GLFW_REPEAT;
 }
 
 std::pair<int, int> WindowsInput::GetMousePositionImpl() const
