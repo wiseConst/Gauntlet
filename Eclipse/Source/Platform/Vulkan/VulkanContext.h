@@ -19,6 +19,9 @@ class VulkanPipeline;
 
 class VulkanContext final : public GraphicsContext
 {
+  private:
+    using ResizeCallback = std::function<void()>;
+
   public:
     VulkanContext() = delete;
     VulkanContext(Scoped<Window>& InWindow);
@@ -52,11 +55,9 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetGlobalRenderPass() const { return m_GlobalRenderPass; }
     FORCEINLINE auto& GetGlobalRenderPass() { return m_GlobalRenderPass; }
 
-    FORCEINLINE VkBool32 IsDestroying() const { return m_bIsDestroying; }
-
     FORCEINLINE void SetClearColor(const glm::vec4& InColor) { ClearColor = {InColor.r, InColor.g, InColor.b, InColor.a}; }
 
-    FORCEINLINE void AddPipelineToRebuild(const Ref<VulkanPipeline>& InPipeline) { m_PipelinesToRebuild.emplace_back(InPipeline); }
+    FORCEINLINE void AddResizeCallback(const std::function<void()>& InResizeCallback) { m_ResizeCallbacks.emplace_back(InResizeCallback); }
 
   private:
     VkInstance m_Instance = VK_NULL_HANDLE;
@@ -69,8 +70,7 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanCommandPool> m_TransferCommandPool;
     Scoped<VulkanCommandPool> m_GraphicsCommandPool;
 
-    VkBool32 m_bIsDestroying{VK_FALSE};
-    VkClearColorValue ClearColor = {0.1f, 0.1f, 0.1f, 1.0};
+    VkClearColorValue ClearColor = {0.1f, 0.1f, 0.1f, 1.0f};
 
     Scoped<VulkanRenderPass> m_GlobalRenderPass;  // Tied with Swapchain.
 
@@ -81,7 +81,8 @@ class VulkanContext final : public GraphicsContext
     // Sync objects CPU-GPU
     std::vector<VkFence> m_InFlightFences;
 
-    std::vector<Ref<VulkanPipeline>> m_PipelinesToRebuild;
+    std::vector<ResizeCallback> m_ResizeCallbacks;
+    float m_CPULastWaitTime = 0.0f;
 
     void CreateInstance();
     void CreateDebugMessenger();

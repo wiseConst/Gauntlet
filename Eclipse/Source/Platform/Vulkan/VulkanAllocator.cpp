@@ -25,7 +25,9 @@ VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<Vulk
     const auto result = vmaCreateAllocator(&AllocatorCreateInfo, &m_Allocator);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create AMD Vulkan Allocator!");
 
+#if ELS_DEBUG
     LOG_INFO("AMD Vulkan Allocator created!");
+#endif
 }
 
 VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreateInfo, VkImage* InImage) const
@@ -120,11 +122,17 @@ void VulkanAllocator::Unmap(VmaAllocation& InAllocation) const
 
 void VulkanAllocator::Destroy()
 {
+#if ELS_DEBUG
     LOG_WARN("Before VMA destroying! Remaining data: buffers (%u), images (%u).", VulkanRenderer2D::GetStats().AllocatedBuffers,
              VulkanRenderer2D::GetStats().AllocatedImages);
+#endif
+
     vmaDestroyAllocator(m_Allocator);
+
+#if ELS_DEBUG
     LOG_WARN("VMA destroyed! Remaining data: buffers (%u), images (%u).", VulkanRenderer2D::GetStats().AllocatedBuffers,
              VulkanRenderer2D::GetStats().AllocatedImages);
+#endif
 }
 
 }  // namespace Eclipse

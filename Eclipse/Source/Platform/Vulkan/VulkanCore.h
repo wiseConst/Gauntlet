@@ -18,6 +18,7 @@ static const char* GetStringVulkanResult(VkResult InResult)
         case VK_EVENT_RESET: return "VK_EVENT_RESET";
         case VK_INCOMPLETE: return "VK_INCOMPLETE";
         case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
         case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
         case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
         case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";

@@ -47,13 +47,13 @@ stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth
 }
 }  // namespace ImageUtils
 
-Ref<Image> Image::Create(const ImageSpecification& InImageSpecification, const std::string_view& InFilePath)
+Ref<Image> Image::Create(const ImageSpecification& InImageSpecification)
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            return MakeRef<VulkanImage>(InImageSpecification, InFilePath.data());
+            return MakeRef<VulkanImage>(InImageSpecification);
         }
         case RendererAPI::EAPI::None:
         {

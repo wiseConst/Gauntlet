@@ -5,60 +5,59 @@
 
 namespace Eclipse
 {
-// DescriptorAllocator
-DescriptorAllocator::DescriptorAllocator(Scoped<VulkanDevice>& InDevice) : m_Device(InDevice)
-{
-    Create();
-}
+// ###########################################
+//          VulkanDescriptorAllocator
+// ###########################################
+VulkanDescriptorAllocator::VulkanDescriptorAllocator(Scoped<VulkanDevice>& InDevice) : m_Device(InDevice) {}
 
-void DescriptorAllocator::Create() {}
-
-void DescriptorAllocator::ResetPools()
+void VulkanDescriptorAllocator::ResetPools()
 {
-    for (auto& UsedPool : m_UsedPools)
+    // Reset all active pools and add them to the free pools
+    for (auto& UsedPool : m_ActivePools)
     {
         VK_CHECK(vkResetDescriptorPool(m_Device->GetLogicalDevice(), UsedPool, 0), "Failed to reset descriptor pool!");
-        m_FreePools.push_back(UsedPool);
     }
 
-    m_UsedPools.clear();
+    // Clear the active pools, since we've put them all in the free pools
+    m_FreePools = m_ActivePools;
+    m_ActivePools.clear();
+
+    // Reset the current pool handle back to null
     m_CurrentPool = VK_NULL_HANDLE;
 }
 
-bool DescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout)
+bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout)
 {
+    // Initialize the currentPool handle if it's null
     if (m_CurrentPool == VK_NULL_HANDLE)
     {
-
         m_CurrentPool = GrabFreePool();
-        m_UsedPools.push_back(m_CurrentPool);
+        m_ActivePools.push_back(m_CurrentPool);
     }
 
-    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {};
-    DescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
 
-    DescriptorSetAllocateInfo.pSetLayouts = &InDescriptorSetLayout;
-    DescriptorSetAllocateInfo.descriptorPool = m_CurrentPool;
-    DescriptorSetAllocateInfo.descriptorSetCount = 1;
-
+    // Try to allocate the descriptor set
     auto AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &DescriptorSetAllocateInfo, InDescriptorSet);
-    bool needReallocate = false;
+    bool bNeedReallocate = false;
 
     switch (AllocationResult)
     {
         case VK_SUCCESS: return true;
         case VK_ERROR_FRAGMENTED_POOL:
-        case VK_ERROR_OUT_OF_POOL_MEMORY: needReallocate = true; break;
+        case VK_ERROR_OUT_OF_POOL_MEMORY: bNeedReallocate = true; break;
         default: ELS_ASSERT(false, "Unknown allocation result!"); return false;
     }
 
-    if (needReallocate)
+    if (bNeedReallocate)
     {
+        // Allocate a new pool and retry
         m_CurrentPool = GrabFreePool();
-        m_UsedPools.push_back(m_CurrentPool);
+        m_ActivePools.push_back(m_CurrentPool);
 
         AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &DescriptorSetAllocateInfo, InDescriptorSet);
 
+        // If it still fails then we have big issues
         if (AllocationResult == VK_SUCCESS)
         {
             return true;
@@ -68,7 +67,8 @@ bool DescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDescripto
     return false;
 }
 
-VkDescriptorPool DescriptorAllocator::CreatePool(const uint32_t InCount, VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags) const
+VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t InCount,
+                                                       VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags) const
 {
     std::vector<VkDescriptorPoolSize> Sizes;
     Sizes.reserve(m_PoolSizes.Sizes.size());
@@ -79,10 +79,10 @@ VkDescriptorPool DescriptorAllocator::CreatePool(const uint32_t InCount, VkDescr
 
     VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = {};
     DescriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    DescriptorPoolCreateInfo.flags = InDescriptorPoolCreateFlags;
     DescriptorPoolCreateInfo.maxSets = InCount;
     DescriptorPoolCreateInfo.poolSizeCount = (uint32_t)Sizes.size();
     DescriptorPoolCreateInfo.pPoolSizes = Sizes.data();
+    DescriptorPoolCreateInfo.flags = InDescriptorPoolCreateFlags;
 
     VkDescriptorPool DescriptorPool = VK_NULL_HANDLE;
     VK_CHECK(vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &DescriptorPool),
@@ -91,7 +91,7 @@ VkDescriptorPool DescriptorAllocator::CreatePool(const uint32_t InCount, VkDescr
     return DescriptorPool;
 }
 
-VkDescriptorPool DescriptorAllocator::GrabFreePool() const
+VkDescriptorPool VulkanDescriptorAllocator::GrabFreePool() const
 {
     if (m_FreePools.size() > 0)
     {
@@ -102,36 +102,33 @@ VkDescriptorPool DescriptorAllocator::GrabFreePool() const
     return CreatePool(1000, 0);
 }
 
-void DescriptorAllocator::Destroy()
+void VulkanDescriptorAllocator::Destroy()
 {
     for (auto& FreePool : m_FreePools)
     {
         vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), FreePool, nullptr);
     }
 
-    for (auto& UsedPool : m_UsedPools)
+    for (auto& ActivePool : m_ActivePools)
     {
-        vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), UsedPool, nullptr);
+        vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), ActivePool, nullptr);
     }
 }
 
-// DescriptorLayoutCache
+// ###########################################
+//          VulkanDescriptorLayoutCache
+// ###########################################
+VulkanDescriptorLayoutCache::VulkanDescriptorLayoutCache(Scoped<VulkanDevice>& InDevice) : m_Device(InDevice) {}
 
-DescriptorLayoutCache::DescriptorLayoutCache(Scoped<VulkanDevice>& InDevice) : m_Device(InDevice)
-{
-    Create();
-}
-
-void DescriptorLayoutCache::Create() {}
-
-VkDescriptorSetLayout DescriptorLayoutCache::CreateDescriptorSetLayout(VkDescriptorSetLayoutCreateInfo* info)
+VkDescriptorSetLayout VulkanDescriptorLayoutCache::CreateDescriptorSetLayout(VkDescriptorSetLayoutCreateInfo* info)
 {
     DescriptorLayoutInfo LayoutInfo = {};
     LayoutInfo.Bindings.reserve(info->bindingCount);
-    bool bIsSorted = true;
-    int LastBinding = -1;
 
-    for (int i = 0; i < info->bindingCount; i++)
+    // Bindings should be in ascending order
+    bool bIsSorted = true;
+    int32_t LastBinding = -1;
+    for (uint32_t i = 0; i < info->bindingCount; i++)
     {
         LayoutInfo.Bindings.push_back(info->pBindings[i]);
 
@@ -144,159 +141,143 @@ VkDescriptorSetLayout DescriptorLayoutCache::CreateDescriptorSetLayout(VkDescrip
             bIsSorted = false;
         }
     }
+
     if (!bIsSorted)
     {
         std::sort(LayoutInfo.Bindings.begin(), LayoutInfo.Bindings.end(),
                   [](const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b) { return a.binding < b.binding; });
     }
 
-    // try to grab from cache
-    auto it = m_LayoutCache.find(LayoutInfo);
+    // Check first if it's already in the cache and grab it if it is.
+    const auto it = m_LayoutCache.find(LayoutInfo);
     if (it != m_LayoutCache.end())
     {
         return (*it).second;
     }
-    // create a new one (not found)
+
+    // Create a new one if not found
     VkDescriptorSetLayout Layout;
     VK_CHECK(vkCreateDescriptorSetLayout(m_Device->GetLogicalDevice(), info, nullptr, &Layout), "Failed to create descriptor set layout!");
 
+    // Add to cache
     m_LayoutCache[LayoutInfo] = Layout;
     return Layout;
 }
 
-bool DescriptorLayoutCache::DescriptorLayoutInfo::operator==(const DescriptorLayoutInfo& other) const
+bool VulkanDescriptorLayoutCache::DescriptorLayoutInfo::operator==(const DescriptorLayoutInfo& other) const
 {
-    if (other.Bindings.size() != Bindings.size())
-    {
-        return false;
-    }
+    if (other.Bindings.size() != Bindings.size()) return false;
 
     for (int i = 0; i < Bindings.size(); i++)
     {
-        if (other.Bindings[i].binding != Bindings[i].binding)
-        {
-            return false;
-        }
+        if (other.Bindings[i].binding != Bindings[i].binding) return false;
 
-        if (other.Bindings[i].descriptorType != Bindings[i].descriptorType)
-        {
-            return false;
-        }
+        if (other.Bindings[i].descriptorType != Bindings[i].descriptorType) return false;
 
-        if (other.Bindings[i].descriptorCount != Bindings[i].descriptorCount)
-        {
-            return false;
-        }
+        if (other.Bindings[i].descriptorCount != Bindings[i].descriptorCount) return false;
 
-        if (other.Bindings[i].stageFlags != Bindings[i].stageFlags)
-        {
-            return false;
-        }
+        if (other.Bindings[i].stageFlags != Bindings[i].stageFlags) return false;
     }
+
     return true;
 }
 
-size_t DescriptorLayoutCache::DescriptorLayoutInfo::hash() const
+size_t VulkanDescriptorLayoutCache::DescriptorLayoutInfo::hash() const
 {
     using std::hash;
     using std::size_t;
 
     size_t result = hash<size_t>()(Bindings.size());
-    for (const VkDescriptorSetLayoutBinding& Binding : Bindings)
+    for (const auto& Binding : Bindings)
     {
-        const size_t binding_hash =
-            Binding.binding | Binding.descriptorType << 8 | Binding.descriptorCount << 16 | Binding.stageFlags << 24;
-        result ^= hash<size_t>()(binding_hash);
+        const size_t BindingHash = Binding.binding | Binding.descriptorType << 8 | Binding.descriptorCount << 16 | Binding.stageFlags << 24;
+        result ^= hash<size_t>()(BindingHash);
     }
 
     return result;
 }
 
-void DescriptorLayoutCache::Destroy()
+void VulkanDescriptorLayoutCache::Destroy()
 {
     for (auto& Pair : m_LayoutCache)
     {
         vkDestroyDescriptorSetLayout(m_Device->GetLogicalDevice(), Pair.second, nullptr);
     }
 }
-
-// DescriptorBuilder
-
-DescriptorBuilder DescriptorBuilder::Begin(Ref<DescriptorLayoutCache>& InDescriptorLayoutCache,
-                                           Ref<DescriptorAllocator>& InDescriptorAllocator)
+// ###########################################
+//          DescriptorBuilder
+// ##########################################
+DescriptorBuilder DescriptorBuilder::Begin(Ref<VulkanDescriptorLayoutCache>& InDescriptorLayoutCache,
+                                           Ref<VulkanDescriptorAllocator>& InDescriptorAllocator)
 {
-    DescriptorBuilder Builder;
-
+    DescriptorBuilder Builder = {};
     Builder.m_DescriptorLayoutCache = InDescriptorLayoutCache;
     Builder.m_DescriptorAllocator = InDescriptorAllocator;
+
     return Builder;
 }
 
-DescriptorBuilder& DescriptorBuilder::BindBuffer(uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type,
-                                                 VkShaderStageFlags stageFlags)
+DescriptorBuilder& DescriptorBuilder::BindBuffer(const uint32_t InBinding, VkDescriptorBufferInfo* InBufferInfo,
+                                                 VkDescriptorType InDescriptorType, VkShaderStageFlags InShaderStageFlags,
+                                                 const uint32_t InDescriptorCount)
 {
-    // VkDescriptorSetLayoutBinding newBinding{};
+    // Create the descriptor binding for the layout
+    VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding =
+        Utility::GetDescriptorSetLayoutBinding(InBinding, 1, InDescriptorType, InShaderStageFlags);
 
-    // newBinding.descriptorCount = 1;
-    // newBinding.descriptorType = type;
-    // newBinding.pImmutableSamplers = nullptr;
-    // newBinding.stageFlags = stageFlags;
-    // newBinding.binding = binding;
+    m_Bindings.push_back(DescriptorSetLayoutBinding);
 
-    // bindings.push_back(newBinding);
-
-    //// create the descriptor write
-    // VkWriteDescriptorSet newWrite{};
-    // newWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    // newWrite.pNext = nullptr;
-
-    // newWrite.descriptorCount = 1;
-    // newWrite.descriptorType = type;
-    // newWrite.pBufferInfo = bufferInfo;
-    // newWrite.dstBinding = binding;
-
-    // writes.push_back(newWrite);
+    // Create the descriptor write
+    VkWriteDescriptorSet WriteDescriptorSet =
+        Utility::GetWriteDescriptorSet(InDescriptorType, InBinding, {}, InDescriptorCount, InBufferInfo);
+    m_Writes.push_back(WriteDescriptorSet);
     return *this;
 }
 
-DescriptorBuilder& DescriptorBuilder::BindImage(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type,
-                                                VkShaderStageFlags stageFlags)
+DescriptorBuilder& DescriptorBuilder::BindImage(const uint32_t InBinding, VkDescriptorImageInfo* InImageInfo,
+                                                VkDescriptorType InDescriptorType, VkShaderStageFlags InShaderStageFlags,
+                                                const uint32_t InDescriptorCount)
 {
+    // Create the descriptor binding for the layout
+    VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding =
+        Utility::GetDescriptorSetLayoutBinding(InBinding, 1, InDescriptorType, InShaderStageFlags);
+
+    m_Bindings.push_back(DescriptorSetLayoutBinding);
+
+    // Create the descriptor write
+    VkWriteDescriptorSet WriteDescriptorSet =
+        Utility::GetWriteDescriptorSet(InDescriptorType, InBinding, {}, InDescriptorCount, InImageInfo);
+    m_Writes.push_back(WriteDescriptorSet);
     return *this;
 }
 
-bool DescriptorBuilder::Build(VkDescriptorSet& set, VkDescriptorSetLayout& layout)
+bool DescriptorBuilder::Build(VkDescriptorSet& InDescriptorSet, VkDescriptorSetLayout& InDescriptorSetLayout)
 {
-    // VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    // layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    // layoutInfo.pNext = nullptr;
+    // Build layout descriptor set layout first
+    VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {};
+    DescriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    DescriptorSetLayoutCreateInfo.pBindings = m_Bindings.data();
+    DescriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(m_Bindings.size());
 
-    // layoutInfo.pBindings = bindings.data();
-    // layoutInfo.bindingCount = bindings.size();
+    InDescriptorSetLayout = m_DescriptorLayoutCache->CreateDescriptorSetLayout(&DescriptorSetLayoutCreateInfo);
 
-    // layout = cache->create_descriptor_layout(&layoutInfo);
+    // Allocate descriptor
+    if (!m_DescriptorAllocator->Allocate(&InDescriptorSet, InDescriptorSetLayout)) return false;
 
-    //// allocate descriptor
-    // bool success = alloc->allocate(&set, layout);
-    // if (!success)
-    //{
-    //     return false;
-    // };
+    // Write descriptor
+    for (auto& Write : m_Writes)
+    {
+        Write.dstSet = InDescriptorSet;
+    }
 
-    //// write descriptor
-    // for (VkWriteDescriptorSet& w : writes)
-    //{
-    //     w.dstSet = set;
-    // }
-
-    // vkUpdateDescriptorSets(alloc->device, writes.size(), writes.data(), 0, nullptr);
-
+    vkUpdateDescriptorSets(m_DescriptorAllocator->GetVulkanDevice()->GetLogicalDevice(), m_Writes.size(), m_Writes.data(), 0, nullptr);
     return true;
 }
 
-bool DescriptorBuilder::Build(VkDescriptorSet& set)
+bool DescriptorBuilder::Build(VkDescriptorSet& InDescriptorSet)
 {
-    return false;
+    VkDescriptorSetLayout DescriptorSetLayout = VK_NULL_HANDLE;
+    return Build(InDescriptorSet, DescriptorSetLayout);
 }
 
 }  // namespace Eclipse

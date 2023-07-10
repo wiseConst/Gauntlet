@@ -3,6 +3,7 @@
 
 #include "RendererAPI.h"
 #include "CoreRendererStructs.h"
+#include "Texture.h"
 
 #include "Platform/Vulkan/VulkanRenderer2D.h"
 
@@ -47,6 +48,18 @@ void Renderer2D::DrawRotatedQuad(const glm::vec3& InPosition, const glm::vec2& I
                                  const glm::vec4& InColor)
 {
     s_Renderer->DrawRotatedQuadImpl(InPosition, InSize, InRotation, InColor);
+}
+
+void Renderer2D::DrawTexturedQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+                                  const glm::vec4& InBlendColor)
+{
+    DrawTexturedQuad({InPosition.x, InPosition.y, 0.0f}, InSize, InTexture, InBlendColor);
+}
+
+void Renderer2D::DrawTexturedQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+                                  const glm::vec4& InBlendColor)
+{
+    s_Renderer->DrawTexturedQuadImpl(InPosition, InSize, InTexture, InBlendColor);
 }
 
 void Renderer2D::Shutdown()

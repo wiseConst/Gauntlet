@@ -41,25 +41,44 @@ Application::Application(const ApplicationSpecification& InApplicationSpec) : m_
 
 void Application::Run()
 {
-    LOG_INFO("Application running!");
+    LOG_INFO("Application running...");
 
+    uint32_t FrameCount = 0;
+    float LastTime = 0.0f;
     while (m_Window->IsRunning())
     {
         const float CurrentTime = (float)glfwGetTime();
         Timestep ts = CurrentTime - m_LastFrameTime;
         m_LastFrameTime = CurrentTime;
 
+        const float DeltaTime = CurrentTime - LastTime;
+        ++FrameCount;
+        if (DeltaTime >= 1.0f)
+        {
+            const uint32_t FPS = FrameCount / DeltaTime;
+            const auto WindowTitle = std::string(m_AppInfo.AppName) + " " + std::to_string(FPS) + " FPS";
+            m_Window->SetWindowTitle(WindowTitle.data());
+            FrameCount = 0;
+            LastTime = CurrentTime;
+        }
+
         // LOG_INFO("Dt: %fms", ts.GetMilliseconds());
         if (!m_Window->IsMinimized())
         {
+            // Actual geometry pass
             m_Context->BeginRender();
-            m_ImGuiLayer->BeginRender();
+            Renderer2D::SetClearColor({0.1f, 0.1f, 0.1f, 1.0f});
 
             Renderer2D::Begin();
 
             m_LayerQueue.OnUpdate(ts);
 
             Renderer2D::Flush();
+
+            m_Context->EndRender();
+
+            // Gui Pass
+            m_ImGuiLayer->BeginRender();
 
             static bool bShowAppStats = true;
             if (bShowAppStats)
@@ -69,14 +88,17 @@ void Application::Run()
                 ImGui::Text("Allocated images: %llu", Renderer2D::GetStats().AllocatedImages);
                 ImGui::Text("Allocated buffers: %llu", Renderer2D::GetStats().AllocatedBuffers);
                 ImGui::Text("GPU Memory Usage: %llu bytes", Renderer2D::GetStats().GPUMemoryAllocated);
+                ImGui::Text("CPU Wait Time: %f(ms)", Renderer2D::GetStats().CPUWaitTime);
+                ImGui::Text("GPU Wait Time: %f(ms)", Renderer2D::GetStats().GPUWaitTime);
                 ImGui::Text("VMA Allocations(rn only VMA count): %llu", Renderer2D::GetStats().Allocations);
-                ImGui::Text("DeltaTime: %0.4fms", ts.GetMilliseconds());
+                ImGui::Text("DeltaTime: %f(ms)", ts.GetMilliseconds());
 
                 ImGui::End();
             }
 
+            m_LayerQueue.OnImGuiRender();
+
             m_ImGuiLayer->EndRender();
-            m_Context->EndRender();
         }
 
         m_Window->OnUpdate();
@@ -99,8 +121,12 @@ void Application::OnEvent(Event& e)
 
 Application::~Application()
 {
+    LOG_INFO("Application shutdown...");
+
     Input::Destroy();
     Renderer2D::Shutdown();
+
+    m_LayerQueue.Destroy();
 
     m_ImGuiLayer->OnDetach();
     m_Context->Destroy();

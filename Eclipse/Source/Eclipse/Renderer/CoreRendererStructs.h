@@ -13,6 +13,7 @@ struct QuadVertex
     glm::vec3 Normal;
     glm::vec4 Color;
     glm::vec2 TexCoord;
+    float TextureId;
 };
 
 struct SceneDataBuffer

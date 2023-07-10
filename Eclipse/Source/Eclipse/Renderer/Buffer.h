@@ -14,7 +14,7 @@ enum class EShaderDataType : uint8_t
     Vec4,
     Mat3,
     Mat4,
-    Int,
+    Int,  // You can't pass it as shader attribute, only as uniform.
     Ivec2,
     Ivec3,
     Ivec4,

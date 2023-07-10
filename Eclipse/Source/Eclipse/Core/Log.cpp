@@ -60,15 +60,15 @@ void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
         }
     }
 
-    char PreOutMessage[OUT_MESSAGE_LENGTH] = {0};
+    char FormattedMessage[OUT_MESSAGE_LENGTH] = {0};
 
     va_list args;
     va_start(args, InMessage);
-    vsnprintf(PreOutMessage, OUT_MESSAGE_LENGTH, InMessage, args);
+    vsnprintf(FormattedMessage, OUT_MESSAGE_LENGTH, InMessage, args);
     va_end(args);
 
     char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
-    sprintf(FinalOutMessage, "%s%s\n", LevelStrings[LevelIndex], PreOutMessage);
+    sprintf(FinalOutMessage, "%s%s\n", LevelStrings[LevelIndex], FormattedMessage);
     printf("%s", FinalOutMessage);
 
     // Default console output color

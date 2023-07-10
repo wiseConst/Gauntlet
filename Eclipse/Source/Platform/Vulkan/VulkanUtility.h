@@ -16,7 +16,11 @@ static constexpr uint32_t ELS_VK_API_VERSION = VK_API_VERSION_1_3;
 static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
 const std::vector<const char*> VulkanLayers = {"VK_LAYER_KHRONOS_validation"};
-const std::vector<const char*> DeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME};
+const std::vector<const char*> DeviceExtensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,           // Swapchain creation (array of images that we render into, and present to screen)
+    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,   // For advanced GPU info
+    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME  // For texture batching in my case
+};
 
 #ifdef ELS_DEBUG
 constexpr bool bEnableValidationLayers = true;
@@ -72,6 +76,7 @@ static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPoo
 
     VkCommandBufferBeginInfo BeginInfo = {};
     BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     VK_CHECK(vkBeginCommandBuffer(CommandBuffer, &BeginInfo), "Failed to begin command buffer for single time command!");
 

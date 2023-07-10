@@ -44,12 +44,11 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     bool TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence = VK_NULL_HANDLE);
     bool TryPresentImage(const VkSemaphore& InRenderFinishedSemaphore);
 
-    void Create();
+    void Invalidate();
     void Destroy();
 
   private:
     VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
-    VkSwapchainKHR m_OldSwapchain = VK_NULL_HANDLE;
 
     Scoped<VulkanImage> m_DepthImage;
     Scoped<VulkanDevice>& m_Device;

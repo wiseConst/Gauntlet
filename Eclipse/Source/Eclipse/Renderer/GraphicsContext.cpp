@@ -13,12 +13,12 @@ GraphicsContext* GraphicsContext::Create(Scoped<Window>& InWindow)
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            LOG_INFO("RHI: Vulkan!");
+            LOG_INFO("RHI: Vulkan");
             return new VulkanContext(InWindow);
         }
         case RendererAPI::EAPI::None:
         {
-            LOG_ERROR("RendererAPI::EAPI::None!");
+            LOG_ERROR("RendererAPI::EAPI::None");
             return nullptr;
         }
     }

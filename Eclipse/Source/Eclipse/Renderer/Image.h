@@ -53,13 +53,6 @@ enum class ETextureFilter
     NEAREST
 };
 
-enum class ETextureBlend : uint32_t
-{
-    NONE = 0,
-    MIN,
-    MAX
-};
-
 struct ImageSpecification
 {
   public:
@@ -76,7 +69,7 @@ struct ImageSpecification
     EAnisotropyLevel AnisotropyLevel = EAnisotropyLevel::X4;
 
     bool Copyable = false;
-    bool Comparable = false;
+    bool Comparable = false;  // For shadow passes only
 };
 
 class Image
@@ -91,7 +84,7 @@ class Image
 
     FORCEINLINE virtual const ImageSpecification& GetSpecification() = 0;
 
-    static Ref<Image> Create(const ImageSpecification& InImageSpecification, const std::string_view& InFilePath);
+    static Ref<Image> Create(const ImageSpecification& InImageSpecification);
 
     virtual void Destroy() = 0;
 };
@@ -115,6 +108,7 @@ stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth
 FORCEINLINE void UnloadImage(stbi_uc* InPixels)
 {
     stbi_image_free(InPixels);
+    InPixels = nullptr;
 }
 }  // namespace ImageUtils
 

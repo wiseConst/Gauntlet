@@ -35,12 +35,16 @@ void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageVi
 
 VkFormat EclipseImageFormatToVulkan(EImageFormat InImageFormat);
 
+void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout);
+
+void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent);
+
 }  // namespace ImageUtils
 
 class VulkanImage final : public Image
 {
   public:
-    VulkanImage(const ImageSpecification& InImageSecification, const char* InFilePath = nullptr);
+    VulkanImage(const ImageSpecification& InImageSecification);
     ~VulkanImage() = default;
 
     void Create();
@@ -75,7 +79,6 @@ class VulkanImage final : public Image
     ImageSpecification m_ImageSpecification;
 
     AllocatedImage m_Image;
-    VkSampler m_Sampler = VK_NULL_HANDLE;
 };
 
 }  // namespace Eclipse

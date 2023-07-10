@@ -110,6 +110,10 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
     }
     ELS_ASSERT(m_GPUInfo.PhysicalDevice, "Failed to find suitable GPU");
     LOG_INFO("Renderer: %s", m_GPUInfo.GPUProperties.deviceName);
+    LOG_INFO(" Vendor: %s", GetVendorNameCString(m_GPUInfo.GPUProperties.vendorID));
+    LOG_INFO(" Driver Version: %s %s", m_GPUInfo.GPUDriverProperties.driverName, m_GPUInfo.GPUDriverProperties.driverInfo);
+    LOG_INFO(" Using Vulkan API Version: %u.%u.%u", VK_API_VERSION_MAJOR(m_GPUInfo.GPUProperties.apiVersion),
+             VK_API_VERSION_MINOR(m_GPUInfo.GPUProperties.apiVersion), VK_API_VERSION_PATCH(m_GPUInfo.GPUProperties.apiVersion));
 }
 
 void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
@@ -136,10 +140,23 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     deviceCI.pQueueCreateInfos = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
 
-    VkPhysicalDeviceFeatures features = {};
-    features.samplerAnisotropy = VK_TRUE;
+    VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
+    PhysicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 
-    deviceCI.pEnabledFeatures = &features;
+    // Features for texture batching (descriptors)
+    VkPhysicalDeviceDescriptorIndexingFeatures PhysicalDeviceDescriptorIndexingFeatures = {};
+    PhysicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+
+    // Enable non-uniform indexing
+    PhysicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    PhysicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+    PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+    PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+    PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+
+    deviceCI.pNext = &PhysicalDeviceDescriptorIndexingFeatures;
+
+    deviceCI.pEnabledFeatures = &PhysicalDeviceFeatures;
     // deviceCI.pEnabledFeatures = &m_GPUFeatures;  // Specifying features(if some of them available) that we want to use.
     deviceCI.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
     deviceCI.ppEnabledExtensionNames = DeviceExtensions.data();
@@ -232,19 +249,18 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
     // Query GPU memory properties
     vkGetPhysicalDeviceMemoryProperties(InGPUInfo.PhysicalDevice, &InGPUInfo.GPUMemoryProperties);
 
-    VkPhysicalDeviceDriverProperties driverProps = {};
-    driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+    InGPUInfo.GPUDriverProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
 
-    VkPhysicalDeviceProperties2 gpuProps = {};
-    gpuProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    gpuProps.pNext = &driverProps;
-    vkGetPhysicalDeviceProperties2(InGPUInfo.PhysicalDevice, &gpuProps);
+    VkPhysicalDeviceProperties2 GPUProperties2 = {};
+    GPUProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    GPUProperties2.pNext = &InGPUInfo.GPUDriverProperties;
+    vkGetPhysicalDeviceProperties2(InGPUInfo.PhysicalDevice, &GPUProperties2);
 
 #if LOG_VULKAN_INFO
     LOG_INFO("GPU info:");
     LOG_TRACE(" Renderer: %s", InGPUInfo.GPUProperties.deviceName);
     LOG_TRACE(" Vendor: %s/%u", GetVendorNameCString(InGPUInfo.GPUProperties.vendorID), InGPUInfo.GPUProperties.vendorID);
-    LOG_TRACE(" %s %s", driverProps.driverName, driverProps.driverInfo);
+    LOG_TRACE(" %s %s", InGPUInfo.GPUDriverProperties.driverName, InGPUInfo.GPUDriverProperties.driverInfo);
     LOG_TRACE(" API Version %u.%u.%u", VK_API_VERSION_MAJOR(InGPUInfo.GPUProperties.apiVersion),
               VK_API_VERSION_MINOR(InGPUInfo.GPUProperties.apiVersion), VK_API_VERSION_PATCH(InGPUInfo.GPUProperties.apiVersion));
     LOG_INFO(" Device Type: %s", GetDeviceTypeCString(InGPUInfo.GPUProperties.deviceType));
@@ -315,6 +331,7 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
         bIsSwapchainAdequate = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
     }
 
+    ELS_ASSERT(InGPUInfo.GPUProperties.limits.maxSamplerAnisotropy > 0, "GPU has not valid Max Sampler Anisotropy!")
     return InGPUInfo.GPUFeatures.samplerAnisotropy && InGPUInfo.GPUFeatures.geometryShader && Indices.IsComplete() &&
            bIsDeviceExtensionsSupported && bIsSwapchainAdequate;
 }

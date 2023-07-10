@@ -5,57 +5,64 @@
 
 #include <vector>
 
+// Thanks to VKGUIDE.DEV
+
 namespace Eclipse
 {
 class VulkanDevice;
 
-// DescriptorAllocator
+// VulkanDescriptorAllocator
 
-class DescriptorAllocator final : private Uncopyable, private Unmovable
+class VulkanDescriptorAllocator final : private Uncopyable, private Unmovable
 {
   public:
-    DescriptorAllocator(Scoped<VulkanDevice>& InDevice);
-    ~DescriptorAllocator() = default;
+    VulkanDescriptorAllocator(Scoped<VulkanDevice>& InDevice);
+    ~VulkanDescriptorAllocator() = default;
 
-    void Create();
+    void ResetPools();
     void Destroy();
+
+    bool Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout);
+
+    FORCEINLINE const auto& GetVulkanDevice() const { return m_Device; }
+    FORCEINLINE auto& GetVulkanDevice() { return m_Device; }
 
   private:
     Scoped<VulkanDevice>& m_Device;
     VkDescriptorPool m_CurrentPool = VK_NULL_HANDLE;
 
-    std::vector<VkDescriptorPool> m_UsedPools;
+    std::vector<VkDescriptorPool> m_ActivePools;
     std::vector<VkDescriptorPool> m_FreePools;
 
     struct PoolSizes
     {
-        std::vector<std::pair<VkDescriptorType, float>> Sizes = {{VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},
-                                                                 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4.f},
-                                                                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.f},
-                                                                 {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.f},
-                                                                 {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.f},
-                                                                 {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1.f},
-                                                                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.f},
-                                                                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f},
-                                                                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.f},
-                                                                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f},
-                                                                 {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f}};
+        std::vector<std::pair<VkDescriptorType, float>> Sizes =  //
+            {{VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},
+             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4.f},
+             {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.f},
+             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.f},
+             {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.f},
+             {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1.f},
+             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.f},
+             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.f},
+             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f},
+             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f},
+             {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f}};
     } m_PoolSizes;
 
-    void ResetPools();
-    bool Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout);
     VkDescriptorPool CreatePool(const uint32_t InCount, VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags) const;
     VkDescriptorPool GrabFreePool() const;
 };
 
 // DescriptorLayoutCache
 
-class DescriptorLayoutCache final : private Uncopyable, private Unmovable
+class VulkanDescriptorLayoutCache final : private Uncopyable, private Unmovable
 {
   public:
-    DescriptorLayoutCache(Scoped<VulkanDevice>& InDevice);
-    ~DescriptorLayoutCache() = default;
+    VulkanDescriptorLayoutCache(Scoped<VulkanDevice>& InDevice);
+    ~VulkanDescriptorLayoutCache() = default;
 
+    void Destroy();
     VkDescriptorSetLayout CreateDescriptorSetLayout(VkDescriptorSetLayoutCreateInfo* info);
 
     struct DescriptorLayoutInfo
@@ -76,34 +83,37 @@ class DescriptorLayoutCache final : private Uncopyable, private Unmovable
     };
 
     std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash> m_LayoutCache;
-
-    void Create();
-    void Destroy();
 };
 
 // DescriptorBuilder
 
-class DescriptorBuilder final
+class DescriptorBuilder final /*: private Uncopyable, private Unmovable*/
 {
   public:
-    static DescriptorBuilder Begin(Ref<DescriptorLayoutCache>& InDescriptorLayoutCache, Ref<DescriptorAllocator>& InDescriptorAllocator);
-
-    DescriptorBuilder& BindBuffer(uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type,
-                                  VkShaderStageFlags stageFlags);
-    DescriptorBuilder& BindImage(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
-
-    bool Build(VkDescriptorSet& set, VkDescriptorSetLayout& layout);
-    bool Build(VkDescriptorSet& set);
-
-  private:
     DescriptorBuilder() = default;
+    DescriptorBuilder(Ref<VulkanDescriptorLayoutCache>& InDescriptorLayoutCache, Ref<VulkanDescriptorAllocator>& InDescriptorAllocator)
+        : m_DescriptorLayoutCache(InDescriptorLayoutCache), m_DescriptorAllocator(InDescriptorAllocator)
+    {
+    }
     ~DescriptorBuilder() = default;
 
+    static DescriptorBuilder Begin(Ref<VulkanDescriptorLayoutCache>& InDescriptorLayoutCache,
+                                   Ref<VulkanDescriptorAllocator>& InDescriptorAllocator);
+
+    DescriptorBuilder& BindBuffer(const uint32_t InBinding, VkDescriptorBufferInfo* InBufferInfo, VkDescriptorType InDescriptorType,
+                                  VkShaderStageFlags InShaderStageFlags, const uint32_t InDescriptorCount = 1);
+    DescriptorBuilder& BindImage(const uint32_t InBinding, VkDescriptorImageInfo* InImageInfo, VkDescriptorType InDescriptorType,
+                                 VkShaderStageFlags InShaderStageFlags, const uint32_t InDescriptorCount = 1);
+
+    bool Build(VkDescriptorSet& InDescriptorSet, VkDescriptorSetLayout& InDescriptorSetLayout);
+    bool Build(VkDescriptorSet& InDescriptorSet);
+
+  private:
     std::vector<VkWriteDescriptorSet> m_Writes;
     std::vector<VkDescriptorSetLayoutBinding> m_Bindings;
 
-    Ref<DescriptorLayoutCache> m_DescriptorLayoutCache;
-    Ref<DescriptorAllocator> m_DescriptorAllocator;
+    Ref<VulkanDescriptorLayoutCache> m_DescriptorLayoutCache;
+    Ref<VulkanDescriptorAllocator> m_DescriptorAllocator;
 };
 
 }  // namespace Eclipse

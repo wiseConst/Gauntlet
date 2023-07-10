@@ -6,13 +6,19 @@ namespace Eclipse
 ThreadPool::ThreadPool() : m_MainId(std::this_thread::get_id())
 {
     Init();
+
+#if ELS_DEBUG
     LOG_INFO("ThreadPool created! Thread usage limit: %u", m_ThreadCount);
+#endif
 }
 
 ThreadPool::~ThreadPool()
 {
     Shutdown();
+
+#if ELS_DEBUG
     LOG_INFO("ThreadPool destroyed!");
+#endif
 }
 
 void ThreadPool::Init()

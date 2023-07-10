@@ -8,6 +8,8 @@
 namespace Eclipse
 {
 
+class Texture2D;
+
 class Renderer2D : private Uncopyable, private Unmovable
 {
   public:
@@ -29,6 +31,11 @@ class Renderer2D : private Uncopyable, private Unmovable
     static void DrawRotatedQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
                                 const glm::vec4& InColor);
 
+    static void DrawTexturedQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+                                 const glm::vec4& InBlendColor = glm::vec4(1.0f));
+    static void DrawTexturedQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+                                 const glm::vec4& InBlendColor = glm::vec4(1.0f));
+
     // Bad because it can be changed, but shouldn't I think.
     FORCEINLINE static auto& GetStats() { return s_Renderer2DStats; }
 
@@ -42,8 +49,8 @@ class Renderer2D : private Uncopyable, private Unmovable
         size_t AllocatedBuffers = 0;
         size_t AllocatedImages = 0;
 
-        size_t CPUWaitTime = 0;
-        size_t GPUWaitTime = 0;
+        float CPUWaitTime = 0;
+        float GPUWaitTime = 0;
     } static s_Renderer2DStats;
 
   protected:
@@ -60,19 +67,12 @@ class Renderer2D : private Uncopyable, private Unmovable
 
     virtual void SetClearColorImpl(const glm::vec4& InColor) = 0;
 
-    virtual void DrawQuadImpl(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color)
-    {
-        s_Renderer->DrawQuadImpl({position.x, position.y, 0.0f}, size, color);
-    }
-
     virtual void DrawQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color) = 0;
-
-    virtual void DrawRotatedQuadImpl(const glm::vec2& position, const glm::vec2& size, const glm::vec3& InRotation, const glm::vec4& color)
-    {
-        s_Renderer->DrawRotatedQuadImpl({position.x, position.y, 0.0f}, size, InRotation, color);
-    }
 
     virtual void DrawRotatedQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& InRotation,
                                      const glm::vec4& color) = 0;
+
+    virtual void DrawTexturedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+                                      const glm::vec4& InBlendColor) = 0;
 };
 }  // namespace Eclipse

@@ -6,6 +6,9 @@
 
 namespace Eclipse
 {
+
+class Texture2D;
+
 class VulkanRenderer2D final : public Renderer2D
 {
   public:
@@ -26,6 +29,9 @@ class VulkanRenderer2D final : public Renderer2D
 
     void DrawRotatedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
                              const glm::vec4& InColor) final override;
+
+    void DrawTexturedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+                              const glm::vec4& InBlendColor) final override;
 
   private:
     VulkanContext& m_Context;

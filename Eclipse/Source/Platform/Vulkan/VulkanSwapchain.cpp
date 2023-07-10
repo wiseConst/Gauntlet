@@ -16,16 +16,7 @@ namespace Eclipse
 VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface)
     : m_Device(InDevice), m_Surface(InSurface), m_DepthImage(nullptr)
 {
-    Create();
-
-    // Depth Buffer
-    ImageSpecification DepthImageSpec;
-    DepthImageSpec.Usage = EImageUsage::Attachment;
-    DepthImageSpec.Format = EImageFormat::DEPTH32F;
-    DepthImageSpec.Height = m_SwapchainImageExtent.height;
-    DepthImageSpec.Width = m_SwapchainImageExtent.width;
-
-    m_DepthImage.reset(new VulkanImage(DepthImageSpec));
+    Invalidate();
 }
 
 bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence)
@@ -62,8 +53,22 @@ bool VulkanSwapchain::TryPresentImage(const VkSemaphore& InRenderFinishedSemapho
     return false;
 }
 
-void VulkanSwapchain::Create()
+void VulkanSwapchain::Invalidate()
 {
+    auto& Context = (VulkanContext&)VulkanContext::Get();
+    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    if (m_DepthImage) m_DepthImage->Destroy();
+
+    const auto OldSwapchain = m_Swapchain;
+    if (OldSwapchain)
+    {
+        for (auto& ImageView : m_SwapchainImageViews)
+        {
+            vkDestroyImageView(m_Device->GetLogicalDevice(), ImageView, nullptr);
+        }
+    }
+
     m_ImageIndex = 0;
     m_FrameIndex = 0;
 
@@ -73,7 +78,7 @@ void VulkanSwapchain::Create()
     SwapchainCreateInfo.clipped = VK_TRUE;
     SwapchainCreateInfo.imageArrayLayers = 1;
     SwapchainCreateInfo.surface = m_Surface;
-    SwapchainCreateInfo.oldSwapchain = m_OldSwapchain;
+    SwapchainCreateInfo.oldSwapchain = OldSwapchain;
 
     auto Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(m_Device->GetPhysicalDevice(), m_Surface);
     SwapchainCreateInfo.preTransform = Details.SurfaceCapabilities.currentTransform;
@@ -111,15 +116,7 @@ void VulkanSwapchain::Create()
     VK_CHECK(vkCreateSwapchainKHR(m_Device->GetLogicalDevice(), &SwapchainCreateInfo, nullptr, &m_Swapchain),
              "Failed to create vulkan swapchain!");
 
-    if (m_OldSwapchain)
-    {
-        for (uint32_t i = 0; i < m_SwapchainImageCount; ++i)
-        {
-            vkDestroyImageView(m_Device->GetLogicalDevice(), m_SwapchainImageViews[i], nullptr);
-        }
-        vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_OldSwapchain, nullptr);
-        m_OldSwapchain = VK_NULL_HANDLE;
-    }
+    if (OldSwapchain) vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), OldSwapchain, nullptr);
 
     VK_CHECK(vkGetSwapchainImagesKHR(m_Device->GetLogicalDevice(), m_Swapchain, &m_SwapchainImageCount, nullptr));
     ELS_ASSERT(m_SwapchainImageCount > 0, "Failed to retrieve swapchain images!");
@@ -134,6 +131,19 @@ void VulkanSwapchain::Create()
                                     m_SwapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
+    if (!m_DepthImage)
+    {
+        // Depth Buffer
+        ImageSpecification DepthImageSpec;
+        DepthImageSpec.Usage = EImageUsage::Attachment;
+        DepthImageSpec.Format = EImageFormat::DEPTH32F;
+        DepthImageSpec.Height = m_SwapchainImageExtent.height;
+        DepthImageSpec.Width = m_SwapchainImageExtent.width;
+        m_DepthImage.reset(new VulkanImage(DepthImageSpec));
+
+        return;
+    }
+
     if (m_DepthImage)
     {
         m_DepthImage->SetExtent(m_SwapchainImageExtent);
@@ -143,21 +153,13 @@ void VulkanSwapchain::Create()
 
 void VulkanSwapchain::Destroy()
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
-
-    m_OldSwapchain = m_Swapchain;
-
     if (m_DepthImage) m_DepthImage->Destroy();
 
-    if (Context.IsDestroying())
-    {
-        vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_Swapchain, nullptr);
+    vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_Swapchain, nullptr);
 
-        for (auto& ImageView : m_SwapchainImageViews)
-        {
-            vkDestroyImageView(m_Device->GetLogicalDevice(), ImageView, nullptr);
-        }
+    for (auto& ImageView : m_SwapchainImageViews)
+    {
+        vkDestroyImageView(m_Device->GetLogicalDevice(), ImageView, nullptr);
     }
 }
 

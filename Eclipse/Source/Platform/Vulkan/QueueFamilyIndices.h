@@ -44,8 +44,6 @@ struct QueueFamilyIndices
         LOG_INFO("QueueFamilyCount:%u", QueueFamilyCount);
 #endif
 
-        // TODO: Sort out about queue families
-
         int32_t i = 0;
         for (const auto& QueueFamily : QueueFamilies)
         {

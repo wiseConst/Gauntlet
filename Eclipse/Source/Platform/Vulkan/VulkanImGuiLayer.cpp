@@ -11,9 +11,8 @@
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
-#include "VulkanRenderPass.h"
-#include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
+#include "VulkanCommandPool.h"
 
 namespace Eclipse
 {
@@ -65,6 +64,56 @@ void VulkanImGuiLayer::OnAttach()
                                    { return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(VulkanInstance)), FunctionName); },
                                    &Context.GetInstance());
 
+    // ImGui RenderPass
+    {
+        RenderPassSpecification RenderPassSpec = {};
+        VkAttachmentDescription ColorAttachment = {};
+        ColorAttachment.format = Context.GetSwapchain()->GetImageFormat();
+        ColorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        ColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        ColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        ColorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        ColorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        ColorAttachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        ColorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        RenderPassSpec.Attachments = {ColorAttachment};
+
+        VkAttachmentReference ColorAttachmentRef = {};
+        ColorAttachmentRef.attachment = 0;
+        ColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        RenderPassSpec.AttachmentRefs = {ColorAttachmentRef};
+
+        VkSubpassDescription Subpass = {};
+        Subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        Subpass.colorAttachmentCount = 1;
+        Subpass.pColorAttachments = &ColorAttachmentRef;
+        RenderPassSpec.Subpasses = {Subpass};
+
+        std::vector<VkSubpassDependency> Dependencies(1);
+        Dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+        Dependencies[0].dstSubpass = 0;
+        Dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        Dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        Dependencies[0].srcAccessMask = 0;
+        Dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        RenderPassSpec.Dependencies = Dependencies;
+
+        m_ImGuiRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
+        Context.AddResizeCallback([this] { m_ImGuiRenderPass->Invalidate(); });  // Auto render pass resize
+    }
+
+    // ImGui CommandBuffers
+    {
+        CommandPoolSpecification CommandPoolSpec = {};
+        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
+        CommandPoolSpec.QueueFamilyIndex = Context.GetDevice()->GetQueueFamilyIndices().GetGraphicsFamily();
+
+        m_ImGuiCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
+    }
+
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForVulkan((GLFWwindow*)App.GetWindow()->GetNativeWindow(), true);
     ImGui_ImplVulkan_InitInfo InitInfo = {};
@@ -79,17 +128,20 @@ void VulkanImGuiLayer::OnAttach()
     InitInfo.ImageCount = Context.GetSwapchain()->GetImageCount();
     InitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     InitInfo.Allocator = VK_NULL_HANDLE;
-    ImGui_ImplVulkan_Init(&InitInfo, Context.GetGlobalRenderPass()->Get());
+    ImGui_ImplVulkan_Init(&InitInfo, m_ImGuiRenderPass->Get());
 
-    auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetGraphicsCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
+    auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Context.GetDevice()->GetLogicalDevice());
     ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
-    Utility::EndSingleTimeCommands(CommandBuffer, Context.GetGraphicsCommandPool()->Get(), Context.GetDevice()->GetGraphicsQueue(),
+    Utility::EndSingleTimeCommands(CommandBuffer, m_ImGuiCommandPool->Get(), Context.GetDevice()->GetGraphicsQueue(),
                                    Context.GetDevice()->GetLogicalDevice());
     Context.GetDevice()->WaitDeviceOnFinish();
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
     SetStyle();
+
+#if ELS_DEBUG
     LOG_INFO("ImGui created!");
+#endif
 }
 
 void VulkanImGuiLayer::OnDetach()
@@ -99,6 +151,9 @@ void VulkanImGuiLayer::OnDetach()
 
     Context.GetDevice()->WaitDeviceOnFinish();
     vkDestroyDescriptorPool(Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
+
+    m_ImGuiRenderPass->Destroy();
+    m_ImGuiCommandPool->Destroy();
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -112,6 +167,14 @@ void VulkanImGuiLayer::BeginRender()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    const auto& Context = (VulkanContext&)VulkanContext::Get();
+    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    const auto& CommandBuffer = m_ImGuiCommandPool->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex());
+    CommandBuffer.BeginRecording();
+
+    m_ImGuiRenderPass->Begin(CommandBuffer.Get(), {{0.1f, 0.1f, 0.1f, 1.0f}});
+
     /*static bool ShowDemoWindow = true;
     if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
 }
@@ -119,10 +182,10 @@ void VulkanImGuiLayer::BeginRender()
 void VulkanImGuiLayer::EndRender()
 {
     const auto& Context = (VulkanContext&)VulkanContext::Get();
+    const auto& CommandBuffer = m_ImGuiCommandPool->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex());
 
     ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(
-        ImGui::GetDrawData(), Context.GetGraphicsCommandPool()->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex()).Get());
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), CommandBuffer.Get());
 
     // Update and Render additional Platform Windows
     ImGuiIO& io = ImGui::GetIO();
@@ -133,11 +196,21 @@ void VulkanImGuiLayer::EndRender()
         ImGui::RenderPlatformWindowsDefault();
         glfwMakeContextCurrent(BackupCurrentContext);
     }
+
+    m_ImGuiRenderPass->End(CommandBuffer.Get());
+    CommandBuffer.EndRecording();
+
+    VkSubmitInfo SubmitInfo = {};
+    SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    SubmitInfo.commandBufferCount = 1;
+    SubmitInfo.pCommandBuffers = &CommandBuffer.Get();
+
+    VK_CHECK(vkQueueSubmit(Context.GetDevice()->GetGraphicsQueue(), 1, &SubmitInfo, VK_NULL_HANDLE),
+             "Failed to submit imgui render commands!");
 }
 
 void VulkanImGuiLayer::SetStyle()
 {
-
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
     ImGuiStyle& style = ImGui::GetStyle();
     ImGuiIO& io = ImGui::GetIO();

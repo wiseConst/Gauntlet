@@ -10,34 +10,83 @@ class GravityExplorer final : public Layer
     GravityExplorer() : Layer("GravityExplorer") {}
     ~GravityExplorer() = default;
 
-    void OnAttach() final override { m_Camera = Ref<OrthographicCamera>(new OrthographicCamera()); }
+    void OnAttach() final override
+    {
+        m_Camera = Ref<OrthographicCamera>(new OrthographicCamera());
+        m_ShipTexture = Texture2D::Create("Resources/Textures/Ship.png");
+        m_BoardTexture = Texture2D::Create("Resources/Textures/Checkerboard.png");
+    }
 
     void OnUpdate(const float DeltaTime) final override
     {
         m_Camera->OnUpdate(DeltaTime);
-        Renderer2D::SetClearColor({0.256f, 0.2f, 0.4f, 1.0f});
+        Renderer2D::SetClearColor({0.5f, 0.3f, 0.67f, 1.0f});
 
         Renderer2D::BeginScene(*m_Camera);
 
-        if (Input::IsKeyPressed(ELS_KEY_W)) m_GreenQuadPosition.y += m_Speed * DeltaTime;
+        if (Input::IsKeyPressed(ELS_KEY_W)) m_ShipPosition.y += m_ShipSpeed * DeltaTime;
 
-        if (Input::IsKeyPressed(ELS_KEY_S)) m_GreenQuadPosition.y -= m_Speed * DeltaTime;
+        if (Input::IsKeyPressed(ELS_KEY_S)) m_ShipPosition.y -= m_ShipSpeed * DeltaTime;
 
-        if (Input::IsKeyPressed(ELS_KEY_D)) m_GreenQuadPosition.x += m_Speed * DeltaTime;
+        if (Input::IsKeyPressed(ELS_KEY_D)) m_ShipPosition.x += m_ShipSpeed * DeltaTime;
 
-        if (Input::IsKeyPressed(ELS_KEY_A)) m_GreenQuadPosition.x -= m_Speed * DeltaTime;
+        if (Input::IsKeyPressed(ELS_KEY_A)) m_ShipPosition.x -= m_ShipSpeed * DeltaTime;
 
-        Renderer2D::DrawQuad(m_GreenQuadPosition, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f});
-        Renderer2D::DrawQuad({1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f});
+        UpdateCollision(DeltaTime);
+
+        Renderer2D::DrawTexturedQuad(m_ShipPosition, m_ShipSize, m_ShipTexture);
+        Renderer2D::DrawTexturedQuad({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, m_BoardTexture);
+        Renderer2D::DrawQuad(m_BlockPosition, m_BlockSize, {0.0f, 0.455f, 0.0f, 1.0f});
     }
 
     void OnEvent(Event& InEvent) final override { m_Camera->OnEvent(InEvent); }
 
-    void OnDetach() final override {}
+    void OnImGuiRender() final override
+    {
+        ImGui::Begin("GravityExplorer");
+        ImGui::SliderFloat("Ship Speed", &m_ShipSpeed, 1.0f, 10.0f);
+        ImGui::End();
+    }
+
+    void OnDetach() final override
+    {
+        m_ShipTexture->Destroy();
+        m_BoardTexture->Destroy();
+    }
 
   private:
     Ref<OrthographicCamera> m_Camera;
 
-    const float m_Speed = 2.0f;
-    glm::vec3 m_GreenQuadPosition = {0.0f, 0.0f, 0.0f};
+    Ref<Texture2D> m_BoardTexture;
+
+    Ref<Texture2D> m_ShipTexture;
+    glm::vec3 m_ShipPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec2 m_ShipSize = glm::vec2(1.0f, 1.0f);
+    float m_ShipSpeed = 4.2f;
+
+    glm::vec3 m_BlockPosition = glm::vec3(1.5f, 1.5f, 0.0f);
+    glm::vec2 m_BlockSize = glm::vec2(1.0f, 1.0f);
+
+    void UpdateCollision(const float DeltaTime)
+    {
+        // Window bounding box
+        if (m_ShipPosition.x + m_ShipSize.x > m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio())
+            m_ShipPosition.x = m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio() - m_ShipSize.x;
+
+        if (m_ShipPosition.x < -m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio())
+            m_ShipPosition.x = -m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio();
+
+        if (m_ShipPosition.y + m_ShipSize.y > m_Camera->GetZoomLevel()) m_ShipPosition.y = m_Camera->GetZoomLevel() - m_ShipSize.y;
+        if (m_ShipPosition.y < -m_Camera->GetZoomLevel()) m_ShipPosition.y = -m_Camera->GetZoomLevel();
+
+        // Simple AABB collision
+        if (m_ShipPosition.x < m_BlockPosition.x + m_BlockSize.x &&  //  Left ship edge in right block edge
+            m_ShipPosition.x + m_ShipSize.x > m_BlockPosition.x &&   //  Right ship edge in left block edge
+            m_ShipPosition.y < m_BlockPosition.y + m_BlockSize.y &&  // Bottom ship edge in top block edge
+            m_ShipPosition.y + m_ShipSize.y > m_BlockPosition.y      // Top ship edge in bottom block edge
+        )
+        {
+            LOG_INFO("Full Body Collision!");
+        }
+    }
 };

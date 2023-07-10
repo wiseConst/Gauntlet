@@ -75,6 +75,7 @@ class VulkanDevice final : private Uncopyable, private Unmovable
         VkPhysicalDeviceProperties GPUProperties = {};
         VkPhysicalDeviceFeatures GPUFeatures = {};
         VkPhysicalDeviceMemoryProperties GPUMemoryProperties = {};
+        VkPhysicalDeviceDriverProperties GPUDriverProperties = {};
     } m_GPUInfo;
 
     void PickPhysicalDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface);

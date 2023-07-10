@@ -68,12 +68,7 @@ class VulkanRenderPass final : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetFramebuffer(const uint32_t Index) const { return m_Framebuffers[Index]; }
     FORCEINLINE auto& GetFramebuffer(const uint32_t Index) { return m_Framebuffers[Index]; }
 
-    FORCEINLINE void SetRenderPassSpecification(const RenderPassSpecification& InRenderPassSpecification)
-    {
-        m_RenderPassSpecification = InRenderPassSpecification;
-    }
-
-    void Create();
+    void Invalidate();
     void Destroy();
 
   private:

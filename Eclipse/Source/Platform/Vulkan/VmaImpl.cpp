@@ -2,14 +2,14 @@
 
 #include "Eclipse/Core/Log.h"
 
-//using namespace Eclipse;
+// using namespace Eclipse;
 //
 //#ifdef ELS_DEBUG
 //
-//#define VMA_DEBUG_LOG_FORMAT(format, ...)                                                                                                  \
-//    do                                                                                                                                     \
-//    {                                                                                                                                      \
-//        LOG_WARN((format), __VA_ARGS__);                                                                                                   \
+//#def   ine  VMA_DEBUG_LOG_FORMAT(format, ...) \
+//    do \
+//    { \
+//        LOG_WARN((format), __VA_ARGS__); \
 //    } while (false)
 //
 //#else

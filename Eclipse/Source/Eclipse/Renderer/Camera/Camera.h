@@ -35,6 +35,7 @@ class Camera : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetViewProjectionMatrix() const { return m_ViewProjectionMatrix; }
     FORCEINLINE const auto& GetProjectionMatrix() const { return m_ProjectionMatrix; }
     FORCEINLINE const auto& GetRotation() const { return m_Rotation; }
+    FORCEINLINE const auto GetAspectRatio() const { return m_AspectRatio; }
 
     FORCEINLINE void SetPosition(const glm::vec3& InPosition)
     {

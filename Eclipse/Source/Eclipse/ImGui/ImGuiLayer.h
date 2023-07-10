@@ -17,6 +17,7 @@ class ImGuiLayer : public Layer
 
     virtual void OnUpdate(const float DeltaTime) {}
     virtual void OnEvent(Event& InEvent) {}
+    virtual void OnImGuiRender() {}
 
     virtual void OnAttach() = 0;
     virtual void OnDetach() = 0;

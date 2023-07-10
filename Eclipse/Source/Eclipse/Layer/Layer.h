@@ -15,6 +15,8 @@ class Layer : private Uncopyable, private Unmovable
     virtual void OnUpdate(const float DeltaTime) = 0;
     virtual void OnEvent(Event& InEvent) = 0;
 
+    virtual void OnImGuiRender() = 0;
+
     virtual void OnAttach() = 0;
     virtual void OnDetach() = 0;
 

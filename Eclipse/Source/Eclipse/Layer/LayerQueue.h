@@ -12,19 +12,7 @@ class LayerQueue final : private Uncopyable, private Unmovable
 {
   public:
     LayerQueue() = default;
-
-    ~LayerQueue()
-    {
-        for (auto* Layer : m_Queue)
-        {
-            if (!Layer) continue;
-
-            Layer->OnDetach();
-
-            delete Layer;
-            Layer = nullptr;
-        }
-    }
+    ~LayerQueue() = default;
 
     FORCEINLINE void OnUpdate(const float DeltaTime)
     {
@@ -36,12 +24,35 @@ class LayerQueue final : private Uncopyable, private Unmovable
         }
     }
 
+    FORCEINLINE void OnImGuiRender()
+    {
+        for (auto* Layer : m_Queue)
+        {
+            if (!Layer) continue;
+
+            Layer->OnImGuiRender();
+        }
+    }
+
     FORCEINLINE void Enqueue(Layer* InLayer)
     {
         ELS_ASSERT(InLayer, "Layer you want to enqueue is null!");
 
         InLayer->OnAttach();
         m_Queue.emplace_back(InLayer);
+    }
+
+    FORCEINLINE void Destroy()
+    {
+        for (auto* Layer : m_Queue)
+        {
+            if (!Layer) continue;
+
+            Layer->OnDetach();
+
+            delete Layer;
+            Layer = nullptr;
+        }
     }
 
     FORCEINLINE const auto begin() const { return m_Queue.begin(); }

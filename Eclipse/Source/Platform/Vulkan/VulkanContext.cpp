@@ -13,6 +13,7 @@
 
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
+#include "Eclipse/Renderer/Renderer2D.h"
 
 namespace Eclipse
 {
@@ -66,6 +67,7 @@ void VulkanContext::CreateInstance()
         ELS_ASSERT(CheckValidationLayerSupport() == true, "Validation layers requested but not supported!");
     }
 
+#if ELS_DEBUG
     {
         uint32_t SupportedApiVersion;
         const auto result = vkEnumerateInstanceVersion(&SupportedApiVersion);
@@ -75,6 +77,7 @@ void VulkanContext::CreateInstance()
                  VK_API_VERSION_MAJOR(SupportedApiVersion), VK_API_VERSION_MINOR(SupportedApiVersion),
                  VK_API_VERSION_PATCH(SupportedApiVersion));
     }
+#endif
 
     const auto& app = Application::Get();
     VkApplicationInfo ApplicationInfo = {};
@@ -327,37 +330,20 @@ void VulkanContext::CreateGlobalRenderPass()
         RenderPassSpec.Dependencies = Dependencies;
 
         RenderPassSpec.DepthImageView = m_Swapchain->GetDepthImageView();
-        if (!m_GlobalRenderPass)
-            m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
-        else  // SWAPCHAIN RECREATION CASE
-        {
-            m_GlobalRenderPass->SetRenderPassSpecification(RenderPassSpec);
-            m_GlobalRenderPass->Create();
-        }
+        m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
     }
 }
 
 void VulkanContext::RecreateSwapchain()
 {
-    if (m_Window->IsMinimized()) return;  // m_Window->HandleMinimized(); // Blocking loop
+    if (m_Window->IsMinimized()) return;
     m_Device->WaitDeviceOnFinish();
 
-    for (auto& PipelineToRebuild : m_PipelinesToRebuild)
-    {
-        PipelineToRebuild->Destroy();
-    }
+    m_Swapchain->Invalidate();
+    m_GlobalRenderPass->Invalidate();
 
-    m_GlobalRenderPass->Destroy();
-    m_Swapchain->Destroy();
-
-    m_Swapchain->Create();
-    CreateGlobalRenderPass();
-
-    for (auto& PipelineToRebuild : m_PipelinesToRebuild)
-    {
-        PipelineToRebuild->SetRenderPass(m_GlobalRenderPass->Get());
-        PipelineToRebuild->Create();
-    }
+    for (auto& OneResizeCallback : m_ResizeCallbacks)
+        OneResizeCallback();
 
     LOG_WARN("Swapchain recreated, new window size: (%u, %u).", m_Swapchain->GetImageExtent().width, m_Swapchain->GetImageExtent().height);
 }
@@ -367,6 +353,8 @@ void VulkanContext::BeginRender()
     // Firstly wait for GPU to finish drawing therefore set fence to signaled.
     VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
              "Failed to wait for fences!");
+
+    m_CPULastWaitTime = (float)glfwGetTime();
 
     const auto bIsAcquired = m_Swapchain->TryAcquireNextImage(m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()]);
     if (!bIsAcquired)
@@ -409,6 +397,9 @@ void VulkanContext::EndRender()
         &m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Signal semaphore when render finished
     SubmitInfo.pWaitDstStageMask = WaitStages.data();
 
+    const auto CurrentTime = (float)glfwGetTime();
+    Renderer2D::GetStats().CPUWaitTime = CurrentTime - m_CPULastWaitTime;
+
     // Submit command buffer to the queue and execute it.
     // InFlightFence will now block until the graphic commands finish execution
     VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &SubmitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
@@ -428,15 +419,12 @@ void VulkanContext::SetVSync(bool IsVSync)
 {
     m_Device->WaitDeviceOnFinish();
 
-    m_Swapchain->Destroy();
-
-    m_Swapchain->Create();
+    m_Swapchain->Invalidate();
 }
 
 void VulkanContext::Destroy()
 {
     m_Device->WaitDeviceOnFinish();
-    m_bIsDestroying = VK_TRUE;
 
     m_GlobalRenderPass->Destroy();
 
@@ -461,7 +449,10 @@ void VulkanContext::Destroy()
 
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
+
+#if ELS_DEBUG
     LOG_INFO("Vulkan context destroyed!");
+#endif
 }
 
 }  // namespace Eclipse

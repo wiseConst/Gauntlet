@@ -10,13 +10,34 @@ namespace Eclipse
 VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& InRenderPassSpecification)
     : m_RenderPassSpecification(InRenderPassSpecification)
 {
-    Create();
+    Invalidate();
 }
 
-void VulkanRenderPass::Create()
+void VulkanRenderPass::Invalidate()
 {
+    Destroy();
+
     auto& Context = (VulkanContext&)VulkanContext::Get();
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    std::vector<VkSubpassDescription> Subpasses(1);
+    Subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    Subpasses[0].colorAttachmentCount = 1;
+
+    VkAttachmentReference ColorAttachmentRef = {};
+    ColorAttachmentRef.attachment = 0;
+    ColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    Subpasses[0].pColorAttachments = &ColorAttachmentRef;
+
+    if (m_RenderPassSpecification.Subpasses[0].pDepthStencilAttachment)
+    {
+        VkAttachmentReference DepthAttachmentRef = {};
+        DepthAttachmentRef.attachment = 1;
+        DepthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        Subpasses[0].pDepthStencilAttachment = &DepthAttachmentRef;
+    }
+    m_RenderPassSpecification.Subpasses = Subpasses;
 
     VkRenderPassCreateInfo RenderPassCreateInfo = {};
     RenderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -24,7 +45,7 @@ void VulkanRenderPass::Create()
     RenderPassCreateInfo.pAttachments = m_RenderPassSpecification.Attachments.data();
     RenderPassCreateInfo.dependencyCount = static_cast<uint32_t>(m_RenderPassSpecification.Dependencies.size());
     RenderPassCreateInfo.pDependencies = m_RenderPassSpecification.Dependencies.data();
-    RenderPassCreateInfo.subpassCount = static_cast<uint32_t>(m_RenderPassSpecification.Subpasses.size());
+    RenderPassCreateInfo.subpassCount = static_cast<uint32_t>(m_RenderPassSpecification.Subpasses.size());  // ONLY 1 RN
     RenderPassCreateInfo.pSubpasses = m_RenderPassSpecification.Subpasses.data();
 
     VK_CHECK(vkCreateRenderPass(Context.GetDevice()->GetLogicalDevice(), &RenderPassCreateInfo, nullptr, &m_RenderPass),
@@ -61,8 +82,8 @@ void VulkanRenderPass::CreateFramebuffers()
     std::vector<VkImageView> Attachments(1);
     if (m_RenderPassSpecification.DepthImageView)
     {
-        Attachments.resize(2);
-        Attachments[1] = m_RenderPassSpecification.DepthImageView;
+        m_RenderPassSpecification.DepthImageView = Context.GetSwapchain()->GetDepthImageView();
+        Attachments.push_back(m_RenderPassSpecification.DepthImageView);
     }
 
     // VkFrameBuffer is what maps attachments to a renderpass. That's really all it is.

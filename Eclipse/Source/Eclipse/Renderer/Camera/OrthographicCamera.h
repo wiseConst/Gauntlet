@@ -18,6 +18,7 @@ class OrthographicCamera final : public Camera
         ELS_ASSERT(InCameraWidth > 0.0f, "Camera width can only be positive!");
         SetProjection(m_AspectRatio * -m_CameraWidth, m_AspectRatio * m_CameraWidth, -m_CameraWidth, m_CameraWidth, -m_CameraWidth,
                       m_CameraWidth);
+        m_ZoomLevel = m_CameraWidth;
     }
     ~OrthographicCamera() = default;
 
