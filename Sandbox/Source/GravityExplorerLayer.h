@@ -36,16 +36,23 @@ class GravityExplorer final : public Layer
 
         Renderer2D::DrawTexturedQuad(m_ShipPosition, m_ShipSize, m_ShipTexture);
         Renderer2D::DrawTexturedQuad({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, m_BoardTexture);
-        Renderer2D::DrawQuad(m_BlockPosition, m_BlockSize, {0.0f, 0.455f, 0.0f, 1.0f});
+        Renderer2D::DrawTexturedQuad({-3.0f, -3.0f, 0.0f}, {1.2f, 1.2f}, m_BoardTexture, {1.0f, 0.5f, 0.5f, 0.5f});
+        Renderer2D::DrawTexturedQuad({-8.0f, -8.0f, 0.0f}, {1.2f, 1.2f}, m_BoardTexture, {0.0f, 0.5f, 1.0f, 0.5f});
+        Renderer2D::DrawTexturedQuad({8.0f, 8.0f, 0.0f}, {1.2f, 1.2f}, m_BoardTexture, {1.0f, 0.5f, 0.2f, 0.5f});
     }
 
     void OnEvent(Event& InEvent) final override { m_Camera->OnEvent(InEvent); }
 
     void OnImGuiRender() final override
     {
-        ImGui::Begin("GravityExplorer");
-        ImGui::SliderFloat("Ship Speed", &m_ShipSpeed, 1.0f, 10.0f);
-        ImGui::End();
+        static bool bUpdateGravityExplorer = true;
+
+        if (bUpdateGravityExplorer)
+        {
+            ImGui::Begin("GravityExplorer", &bUpdateGravityExplorer);
+            ImGui::SliderFloat("Ship Speed", &m_ShipSpeed, 1.0f, 10.0f);
+            ImGui::End();
+        }
     }
 
     void OnDetach() final override
@@ -64,29 +71,17 @@ class GravityExplorer final : public Layer
     glm::vec2 m_ShipSize = glm::vec2(1.0f, 1.0f);
     float m_ShipSpeed = 4.2f;
 
-    glm::vec3 m_BlockPosition = glm::vec3(1.5f, 1.5f, 0.0f);
-    glm::vec2 m_BlockSize = glm::vec2(1.0f, 1.0f);
-
     void UpdateCollision(const float DeltaTime)
     {
         // Window bounding box
-        if (m_ShipPosition.x + m_ShipSize.x > m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio())
-            m_ShipPosition.x = m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio() - m_ShipSize.x;
+        if (m_ShipPosition.x + m_ShipSize.x / 2 > m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio())
+            m_ShipPosition.x = m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio() - m_ShipSize.x / 2;
 
-        if (m_ShipPosition.x < -m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio())
-            m_ShipPosition.x = -m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio();
+        if (m_ShipPosition.x - m_ShipSize.x / 2 < -m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio())
+            m_ShipPosition.x = -m_Camera->GetZoomLevel() * m_Camera->GetAspectRatio() + m_ShipSize.x / 2;
 
-        if (m_ShipPosition.y + m_ShipSize.y > m_Camera->GetZoomLevel()) m_ShipPosition.y = m_Camera->GetZoomLevel() - m_ShipSize.y;
-        if (m_ShipPosition.y < -m_Camera->GetZoomLevel()) m_ShipPosition.y = -m_Camera->GetZoomLevel();
-
-        // Simple AABB collision
-        if (m_ShipPosition.x < m_BlockPosition.x + m_BlockSize.x &&  //  Left ship edge in right block edge
-            m_ShipPosition.x + m_ShipSize.x > m_BlockPosition.x &&   //  Right ship edge in left block edge
-            m_ShipPosition.y < m_BlockPosition.y + m_BlockSize.y &&  // Bottom ship edge in top block edge
-            m_ShipPosition.y + m_ShipSize.y > m_BlockPosition.y      // Top ship edge in bottom block edge
-        )
-        {
-            LOG_INFO("Full Body Collision!");
-        }
+        if (m_ShipPosition.y + m_ShipSize.y / 2 > m_Camera->GetZoomLevel()) m_ShipPosition.y = m_Camera->GetZoomLevel() - m_ShipSize.y / 2;
+        if (m_ShipPosition.y - m_ShipSize.y / 2 < -m_Camera->GetZoomLevel())
+            m_ShipPosition.y = -m_Camera->GetZoomLevel() + m_ShipSize.y / 2;
     }
 };

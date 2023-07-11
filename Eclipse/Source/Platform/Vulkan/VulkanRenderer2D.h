@@ -35,6 +35,9 @@ class VulkanRenderer2D final : public Renderer2D
 
   private:
     VulkanContext& m_Context;
+
+    void FlushAndReset();
+    void PreallocateRenderStorage();
 };
 
 }  // namespace Eclipse

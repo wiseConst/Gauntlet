@@ -11,19 +11,29 @@
 #include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
 
-#define MAX_TEXTURES_PER_DRAW_CALL 32
-
 namespace Eclipse
 {
 
 struct VulkanRenderer2DStorage
 {
-    const uint32_t MaxQuads = 10000;
-    const uint32_t MaxVertices = MaxQuads * 4;
-    const uint32_t MaxIndices = MaxQuads * 6;
+    static constexpr uint32_t MaxQuads = 2500;
+    static constexpr uint32_t MaxVertices = MaxQuads * 4;
+    static constexpr uint32_t MaxIndices = MaxQuads * 6;
+    static constexpr uint32_t MaxTextureSlots = 32;
+    static constexpr glm::vec2 TextureCoords[4] = {glm::vec2(0.0f, 0.0f),  //
+                                                   glm::vec2(1.0f, 0.0f),  //
+                                                   glm::vec2(1.0f, 1.0f),  //
+                                                   glm::vec2(0.0f, 1.0f)};
 
-    Ref<VulkanVertexBuffer> QuadVertexBuffer;
+    static constexpr glm::vec4 QuadVertexPositions[4] = {{-0.5f, -0.5f, 0.0f, 1.0f},  //
+                                                         {0.5f, -0.5f, 0.0f, 1.0f},   //
+                                                         {0.5f, 0.5f, 0.0f, 1.0f},    //
+                                                         {-0.5f, 0.5f, 0.0f, 1.0f}};
+
     BufferLayout VertexBufferLayout;
+
+    std::vector<Ref<VulkanVertexBuffer>> QuadVertexBuffers;
+    uint32_t CurrentQuadVertexBufferIndex = 0;
 
     Ref<VulkanIndexBuffer> QuadIndexBuffer;
     uint32_t QuadIndexCount = 0;
@@ -32,12 +42,14 @@ struct VulkanRenderer2DStorage
 
     VkDescriptorPool QuadDescriptorPool;
     VkDescriptorSetLayout QuadDescriptorSetLayout;
-    VkDescriptorSet QuadDescriptorSet;
+
+    std::vector<VkDescriptorSet> QuadDescriptorSets;
+    uint32_t CurrentDescriptorSetIndex = 0;  // Initially we have 1 quad descriptor set
 
     Ref<VulkanTexture2D> QuadWhiteTexture;  // Texture Slot 0 = white tex
     uint32_t CurrentTextureSlotIndex = 1;   // 0 slot already tied with white texture
 
-    std::array<Ref<VulkanTexture2D>, MAX_TEXTURES_PER_DRAW_CALL> TextureSlots;
+    std::array<Ref<VulkanTexture2D>, MaxTextureSlots> TextureSlots;
 
     Ref<VulkanShader> VertexShader;
     Ref<VulkanShader> FragmentShader;
@@ -69,12 +81,6 @@ void VulkanRenderer2D::Create()
         };                                           //
 
         s_Data.QuadVertexBufferBase = new QuadVertex[s_Data.MaxVertices];
-
-        BufferInfo VertexBufferInfo = {};
-        VertexBufferInfo.Usage = EBufferUsageFlags::VERTEX_BUFFER;
-        VertexBufferInfo.Layout = s_Data.VertexBufferLayout;
-        VertexBufferInfo.Count = s_Data.MaxVertices;
-        s_Data.QuadVertexBuffer.reset(new VulkanVertexBuffer(VertexBufferInfo));
     }
 
     // Index Buffer creation
@@ -113,10 +119,10 @@ void VulkanRenderer2D::Create()
 
     // Setting up things all the things that related to uniforms in shader
     const auto TextureBinding = Utility::GetDescriptorSetLayoutBinding(
-        0, MAX_TEXTURES_PER_DRAW_CALL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+        0, VulkanRenderer2DStorage::MaxTextureSlots, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
 
     // Vulkan 1.2 Features for texture batching in my case
-    VkDescriptorBindingFlags BindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT /*| VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT*/;
+    VkDescriptorBindingFlags BindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
 
     VkDescriptorSetLayoutBindingFlagsCreateInfo BindingFlagsInfo = {};
     BindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
@@ -128,7 +134,6 @@ void VulkanRenderer2D::Create()
     QuadDescriptorSetLayoutCreateInfo.bindingCount = 1;
     QuadDescriptorSetLayoutCreateInfo.pBindings = &TextureBinding;
     QuadDescriptorSetLayoutCreateInfo.pNext = &BindingFlagsInfo;
-    // QuadDescriptorSetLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
 
     VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorSetLayoutCreateInfo, nullptr,
                                          &s_Data.QuadDescriptorSetLayout),
@@ -139,22 +144,12 @@ void VulkanRenderer2D::Create()
     VkDescriptorPoolCreateInfo QuadDescriptorPoolCreateInfo = {};
     QuadDescriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     QuadDescriptorPoolCreateInfo.poolSizeCount = 1;
-    QuadDescriptorPoolCreateInfo.maxSets = 1;
+    QuadDescriptorPoolCreateInfo.maxSets = VulkanRenderer2DStorage::MaxTextureSlots;
     QuadDescriptorPoolCreateInfo.pPoolSizes = PoolSizes;
-    // QuadDescriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
     VK_CHECK(vkCreateDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorPoolCreateInfo, nullptr,
                                     &s_Data.QuadDescriptorPool),
              "Failed to create descriptor pool!");
-
-    VkDescriptorSetAllocateInfo QuadDescriptorSetAllocateInfo = {};
-    QuadDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    QuadDescriptorSetAllocateInfo.descriptorSetCount = 1;
-    QuadDescriptorSetAllocateInfo.pSetLayouts = &s_Data.QuadDescriptorSetLayout;
-    QuadDescriptorSetAllocateInfo.descriptorPool = s_Data.QuadDescriptorPool;
-
-    VK_CHECK(vkAllocateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorSetAllocateInfo, &s_Data.QuadDescriptorSet),
-             "Failed to allocate descriptor set!");
 
     // Default 2D graphics pipeline creation
     {
@@ -209,13 +204,22 @@ void VulkanRenderer2D::Create()
 
 void VulkanRenderer2D::BeginImpl()
 {
-    s_Data.CurrentTextureSlotIndex = 1;
-    s_Data.QuadIndexCount = 0;
     s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
+    s_Data.CurrentQuadVertexBufferIndex = 0;
 
-    // m_Context.GetDevice()->WaitDeviceOnFinish();
-    // VK_CHECK(vkResetDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), s_Data.QuadDescriptorPool, 0),
-    //          "Failed to reset descriptor pool!");
+    s_Data.QuadDescriptorSets.clear();
+    s_Data.CurrentDescriptorSetIndex = 0;
+    s_Data.CurrentTextureSlotIndex = 1;
+
+    s_Data.QuadIndexCount = 0;
+    Renderer2D::GetStats().DrawCalls = 0;
+
+    // Wait for GPU to finish draw commands execution and then reset descriptor pool
+    // If you won't do this, you're trying to reset descriptor sets that are may be in use by command buffer,
+    // that's why we wait for theGPU.
+    m_Context.GetDevice()->WaitDeviceOnFinish();
+    VK_CHECK(vkResetDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), s_Data.QuadDescriptorPool, 0),
+             "Failed to reset descriptor pool!");
 }
 
 void VulkanRenderer2D::SetClearColorImpl(const glm::vec4& InColor)
@@ -236,31 +240,25 @@ void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2
 void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
                                            const glm::vec4& InColor)
 {
+    if (s_Data.QuadIndexCount >= s_Data.MaxIndices)
+    {
+        FlushAndReset();
+    }
+
     const float TextureId = 0.0f;  // White by default
 
-    s_Data.QuadVertexBufferPtr->Position = InPosition;
-    s_Data.QuadVertexBufferPtr->Color = InColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {0.0f, 0.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureId;
-    ++s_Data.QuadVertexBufferPtr;
+    const auto TransformMatrix = glm::translate(glm::mat4(1.0f), InPosition) *
+                                 glm::rotate(glm::mat4(1.0f), glm::radians(InRotation.z), glm::vec3(0, 0, 1)) *
+                                 glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
 
-    s_Data.QuadVertexBufferPtr->Position = {InPosition.x + InSize.x, InPosition.y, InPosition.z};
-    s_Data.QuadVertexBufferPtr->Color = InColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {1.0f, 0.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureId;
-    ++s_Data.QuadVertexBufferPtr;
-
-    s_Data.QuadVertexBufferPtr->Position = {InPosition.x + InSize.x, InPosition.y + InSize.y, InPosition.z};
-    s_Data.QuadVertexBufferPtr->Color = InColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {1.0f, 1.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureId;
-    ++s_Data.QuadVertexBufferPtr;
-
-    s_Data.QuadVertexBufferPtr->Position = {InPosition.x, InPosition.y + InSize.y, InPosition.z};
-    s_Data.QuadVertexBufferPtr->Color = InColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {0.0f, 1.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureId;
-    ++s_Data.QuadVertexBufferPtr;
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        s_Data.QuadVertexBufferPtr->Position = TransformMatrix * s_Data.QuadVertexPositions[i];
+        s_Data.QuadVertexBufferPtr->Color = InColor;
+        s_Data.QuadVertexBufferPtr->TexCoord = VulkanRenderer2DStorage::TextureCoords[i];
+        s_Data.QuadVertexBufferPtr->TextureId = TextureId;
+        ++s_Data.QuadVertexBufferPtr;
+    }
 
     s_Data.QuadIndexCount += 6;
 
@@ -271,47 +269,44 @@ void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const gl
 void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
                                             const glm::vec4& InBlendColor)
 {
-    float TextureIndex = 0.0f;
+    if (s_Data.QuadIndexCount >= s_Data.MaxIndices)
+    {
+        FlushAndReset();
+    }
+
+    float TextureId = 0.0f;
     for (uint32_t i = 0; i < s_Data.CurrentTextureSlotIndex; ++i)
     {
         if (s_Data.TextureSlots[i] == InTexture)
         {
-            TextureIndex = (float)i;
+            TextureId = (float)i;
             break;
         }
     }
 
-    if (TextureIndex == 0.0f)
+    if (TextureId == 0.0f)
     {
+        if (s_Data.CurrentTextureSlotIndex + 1 >= VulkanRenderer2DStorage::MaxTextureSlots)
+        {
+            FlushAndReset();
+        }
+
         const auto VulkanTexture = std::static_pointer_cast<VulkanTexture2D>(InTexture);
         s_Data.TextureSlots[s_Data.CurrentTextureSlotIndex] = VulkanTexture;
-        TextureIndex = s_Data.CurrentTextureSlotIndex;
+        TextureId = s_Data.CurrentTextureSlotIndex;
         ++s_Data.CurrentTextureSlotIndex;
     }
 
-    s_Data.QuadVertexBufferPtr->Position = InPosition;
-    s_Data.QuadVertexBufferPtr->Color = InBlendColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {0.0f, 0.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureIndex;
-    ++s_Data.QuadVertexBufferPtr;
+    const auto TransformMatrix = glm::translate(glm::mat4(1.0f), InPosition) * glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
 
-    s_Data.QuadVertexBufferPtr->Position = {InPosition.x + InSize.x, InPosition.y, InPosition.z};
-    s_Data.QuadVertexBufferPtr->Color = InBlendColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {1.0f, 0.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureIndex;
-    ++s_Data.QuadVertexBufferPtr;
-
-    s_Data.QuadVertexBufferPtr->Position = {InPosition.x + InSize.x, InPosition.y + InSize.y, InPosition.z};
-    s_Data.QuadVertexBufferPtr->Color = InBlendColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {1.0f, 1.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureIndex;
-    ++s_Data.QuadVertexBufferPtr;
-
-    s_Data.QuadVertexBufferPtr->Position = {InPosition.x, InPosition.y + InSize.y, InPosition.z};
-    s_Data.QuadVertexBufferPtr->Color = InBlendColor;
-    s_Data.QuadVertexBufferPtr->TexCoord = {0.0f, 1.0f};
-    s_Data.QuadVertexBufferPtr->TextureId = TextureIndex;
-    ++s_Data.QuadVertexBufferPtr;
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        s_Data.QuadVertexBufferPtr->Position = TransformMatrix * s_Data.QuadVertexPositions[i];
+        s_Data.QuadVertexBufferPtr->Color = InBlendColor;
+        s_Data.QuadVertexBufferPtr->TexCoord = VulkanRenderer2DStorage::TextureCoords[i];
+        s_Data.QuadVertexBufferPtr->TextureId = TextureId;
+        ++s_Data.QuadVertexBufferPtr;
+    }
 
     s_Data.QuadIndexCount += 6;
 
@@ -319,21 +314,55 @@ void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& InPosition, const g
     s_Data.PushConstants.Color = InBlendColor;
 }
 
+void VulkanRenderer2D::FlushAndReset()
+{
+    FlushImpl();
+
+    for (uint32_t i = 1; i < s_Data.TextureSlots.size(); ++i)
+    {
+        s_Data.TextureSlots[i] = nullptr;
+    }
+
+    s_Data.CurrentTextureSlotIndex = 1;
+    s_Data.QuadIndexCount = 0;
+    s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
+}
+
+void VulkanRenderer2D::PreallocateRenderStorage()
+{
+    if (s_Data.CurrentDescriptorSetIndex >= s_Data.QuadDescriptorSets.size())
+    {
+        VkDescriptorSet QuadSamplerDescriptorSet = VK_NULL_HANDLE;
+        VkDescriptorSetAllocateInfo QuadDescriptorSetAllocateInfo = {};
+        QuadDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        QuadDescriptorSetAllocateInfo.descriptorSetCount = 1;
+        QuadDescriptorSetAllocateInfo.pSetLayouts = &s_Data.QuadDescriptorSetLayout;
+        QuadDescriptorSetAllocateInfo.descriptorPool = s_Data.QuadDescriptorPool;
+
+        VK_CHECK(
+            vkAllocateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorSetAllocateInfo, &QuadSamplerDescriptorSet),
+            "Failed to allocate descriptor set!");
+
+        s_Data.QuadDescriptorSets.push_back(QuadSamplerDescriptorSet);
+    }
+
+    if (s_Data.CurrentQuadVertexBufferIndex >= s_Data.QuadVertexBuffers.size())
+    {
+        BufferInfo VertexBufferInfo = {};
+        VertexBufferInfo.Usage = EBufferUsageFlags::VERTEX_BUFFER;
+        VertexBufferInfo.Layout = s_Data.VertexBufferLayout;
+        s_Data.QuadVertexBuffers.emplace_back(new VulkanVertexBuffer(VertexBufferInfo));
+    }
+}
+
 void VulkanRenderer2D::FlushImpl()
 {
     if (s_Data.QuadIndexCount <= 0) return;
 
-    /*VkDescriptorSetAllocateInfo QuadDescriptorSetAllocateInfo = {};
-    QuadDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    QuadDescriptorSetAllocateInfo.descriptorSetCount = 1;
-    QuadDescriptorSetAllocateInfo.pSetLayouts = &s_Data.QuadDescriptorSetLayout;
-    QuadDescriptorSetAllocateInfo.descriptorPool = s_Data.QuadDescriptorPool;
-
-    VK_CHECK(vkAllocateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorSetAllocateInfo, &s_Data.QuadDescriptorSet),
-             "Failed to allocate descriptor set!");*/
+    PreallocateRenderStorage();
 
     std::vector<VkDescriptorImageInfo> ImageInfos;
-    for (uint32_t i = 0; i < MAX_TEXTURES_PER_DRAW_CALL; ++i)
+    for (uint32_t i = 0; i < VulkanRenderer2DStorage::MaxTextureSlots; ++i)
     {
         VkDescriptorImageInfo DescriptorImageInfo = {};
         DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -352,59 +381,13 @@ void VulkanRenderer2D::FlushImpl()
 
         ImageInfos.push_back(DescriptorImageInfo);
     }
-    const auto TextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.QuadDescriptorSet,
-                                                                ImageInfos.size(), ImageInfos.data());
+    const auto TextureWriteSet =
+        Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
+                                       s_Data.QuadDescriptorSets[s_Data.CurrentDescriptorSetIndex], ImageInfos.size(), ImageInfos.data());
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
 
-    // Cherno's version
-    /* std::vector<VkDescriptorImageInfo> TextureInfos;
-     for (uint32_t i = 0; i < MAX_TEXTURES_PER_DRAW_CALL; ++i)
-     {
-         VkDescriptorImageInfo DescriptorImageInfo = {};
-         DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-         if (s_Data.TextureSlots[i] && i < s_Data.CurrentTextureSlotIndex)
-         {
-             const auto Texture = s_Data.TextureSlots[i];
-             DescriptorImageInfo.imageView = Texture->GetImage()->GetView();
-             DescriptorImageInfo.sampler = Texture->GetSampler();
-         }
-         else
-         {
-             DescriptorImageInfo.imageView = s_Data.QuadWhiteTexture->GetImage()->GetView();
-             DescriptorImageInfo.sampler = s_Data.QuadWhiteTexture->GetSampler();
-         }
-
-         TextureInfos.emplace_back(DescriptorImageInfo);
-     }
-
-     const auto TextureSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.QuadDescriptorSet,
-                                                            s_Data.CurrentTextureSlotIndex, TextureInfos.data());
-
-     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureSet, 0, nullptr);*/
-
-    /*   for (uint32_t i = 0; i < MAX_TEXTURES_PER_DRAW_CALL; ++i)
-       {
-           VkDescriptorImageInfo DescriptorImageInfo = {};
-           DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-           if (s_Data.TextureSlots[i] && i < s_Data.CurrentTextureSlotIndex)
-           {
-               const auto Texture = s_Data.TextureSlots[i];
-               DescriptorImageInfo.imageView = Texture->GetImage()->GetView();
-               DescriptorImageInfo.sampler = Texture->GetSampler();
-           }
-           else
-           {
-               DescriptorImageInfo.imageView = s_Data.QuadWhiteTexture->GetImage()->GetView();
-               DescriptorImageInfo.sampler = s_Data.QuadWhiteTexture->GetSampler();
-           }
-           const auto TextureWriteSet =
-               Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.QuadDescriptorSet, 1,
-       &DescriptorImageInfo); vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, VK_NULL_HANDLE);
-       }*/
-
     const uint32_t DataSize = (uint8_t*)s_Data.QuadVertexBufferPtr - (uint8_t*)s_Data.QuadVertexBufferBase;
-    s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, DataSize);
+    s_Data.QuadVertexBuffers[s_Data.CurrentQuadVertexBufferIndex]->SetData(s_Data.QuadVertexBufferBase, DataSize);
 
     const auto& Swapchain = m_Context.GetSwapchain();
     auto& CommandBuffer = m_Context.GetGraphicsCommandPool()->GetCommandBuffer(Swapchain->GetCurrentFrameIndex());
@@ -412,14 +395,18 @@ void VulkanRenderer2D::FlushImpl()
     CommandBuffer.BindPipeline(s_Data.QuadPipeline->Get());
 
     VkDeviceSize Offset = 0;
-    CommandBuffer.BindVertexBuffers(0, 1, &s_Data.QuadVertexBuffer->Get(), &Offset);
+    CommandBuffer.BindVertexBuffers(0, 1, &s_Data.QuadVertexBuffers[s_Data.CurrentQuadVertexBufferIndex]->Get(), &Offset);
     CommandBuffer.BindIndexBuffer(s_Data.QuadIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
 
-    CommandBuffer.BindDescriptorSets(s_Data.QuadPipeline->GetLayout(), 0, 1, &s_Data.QuadDescriptorSet);
+    CommandBuffer.BindDescriptorSets(s_Data.QuadPipeline->GetLayout(), 0, 1, &s_Data.QuadDescriptorSets[s_Data.CurrentDescriptorSetIndex]);
     CommandBuffer.BindPushConstants(s_Data.QuadPipeline->GetLayout(), s_Data.QuadPipeline->GetPushConstantsShaderStageFlags(), 0,
                                     s_Data.QuadPipeline->GetPushConstantsSize(), &s_Data.PushConstants);
 
     CommandBuffer.DrawIndexed(s_Data.QuadIndexCount);
+
+    ++Renderer2D::GetStats().DrawCalls;
+    ++s_Data.CurrentDescriptorSetIndex;
+    ++s_Data.CurrentQuadVertexBufferIndex;
 }
 
 void VulkanRenderer2D::Destroy()
@@ -436,7 +423,9 @@ void VulkanRenderer2D::Destroy()
     s_Data.VertexShader->DestroyModule();
     s_Data.FragmentShader->DestroyModule();
 
-    s_Data.QuadVertexBuffer->Destroy();
+    for (auto& QuadVertexBuffer : s_Data.QuadVertexBuffers)
+        QuadVertexBuffer->Destroy();
+
     s_Data.QuadIndexBuffer->Destroy();
 
     s_Data.QuadPipeline->Destroy();

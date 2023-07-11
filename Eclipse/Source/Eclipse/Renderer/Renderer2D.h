@@ -48,6 +48,7 @@ class Renderer2D : private Uncopyable, private Unmovable
         size_t Allocations = 0;
         size_t AllocatedBuffers = 0;
         size_t AllocatedImages = 0;
+        size_t DrawCalls = 0;
 
         float CPUWaitTime = 0;
         float GPUWaitTime = 0;

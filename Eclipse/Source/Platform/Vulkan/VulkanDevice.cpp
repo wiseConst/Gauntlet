@@ -143,27 +143,15 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
     PhysicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 
-    // Features for texture batching (descriptors)
+    // Features for texture batching (vulkan descriptors)
     VkPhysicalDeviceDescriptorIndexingFeatures PhysicalDeviceDescriptorIndexingFeatures = {};
     PhysicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-
-    // Enable non-uniform indexing
-    PhysicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-    PhysicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-    PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
     PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-    PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
-
     deviceCI.pNext = &PhysicalDeviceDescriptorIndexingFeatures;
 
     deviceCI.pEnabledFeatures = &PhysicalDeviceFeatures;
-    // deviceCI.pEnabledFeatures = &m_GPUFeatures;  // Specifying features(if some of them available) that we want to use.
     deviceCI.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
     deviceCI.ppEnabledExtensionNames = DeviceExtensions.data();
-
-    // Deprecated
-    deviceCI.enabledLayerCount = 0;
-    deviceCI.ppEnabledLayerNames = nullptr;
 
     {
         const auto result = vkCreateDevice(m_GPUInfo.PhysicalDevice, &deviceCI, nullptr, &m_GPUInfo.LogicalDevice);
@@ -176,16 +164,6 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetTransferFamily(), 0, &m_GPUInfo.TransferQueue);
 
     ELS_ASSERT(m_GPUInfo.GraphicsQueue && m_GPUInfo.PresentQueue && m_GPUInfo.TransferQueue, "Failed to retrieve queue handles!");
-
-    /* BY VOLK IMPLEMENTATION
-       1)  For applications that use just one VkDevice object, load device
-           related Vulkan entrypoints directly from the driver with this function:
-                void volkLoadDevice(VkDevice device);
-
-       2) For applications that use multiple VkDevice objects,
-          load device related Vulkan entrypoints into a table:
-             void volkLoadDeviceTable(struct VolkDeviceTable * table, VkDevice device);
-     */
 }
 
 uint32_t VulkanDevice::RateDeviceSuitability(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSurface)
@@ -339,16 +317,14 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
 bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& InPhysicalDevice)
 {
     uint32_t ExtensionCount{0};
-    {
-        const auto result = vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &ExtensionCount, nullptr);
-        ELS_ASSERT(result == VK_SUCCESS && ExtensionCount != 0, "Failed to retrieve number of device extensions.");
-    }
+    VK_CHECK(vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &ExtensionCount, nullptr),
+             "Failed to retrieve number of device extensions.");
+    ELS_ASSERT(ExtensionCount > 0, "Device extensions <= 0!");
 
     std::vector<VkExtensionProperties> AvailableExtensions(ExtensionCount);
-    {
-        const auto result = vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &ExtensionCount, AvailableExtensions.data());
-        ELS_ASSERT(result == VK_SUCCESS && ExtensionCount != 0, "Failed to retrieve device extensions.");
-    }
+
+    VK_CHECK(vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &ExtensionCount, AvailableExtensions.data()),
+             "Failed to retrieve device extensions.");
 
     std::set<std::string> RequiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
     for (const auto& Ext : AvailableExtensions)

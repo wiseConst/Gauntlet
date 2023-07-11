@@ -16,6 +16,7 @@ struct QuadVertex
     float TextureId;
 };
 
+// From vkguide.dev unused currently
 struct SceneDataBuffer
 {
     glm::vec4 FogColor;      // w is for exponent

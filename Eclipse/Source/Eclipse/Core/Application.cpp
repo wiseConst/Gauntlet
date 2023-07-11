@@ -87,11 +87,12 @@ void Application::Run()
 
                 ImGui::Text("Allocated images: %llu", Renderer2D::GetStats().AllocatedImages);
                 ImGui::Text("Allocated buffers: %llu", Renderer2D::GetStats().AllocatedBuffers);
-                ImGui::Text("GPU Memory Usage: %llu bytes", Renderer2D::GetStats().GPUMemoryAllocated);
+                ImGui::Text("GPU Memory Usage: %f MB", Renderer2D::GetStats().GPUMemoryAllocated/1024.0f/1024.0f);
                 ImGui::Text("CPU Wait Time: %f(ms)", Renderer2D::GetStats().CPUWaitTime);
                 ImGui::Text("GPU Wait Time: %f(ms)", Renderer2D::GetStats().GPUWaitTime);
                 ImGui::Text("VMA Allocations(rn only VMA count): %llu", Renderer2D::GetStats().Allocations);
                 ImGui::Text("DeltaTime: %f(ms)", ts.GetMilliseconds());
+                ImGui::Text("DrawCalls: %llu", Renderer2D::GetStats().DrawCalls);
 
                 ImGui::End();
             }

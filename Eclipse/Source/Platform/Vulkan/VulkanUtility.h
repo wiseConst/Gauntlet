@@ -19,7 +19,7 @@ const std::vector<const char*> VulkanLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DeviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,           // Swapchain creation (array of images that we render into, and present to screen)
     VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,   // For advanced GPU info
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME  // For texture batching in my case
+    // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME  // For texture batching in my case
 };
 
 #ifdef ELS_DEBUG
