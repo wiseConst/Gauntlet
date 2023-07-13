@@ -7,7 +7,7 @@ namespace Eclipse
 class Shader
 {
   public:
-    Shader() = default;
+    Shader()          = default;
     virtual ~Shader() = default;
 
     static Ref<Shader> CreateShader(const std::string_view& InFilePath);

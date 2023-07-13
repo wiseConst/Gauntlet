@@ -29,6 +29,8 @@ class VulkanImGuiLayer final : public ImGuiLayer
     Scoped<VulkanCommandPool> m_ImGuiCommandPool;
     Scoped<VulkanRenderPass> m_ImGuiRenderPass;
 
+    ImFont* m_DefaultFont = nullptr;
+
     void SetStyle();
 };
 }  // namespace Eclipse

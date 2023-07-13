@@ -13,13 +13,12 @@ namespace Eclipse
 #define LOG_VULKAN_INFO 0
 
 static constexpr uint32_t ELS_VK_API_VERSION = VK_API_VERSION_1_3;
-static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
+static constexpr uint32_t FRAMES_IN_FLIGHT   = 2;
 
-const std::vector<const char*> VulkanLayers = {"VK_LAYER_KHRONOS_validation"};
+const std::vector<const char*> VulkanLayers     = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DeviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME,           // Swapchain creation (array of images that we render into, and present to screen)
-    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,   // For advanced GPU info
-    // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME  // For texture batching in my case
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,         // Swapchain creation (array of images that we render into, and present to screen)
+    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME  // For advanced GPU info
 };
 
 #ifdef ELS_DEBUG
@@ -65,18 +64,18 @@ namespace Utility
 static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPool, const VkDevice& InDevice)
 {
     VkCommandBufferAllocateInfo AllocateInfo = {};
-    AllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    AllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    AllocateInfo.commandPool = InCommandPool;
-    AllocateInfo.commandBufferCount = 1;
+    AllocateInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    AllocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    AllocateInfo.commandPool                 = InCommandPool;
+    AllocateInfo.commandBufferCount          = 1;
 
     VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
     VK_CHECK(vkAllocateCommandBuffers(InDevice, &AllocateInfo, &CommandBuffer),
              "Failed to allocate command buffer for single time command!");
 
     VkCommandBufferBeginInfo BeginInfo = {};
-    BeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    BeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    BeginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    BeginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     VK_CHECK(vkBeginCommandBuffer(CommandBuffer, &BeginInfo), "Failed to begin command buffer for single time command!");
 
@@ -88,10 +87,10 @@ static void EndSingleTimeCommands(const VkCommandBuffer& InCommandBuffer, const 
 {
     VK_CHECK(vkEndCommandBuffer(InCommandBuffer), "Failed to end command buffer for single time command!");
 
-    VkSubmitInfo SubmitInfo = {};
-    SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo SubmitInfo       = {};
+    SubmitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers = &InCommandBuffer;
+    SubmitInfo.pCommandBuffers    = &InCommandBuffer;
 
     VK_CHECK(vkQueueSubmit(InQueue, 1, &SubmitInfo, VK_NULL_HANDLE), "Failed to submit command buffer to the queue!");
     VK_CHECK(vkQueueWaitIdle(InQueue), "Failed to wait on queue submit!");
@@ -120,9 +119,9 @@ static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t InBi
                                                                    VkVertexInputRate InInputRate = VK_VERTEX_INPUT_RATE_VERTEX)
 {
     VkVertexInputBindingDescription BindingDescription = {};
-    BindingDescription.binding = InBindingID;
-    BindingDescription.stride = InStride;
-    BindingDescription.inputRate = InInputRate;
+    BindingDescription.binding                         = InBindingID;
+    BindingDescription.stride                          = InStride;
+    BindingDescription.inputRate                       = InInputRate;
 
     return BindingDescription;
 }
@@ -131,10 +130,10 @@ static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t 
                                                                        uint32_t InOffset)
 {
     VkVertexInputAttributeDescription AttributeDescription = {};
-    AttributeDescription.binding = InBindingID;
-    AttributeDescription.format = InFormat;
-    AttributeDescription.location = InLocation;
-    AttributeDescription.offset = InOffset;
+    AttributeDescription.binding                           = InBindingID;
+    AttributeDescription.format                            = InFormat;
+    AttributeDescription.location                          = InLocation;
+    AttributeDescription.offset                            = InOffset;
 
     return AttributeDescription;
 }
@@ -144,11 +143,11 @@ static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t
                                                                   VkSampler* InImmutableSamplers = VK_NULL_HANDLE)
 {
     VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding = {};
-    DescriptorSetLayoutBinding.binding = InBinding;
-    DescriptorSetLayoutBinding.descriptorCount = InDescriptorCount;
-    DescriptorSetLayoutBinding.descriptorType = InDescriptorType;
-    DescriptorSetLayoutBinding.stageFlags = InStageFlags;
-    DescriptorSetLayoutBinding.pImmutableSamplers = InImmutableSamplers;
+    DescriptorSetLayoutBinding.binding                      = InBinding;
+    DescriptorSetLayoutBinding.descriptorCount              = InDescriptorCount;
+    DescriptorSetLayoutBinding.descriptorType               = InDescriptorType;
+    DescriptorSetLayoutBinding.stageFlags                   = InStageFlags;
+    DescriptorSetLayoutBinding.pImmutableSamplers           = InImmutableSamplers;
 
     return DescriptorSetLayoutBinding;
 }
@@ -159,14 +158,14 @@ static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType InDescriptorT
                                                   const uint32_t InArrayElement = 0)
 {
     VkWriteDescriptorSet WriteDescriptorSet = {};
-    WriteDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    WriteDescriptorSet.descriptorType = InDescriptorType;
-    WriteDescriptorSet.dstBinding = InBinding;
-    WriteDescriptorSet.dstSet = InDescriptorSet;
-    WriteDescriptorSet.descriptorCount = InDescriptorCount;
-    WriteDescriptorSet.pBufferInfo = InBufferInfo;
-    WriteDescriptorSet.pTexelBufferView = InTexelBufferView;
-    WriteDescriptorSet.dstArrayElement = InArrayElement;
+    WriteDescriptorSet.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    WriteDescriptorSet.descriptorType       = InDescriptorType;
+    WriteDescriptorSet.dstBinding           = InBinding;
+    WriteDescriptorSet.dstSet               = InDescriptorSet;
+    WriteDescriptorSet.descriptorCount      = InDescriptorCount;
+    WriteDescriptorSet.pBufferInfo          = InBufferInfo;
+    WriteDescriptorSet.pTexelBufferView     = InTexelBufferView;
+    WriteDescriptorSet.dstArrayElement      = InArrayElement;
 
     return WriteDescriptorSet;
 }
@@ -177,14 +176,14 @@ static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType InDescriptorT
                                                   const uint32_t InArrayElement = 0)
 {
     VkWriteDescriptorSet WriteDescriptorSet = {};
-    WriteDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    WriteDescriptorSet.descriptorType = InDescriptorType;
-    WriteDescriptorSet.dstBinding = InBinding;
-    WriteDescriptorSet.dstSet = InDescriptorSet;
-    WriteDescriptorSet.descriptorCount = InDescriptorCount;
-    WriteDescriptorSet.pImageInfo = InImageInfo;
-    WriteDescriptorSet.pTexelBufferView = InTexelBufferView;
-    WriteDescriptorSet.dstArrayElement = InArrayElement;
+    WriteDescriptorSet.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    WriteDescriptorSet.descriptorType       = InDescriptorType;
+    WriteDescriptorSet.dstBinding           = InBinding;
+    WriteDescriptorSet.dstSet               = InDescriptorSet;
+    WriteDescriptorSet.descriptorCount      = InDescriptorCount;
+    WriteDescriptorSet.pImageInfo           = InImageInfo;
+    WriteDescriptorSet.pTexelBufferView     = InTexelBufferView;
+    WriteDescriptorSet.dstArrayElement      = InArrayElement;
 
     return WriteDescriptorSet;
 }
@@ -194,10 +193,10 @@ static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescript
                                                                 VkDescriptorSetLayout* InDescriptorSetLayouts)
 {
     VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {};
-    DescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    DescriptorSetAllocateInfo.descriptorPool = InDescriptorPool;
-    DescriptorSetAllocateInfo.descriptorSetCount = InDescriptorSetCount;
-    DescriptorSetAllocateInfo.pSetLayouts = InDescriptorSetLayouts;
+    DescriptorSetAllocateInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    DescriptorSetAllocateInfo.descriptorPool              = InDescriptorPool;
+    DescriptorSetAllocateInfo.descriptorSetCount          = InDescriptorSetCount;
+    DescriptorSetAllocateInfo.pSetLayouts                 = InDescriptorSetLayouts;
 
     return DescriptorSetAllocateInfo;
 }

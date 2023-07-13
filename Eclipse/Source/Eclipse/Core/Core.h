@@ -26,7 +26,7 @@
 
 #else
 
-#define ELS_ASSERT(x, ...)
+#define ELS_ASSERT(x, ...) (x)
 
 #endif
 
@@ -41,8 +41,8 @@
 namespace Eclipse
 {
 constexpr uint32_t ApplicationVersion = MAKE_VERSION(1, 0, 0);
-constexpr uint32_t EngineVersion = MAKE_VERSION(1, 0, 0);
-constexpr char* EngineName = "Eclipse";
+constexpr uint32_t EngineVersion      = MAKE_VERSION(1, 0, 0);
+constexpr char* EngineName            = "Eclipse";
 
 template <typename T> using Scoped = std::unique_ptr<T>;
 

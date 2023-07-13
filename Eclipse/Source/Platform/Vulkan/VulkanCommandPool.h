@@ -59,7 +59,7 @@ class VulkanCommandPool final : private Uncopyable, private Unmovable
 {
   public:
     VulkanCommandPool(const CommandPoolSpecification& InCommandPoolSpecification);
-    VulkanCommandPool() = delete;
+    VulkanCommandPool()  = delete;
     ~VulkanCommandPool() = default;
 
     FORCEINLINE const auto& GetCommandBuffer(const uint32_t Index = 0) const { return m_CommandBuffers[Index]; }

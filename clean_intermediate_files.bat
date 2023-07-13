@@ -1,6 +1,6 @@
 @echo off
 
-set dirsToRemove=*.vs Intermediate Binaries bin bin-int # i added bin and bin-int because some of 3rdparties are added from cherno
+set dirsToRemove=*.vs Intermediate Binaries
 set filesToRemove=*.sln *.vcxproj *.vcxproj.user *.vcxproj.filters
 
 for %%a in (%dirsToRemove%) do (

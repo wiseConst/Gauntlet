@@ -26,12 +26,12 @@ class Input : private Uncopyable, private Unmovable
   protected:
     static Input* s_Instance;
 
-    virtual bool IsKeyPressedImpl(int KeyCode) const = 0;
+    virtual bool IsKeyPressedImpl(int KeyCode) const        = 0;
     virtual bool IsMouseButtonPressedImpl(int Button) const = 0;
 
     virtual std::pair<int, int> GetMousePositionImpl() const = 0;
-    virtual int GetMouseXImpl() const = 0;
-    virtual int GetMouseYImpl() const = 0;
+    virtual int GetMouseXImpl() const                        = 0;
+    virtual int GetMouseYImpl() const                        = 0;
 
     virtual void DestroyImpl() = 0;
 };

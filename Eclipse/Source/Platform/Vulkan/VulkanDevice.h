@@ -64,16 +64,16 @@ class VulkanDevice final : private Uncopyable, private Unmovable
   private:
     struct GPUInfo
     {
-        VkDevice LogicalDevice = VK_NULL_HANDLE;
+        VkDevice LogicalDevice          = VK_NULL_HANDLE;
         VkPhysicalDevice PhysicalDevice = VK_NULL_HANDLE;
 
         QueueFamilyIndices QueueFamilyIndices = {};
-        VkQueue GraphicsQueue = VK_NULL_HANDLE;
-        VkQueue PresentQueue = VK_NULL_HANDLE;
-        VkQueue TransferQueue = VK_NULL_HANDLE;
+        VkQueue GraphicsQueue                 = VK_NULL_HANDLE;
+        VkQueue PresentQueue                  = VK_NULL_HANDLE;
+        VkQueue TransferQueue                 = VK_NULL_HANDLE;
 
-        VkPhysicalDeviceProperties GPUProperties = {};
-        VkPhysicalDeviceFeatures GPUFeatures = {};
+        VkPhysicalDeviceProperties GPUProperties             = {};
+        VkPhysicalDeviceFeatures GPUFeatures                 = {};
         VkPhysicalDeviceMemoryProperties GPUMemoryProperties = {};
         VkPhysicalDeviceDriverProperties GPUDriverProperties = {};
     } m_GPUInfo;

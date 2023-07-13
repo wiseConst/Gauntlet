@@ -41,7 +41,11 @@ stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth
     }
 
     auto Pixels = stbi_load(InFilePath.data(), OutWidth, OutHeight, OutChannels, DesiredChannels);
-    ELS_ASSERT(Pixels && OutWidth && OutHeight && OutChannels, "Failed to load image!");
+    if (!Pixels || !OutWidth || !OutHeight || !OutChannels)
+    {
+        const auto ErrorMessage = std::string("Failed to load image! Path: ") + std::string(InFilePath.data());
+        ELS_ASSERT(false, ErrorMessage.data());
+    }
 
     return Pixels;
 }

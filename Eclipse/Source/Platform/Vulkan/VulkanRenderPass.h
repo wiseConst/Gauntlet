@@ -14,10 +14,10 @@ struct RenderPassSpecification
 
     RenderPassSpecification(const RenderPassSpecification& that)
     {
-        Attachments = that.Attachments;
+        Attachments    = that.Attachments;
         AttachmentRefs = that.AttachmentRefs;
-        Subpasses = that.Subpasses;
-        Dependencies = that.Dependencies;
+        Subpasses      = that.Subpasses;
+        Dependencies   = that.Dependencies;
         DepthImageView = that.DepthImageView;
     }
 
@@ -56,7 +56,7 @@ class VulkanRenderPass final : private Uncopyable, private Unmovable
 {
   public:
     VulkanRenderPass(const RenderPassSpecification& InRenderPassSpecification);
-    VulkanRenderPass() = delete;
+    VulkanRenderPass()  = delete;
     ~VulkanRenderPass() = default;
 
     void Begin(const VkCommandBuffer& InCommandBuffer, const std::vector<VkClearValue>& InClearValues) const;

@@ -39,7 +39,7 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
 
     // Try to allocate the descriptor set
     auto AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &DescriptorSetAllocateInfo, InDescriptorSet);
-    bool bNeedReallocate = false;
+    bool bNeedReallocate  = false;
 
     switch (AllocationResult)
     {
@@ -78,11 +78,11 @@ VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t InCount,
     }
 
     VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = {};
-    DescriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    DescriptorPoolCreateInfo.maxSets = InCount;
-    DescriptorPoolCreateInfo.poolSizeCount = (uint32_t)Sizes.size();
-    DescriptorPoolCreateInfo.pPoolSizes = Sizes.data();
-    DescriptorPoolCreateInfo.flags = InDescriptorPoolCreateFlags;
+    DescriptorPoolCreateInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    DescriptorPoolCreateInfo.maxSets                    = InCount;
+    DescriptorPoolCreateInfo.poolSizeCount              = (uint32_t)Sizes.size();
+    DescriptorPoolCreateInfo.pPoolSizes                 = Sizes.data();
+    DescriptorPoolCreateInfo.flags                      = InDescriptorPoolCreateFlags;
 
     VkDescriptorPool DescriptorPool = VK_NULL_HANDLE;
     VK_CHECK(vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &DescriptorPool),
@@ -126,7 +126,7 @@ VkDescriptorSetLayout VulkanDescriptorLayoutCache::CreateDescriptorSetLayout(VkD
     LayoutInfo.Bindings.reserve(info->bindingCount);
 
     // Bindings should be in ascending order
-    bool bIsSorted = true;
+    bool bIsSorted      = true;
     int32_t LastBinding = -1;
     for (uint32_t i = 0; i < info->bindingCount; i++)
     {
@@ -210,9 +210,9 @@ void VulkanDescriptorLayoutCache::Destroy()
 DescriptorBuilder DescriptorBuilder::Begin(Ref<VulkanDescriptorLayoutCache>& InDescriptorLayoutCache,
                                            Ref<VulkanDescriptorAllocator>& InDescriptorAllocator)
 {
-    DescriptorBuilder Builder = {};
+    DescriptorBuilder Builder       = {};
     Builder.m_DescriptorLayoutCache = InDescriptorLayoutCache;
-    Builder.m_DescriptorAllocator = InDescriptorAllocator;
+    Builder.m_DescriptorAllocator   = InDescriptorAllocator;
 
     return Builder;
 }
@@ -255,9 +255,9 @@ bool DescriptorBuilder::Build(VkDescriptorSet& InDescriptorSet, VkDescriptorSetL
 {
     // Build layout descriptor set layout first
     VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {};
-    DescriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    DescriptorSetLayoutCreateInfo.pBindings = m_Bindings.data();
-    DescriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(m_Bindings.size());
+    DescriptorSetLayoutCreateInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    DescriptorSetLayoutCreateInfo.pBindings                       = m_Bindings.data();
+    DescriptorSetLayoutCreateInfo.bindingCount                    = static_cast<uint32_t>(m_Bindings.size());
 
     InDescriptorSetLayout = m_DescriptorLayoutCache->CreateDescriptorSetLayout(&DescriptorSetLayoutCreateInfo);
 

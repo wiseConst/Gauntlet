@@ -8,7 +8,7 @@ namespace Eclipse
 class Uncopyable
 {
   protected:
-    Uncopyable() = default;
+    Uncopyable()  = default;
     ~Uncopyable() = default;
 
   private:
@@ -19,7 +19,7 @@ class Uncopyable
 class Unmovable
 {
   protected:
-    Unmovable() = default;
+    Unmovable()  = default;
     ~Unmovable() = default;
 
   private:

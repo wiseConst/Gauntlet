@@ -10,7 +10,7 @@ namespace Eclipse
 class WindowsInput final : public Input
 {
   public:
-    WindowsInput() = default;
+    WindowsInput()  = default;
     ~WindowsInput() = default;
 
   protected:

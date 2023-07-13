@@ -18,7 +18,7 @@ void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
     constexpr char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: ", "[TRACE]: "};
     // const bool bIsError = InLogLevel < ELogLevel::LL_WARN;
 
-    auto hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
     int32_t LevelIndex = 0;
     switch (InLogLevel)
     {

@@ -67,11 +67,11 @@ class Mesh
             };                                          //
 
             BufferInfo VertexBufferInfo = {};
-            VertexBufferInfo.Usage = EBufferUsageFlags::VERTEX_BUFFER;
-            VertexBufferInfo.Count = OutVertexData.size();
-            VertexBufferInfo.Size = OutVertexData.size() * sizeof(OutVertexData[0]);
-            VertexBufferInfo.Data = OutVertexData.data();
-            VertexBufferInfo.Layout = VertexBufferLayout;
+            VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
+            VertexBufferInfo.Count      = OutVertexData.size();
+            VertexBufferInfo.Size       = OutVertexData.size() * sizeof(OutVertexData[0]);
+            VertexBufferInfo.Data       = OutVertexData.data();
+            VertexBufferInfo.Layout     = VertexBufferLayout;
 
             m_VertexBuffer.reset(VertexBuffer::Create(VertexBufferInfo));
         }

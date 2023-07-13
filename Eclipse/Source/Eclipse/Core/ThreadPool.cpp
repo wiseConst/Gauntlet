@@ -23,7 +23,7 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::Init()
 {
-    m_ThreadCount = std::thread::hardware_concurrency() - 1;  // Without MainThread that uses our applicaiton
+    m_ThreadCount         = std::thread::hardware_concurrency() - 1;  // Without MainThread that uses our applicaiton
     m_IsShutdownRequested = false;
 
     for (uint32_t i = 0; i < m_ThreadCount; ++i)

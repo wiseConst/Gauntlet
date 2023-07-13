@@ -61,18 +61,18 @@ struct PipelineSpecification
         ShaderAttributeDescriptions.resize(0);
         ShaderBindingDescriptions.resize(0);
 
-        LineWidth = 1.0f;
-        FrontFace = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
+        LineWidth   = 1.0f;
+        FrontFace   = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         PolygonMode = EPolygonMode::POLYGON_MODE_FILL;
-        CullMode = ECullMode::CULL_MODE_NONE;
+        CullMode    = ECullMode::CULL_MODE_NONE;
 
-        RenderPass = VK_NULL_HANDLE;
+        RenderPass             = VK_NULL_HANDLE;
         PrimitiveRestartEnable = VK_FALSE;
-        PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        PrimitiveTopology      = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // No depth testing by default.
-        bDepthTest = VK_FALSE;
-        bDepthWrite = VK_FALSE;
+        bDepthTest     = VK_FALSE;
+        bDepthWrite    = VK_FALSE;
         DepthCompareOp = VK_COMPARE_OP_ALWAYS;
     }
     ~PipelineSpecification() = default;
@@ -114,7 +114,7 @@ class VulkanPipeline final
 {
   public:
     VulkanPipeline(const PipelineSpecification& InPipelineSpecification);
-    VulkanPipeline() = delete;
+    VulkanPipeline()  = delete;
     ~VulkanPipeline() = default;
 
     void Create();

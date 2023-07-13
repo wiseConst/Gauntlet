@@ -5,13 +5,19 @@
 // CORE
 #include <Eclipse/Core/Core.h>
 #include <Eclipse/Core/Application.h>
-#include <Eclipse/Layer/Layer.h>
 #include <Eclipse/Core/Log.h>
-#include <Eclipse/Core/Timestep.h>  // TODO: Rethink about this class
+#include <Eclipse/Layer/Layer.h>
+#include <Eclipse/Core/Timestep.h>
 
 // INPUT
 #include <Eclipse/Core/Input.h>
 #include <Eclipse/Core/InputCodes.h>
+
+// EVENT SYSTEM
+#include <Eclipse/Event/Event.h>
+#include <Eclipse/Event/KeyEvent.h>
+#include <Eclipse/Event/MouseEvent.h>
+#include <Eclipse/Event/WindowEvent.h>
 
 // RENDERER
 #include <Eclipse/Renderer/Renderer.h>

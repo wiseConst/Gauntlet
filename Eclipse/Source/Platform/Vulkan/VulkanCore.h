@@ -41,6 +41,8 @@ static const char* GetStringVulkanResult(VkResult InResult)
     return nullptr;
 }
 
+#ifdef ELS_ENABLE_ASSERTS
+
 #define VK_CHECK(x)                                                                                                                        \
     do                                                                                                                                     \
     {                                                                                                                                      \
@@ -54,12 +56,17 @@ static const char* GetStringVulkanResult(VkResult InResult)
 #define VK_CHECK(x, message)                                                                                                               \
     do                                                                                                                                     \
     {                                                                                                                                      \
-        VkResult result = x;                                                                                                               \
+        VkResult result          = x;                                                                                                      \
         std::string FinalMessage = std::string(message) + " The result is: " + std::string(GetStringVulkanResult(result));                 \
         if (result != VK_SUCCESS)                                                                                                          \
         {                                                                                                                                  \
             ELS_ASSERT(false, FinalMessage.data(), GetStringVulkanResult(result), __LINE__);                                               \
         }                                                                                                                                  \
     } while (0);
+
+#else
+#define VK_CHECK(x) (x);
+#define VK_CHECK(x, message) (x);
+#endif
 
 }  // namespace Eclipse

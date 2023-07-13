@@ -26,10 +26,10 @@ enum class EEventType : uint8_t
 class Event
 {
   public:
-    Event() = delete;
+    Event()          = delete;
     virtual ~Event() = default;
 
-    Event(const Event& e) = delete;
+    Event(const Event& e)  = delete;
     Event(const Event&& e) = delete;
 
     Event& operator=(const Event& e) = delete;

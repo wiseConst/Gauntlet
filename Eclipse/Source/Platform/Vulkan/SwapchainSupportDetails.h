@@ -52,7 +52,7 @@ struct SwapchainSupportDetails final
         {
             VkSurfaceFormatKHR Format = {};
             // ImGui uses VK_FORMAT_B8G8R8A8_UNORM
-            Format.format = VK_FORMAT_B8G8R8A8_UNORM;  // VK_FORMAT_B8G8R8A8_SRGB;
+            Format.format     = VK_FORMAT_B8G8R8A8_UNORM;  // VK_FORMAT_B8G8R8A8_SRGB;
             Format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
             return Format;
         }

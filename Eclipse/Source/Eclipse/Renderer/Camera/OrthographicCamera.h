@@ -32,8 +32,8 @@ class OrthographicCamera final : public Camera
         if (Input::IsKeyPressed(ELS_KEY_A)) m_Position.x -= m_CameraTranslationSpeed * DeltaTime;
         if (Input::IsKeyPressed(ELS_KEY_D)) m_Position.x += m_CameraTranslationSpeed * DeltaTime;
 
-        if (Input::IsKeyPressed(ELS_KEY_Q)) m_Rotation.z -= m_CameraRotationSpeed * DeltaTime;
-        if (Input::IsKeyPressed(ELS_KEY_E)) m_Rotation.z += m_CameraRotationSpeed * DeltaTime;
+        if (Input::IsKeyPressed(ELS_KEY_Q)) m_Rotation.z += m_CameraRotationSpeed * DeltaTime;
+        if (Input::IsKeyPressed(ELS_KEY_E)) m_Rotation.z -= m_CameraRotationSpeed * DeltaTime;
 
         SetRotation(m_Rotation);
 
@@ -48,20 +48,28 @@ class OrthographicCamera final : public Camera
             OnWindowResized((WindowResizeEvent&)InEvent);
         }
 
-        if (InEvent.GetType() == EEventType::MouseScrolledEvent)
+        /*if (InEvent.GetType() == EEventType::MouseScrolledEvent)
         {
             OnMouseScrolled((MouseScrolledEvent&)InEvent);
-        }
+        }*/
     }
 
-    void SetProjection(const float left, const float right, const float bottom, const float top, const float zNear, const float zFar)
+    FORCEINLINE void SetProjection(const float left, const float right, const float bottom, const float top, const float zNear,
+                                   const float zFar)
     {
         m_ProjectionMatrix = glm::ortho(left, right, bottom, top, zNear, zFar);
-        m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
     }
 
+    FORCEINLINE static Ref<OrthographicCamera> Create(const float InAspectRatio = 0.0f, const float InCameraWidth = 8.0f)
+    {
+        return Ref<OrthographicCamera>(new OrthographicCamera(InAspectRatio, InCameraWidth));
+    }
+
+    FORCEINLINE const float GetWidthBorder() const { return m_ZoomLevel * m_AspectRatio; }
+    FORCEINLINE const float GetHeightBorder() const { return m_ZoomLevel; }
+
   private:
-    float m_ZoomLevel = 1.5f;
+    float m_ZoomLevel         = 1.5f;
     const float m_CameraWidth = 8.0f;
 
     void OnWindowResized(WindowResizeEvent& InEvent)

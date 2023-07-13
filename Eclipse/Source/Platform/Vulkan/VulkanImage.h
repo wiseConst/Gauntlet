@@ -71,7 +71,7 @@ class VulkanImage final : public Image
 
     FORCEINLINE void SetExtent(const VkExtent2D& InExtent)
     {
-        m_ImageSpecification.Width = InExtent.width;
+        m_ImageSpecification.Width  = InExtent.width;
         m_ImageSpecification.Height = InExtent.height;
     }
 

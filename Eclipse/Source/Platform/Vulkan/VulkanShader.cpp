@@ -23,7 +23,7 @@ static const std::vector<uint32_t> ReadFromeFile(const std::string_view& InFileP
 VulkanShader::VulkanShader(const std::string_view& InFilePath)
 {
     const auto ShaderCode = ReadFromeFile(InFilePath);
-    m_ShaderModule = LoadShaderModule(ShaderCode);
+    m_ShaderModule        = LoadShaderModule(ShaderCode);
 }
 
 void VulkanShader::DestroyModule()
@@ -40,9 +40,9 @@ VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint32_t>& InSha
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkShaderModuleCreateInfo ShaderModuleCreateInfo = {};
-    ShaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    ShaderModuleCreateInfo.pCode = InShaderCode.data();
-    ShaderModuleCreateInfo.codeSize = InShaderCode.size();
+    ShaderModuleCreateInfo.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    ShaderModuleCreateInfo.pCode                    = InShaderCode.data();
+    ShaderModuleCreateInfo.codeSize                 = InShaderCode.size();
 
     VkShaderModule ShaderModule = VK_NULL_HANDLE;
     VK_CHECK(vkCreateShaderModule(Context.GetDevice()->GetLogicalDevice(), &ShaderModuleCreateInfo, nullptr, &ShaderModule),

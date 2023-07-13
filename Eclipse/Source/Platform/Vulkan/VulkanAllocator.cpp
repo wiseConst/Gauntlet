@@ -11,16 +11,16 @@ namespace Eclipse
 
 VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<VulkanDevice>& InDevice)
 {
-    VmaVulkanFunctions vmaVulkanFunctions = {};
-    vmaVulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+    VmaVulkanFunctions vmaVulkanFunctions    = {};
+    vmaVulkanFunctions.vkGetDeviceProcAddr   = vkGetDeviceProcAddr;
     vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
 
     VmaAllocatorCreateInfo AllocatorCreateInfo = {};
-    AllocatorCreateInfo.instance = InInstance;
-    AllocatorCreateInfo.device = InDevice->GetLogicalDevice();
-    AllocatorCreateInfo.physicalDevice = InDevice->GetPhysicalDevice();
-    AllocatorCreateInfo.vulkanApiVersion = ELS_VK_API_VERSION;
-    AllocatorCreateInfo.pVulkanFunctions = &vmaVulkanFunctions;
+    AllocatorCreateInfo.instance               = InInstance;
+    AllocatorCreateInfo.device                 = InDevice->GetLogicalDevice();
+    AllocatorCreateInfo.physicalDevice         = InDevice->GetPhysicalDevice();
+    AllocatorCreateInfo.vulkanApiVersion       = ELS_VK_API_VERSION;
+    AllocatorCreateInfo.pVulkanFunctions       = &vmaVulkanFunctions;
 
     const auto result = vmaCreateAllocator(&AllocatorCreateInfo, &m_Allocator);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create AMD Vulkan Allocator!");
@@ -33,12 +33,12 @@ VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<Vulk
 VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreateInfo, VkImage* InImage) const
 {
     VmaAllocationCreateInfo AllocationCreateInfo = {};
-    AllocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    AllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    AllocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    AllocationCreateInfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
+    AllocationCreateInfo.flags                   = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    AllocationCreateInfo.requiredFlags           = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     VmaAllocation Allocation = {};
-    const auto result = vmaCreateImage(m_Allocator, &InImageCreateInfo, &AllocationCreateInfo, InImage, &Allocation, nullptr);
+    const auto result        = vmaCreateImage(m_Allocator, &InImageCreateInfo, &AllocationCreateInfo, InImage, &Allocation, nullptr);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create vulkan image via VMA!");
 
     VmaAllocationInfo AllocationInfo = {};
@@ -65,7 +65,7 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
                                             VmaMemoryUsage InMemoryUsage) const
 {
     VmaAllocationCreateInfo AllocationCreateInfo = {};
-    AllocationCreateInfo.usage = InMemoryUsage;
+    AllocationCreateInfo.usage                   = InMemoryUsage;
 
     if (InBufferCreateInfo.usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)  // Staging buffer case
     {
@@ -74,7 +74,7 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
     }
 
     VmaAllocation Allocation = VK_NULL_HANDLE;
-    const auto result = vmaCreateBuffer(m_Allocator, &InBufferCreateInfo, &AllocationCreateInfo, InBuffer, &Allocation, nullptr);
+    const auto result        = vmaCreateBuffer(m_Allocator, &InBufferCreateInfo, &AllocationCreateInfo, InBuffer, &Allocation, nullptr);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create buffer via VMA!");
 
     if (InMemoryUsage & VMA_MEMORY_USAGE_GPU_ONLY)
@@ -91,7 +91,7 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
 
 void VulkanAllocator::DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
+    auto& Context                    = (VulkanContext&)VulkanContext::Get();
     VmaAllocationInfo AllocationInfo = {};
     vmaGetAllocationInfo(m_Allocator, InAllocation, &AllocationInfo);
     if ((Context.GetDevice()->GetMemoryProperties().memoryHeaps[AllocationInfo.memoryType - 1].flags &

@@ -17,16 +17,16 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkImageCreateInfo ImageCreateInfo = {};
-    ImageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    ImageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    ImageCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ImageCreateInfo.imageType         = VK_IMAGE_TYPE_2D;
 
-    ImageCreateInfo.extent.width = InWidth;
+    ImageCreateInfo.extent.width  = InWidth;
     ImageCreateInfo.extent.height = InHeight;
-    ImageCreateInfo.extent.depth = 1;
+    ImageCreateInfo.extent.depth  = 1;
 
-    ImageCreateInfo.mipLevels = InMipLevels;
+    ImageCreateInfo.mipLevels   = InMipLevels;
     ImageCreateInfo.arrayLayers = InArrayLayers;
-    ImageCreateInfo.format = InFormat;
+    ImageCreateInfo.format      = InFormat;
 
     /*
      * The tiling field can have one of two values:
@@ -54,9 +54,9 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
      */
     ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    ImageCreateInfo.usage = InImageUsageFlags;
+    ImageCreateInfo.usage       = InImageUsageFlags;
     ImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    ImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    ImageCreateInfo.samples     = VK_SAMPLE_COUNT_1_BIT;
 
     InImage->Allocation = Context.GetAllocator()->CreateImage(ImageCreateInfo, &InImage->Image);
 }
@@ -89,20 +89,20 @@ void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageVi
 {
 
     VkImageViewCreateInfo ImageViewCreateInfo = {};
-    ImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    ImageViewCreateInfo.viewType = InImageViewType;
+    ImageViewCreateInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ImageViewCreateInfo.viewType              = InImageViewType;
 
-    ImageViewCreateInfo.image = InImage;
+    ImageViewCreateInfo.image  = InImage;
     ImageViewCreateInfo.format = InFormat;
 
     // It determines what is affected by your image operation. (In example you are using this image for depth then you set
     // VK_IMAGE_ASPECT_DEPTH_BIT)
     ImageViewCreateInfo.subresourceRange.aspectMask = InAspectFlags;
 
-    ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-    ImageViewCreateInfo.subresourceRange.levelCount = 1;
+    ImageViewCreateInfo.subresourceRange.baseMipLevel   = 0;
+    ImageViewCreateInfo.subresourceRange.levelCount     = 1;
     ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount = 1;
+    ImageViewCreateInfo.subresourceRange.layerCount     = 1;
 
     // We don't need to swizzle ( swap around ) any of the
     // color channels
@@ -146,27 +146,27 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
     auto& Context = (VulkanContext&)VulkanContext::Get();
 
     VkImageSubresourceRange SubresourceRange = {};
-    SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    SubresourceRange.layerCount = 1;
-    SubresourceRange.levelCount = 1;
+    SubresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+    SubresourceRange.layerCount              = 1;
+    SubresourceRange.levelCount              = 1;
 
     VkImageMemoryBarrier ImageMemoryBarrier = {};
-    ImageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    ImageMemoryBarrier.image = InImage;
-    ImageMemoryBarrier.oldLayout = InOldLayout;
-    ImageMemoryBarrier.newLayout = InNewLayout;
-    ImageMemoryBarrier.subresourceRange = SubresourceRange;
+    ImageMemoryBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    ImageMemoryBarrier.image                = InImage;
+    ImageMemoryBarrier.oldLayout            = InOldLayout;
+    ImageMemoryBarrier.newLayout            = InNewLayout;
+    ImageMemoryBarrier.subresourceRange     = SubresourceRange;
 
     // Ownership things...
     ImageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     ImageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-    VkPipelineStageFlags PipelineSourceStageFlags = 0;
+    VkPipelineStageFlags PipelineSourceStageFlags      = 0;
     VkPipelineStageFlags PipelineDestinationStageFlags = 0;
 
     if (InOldLayout == VK_IMAGE_LAYOUT_UNDEFINED && InNewLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
-        PipelineSourceStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
+        PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
         PipelineDestinationStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         // Transfer writes that don't need to wait on anything
@@ -175,7 +175,7 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
     }
     else if (InOldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && InNewLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
     {
-        PipelineSourceStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TRANSFER_BIT;
         PipelineDestinationStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
         // Shader reads should wait on transfer writes, specifically the shader reads in the fragment shader, because that's
@@ -207,13 +207,13 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
 
 void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent)
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
+    auto& Context      = (VulkanContext&)VulkanContext::Get();
     auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
 
-    VkBufferImageCopy CopyRegion = {};
+    VkBufferImageCopy CopyRegion           = {};
     CopyRegion.imageSubresource.layerCount = 1;
     CopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    CopyRegion.imageExtent = InImageExtent;
+    CopyRegion.imageExtent                 = InImageExtent;
 
     vkCmdCopyBufferToImage(CommandBuffer, InSourceBuffer, InDestinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &CopyRegion);
 

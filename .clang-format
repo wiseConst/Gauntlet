@@ -10,4 +10,5 @@ SpacesBeforeTrailingComments: 2
 AllowShortCaseLabelsOnASingleLine: true
 IndentCaseLabels: true
 AllowShortFunctionsOnASingleLine: Inline
+AlignConsecutiveAssignments: Consecutive 
 SortIncludes: false

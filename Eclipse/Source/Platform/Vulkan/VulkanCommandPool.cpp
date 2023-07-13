@@ -20,7 +20,7 @@ void VulkanCommandPool::CreateCommandPool()
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkCommandPoolCreateInfo CommandPoolCreateInfo = {};
-    CommandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    CommandPoolCreateInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
     CommandPoolCreateInfo.flags =
         CommandPoolSpecification::ConvertCommandPoolUsageFlagsToVulkan(m_CommandPoolSpecification.CommandPoolUsage);
@@ -38,10 +38,10 @@ void VulkanCommandPool::AllocateCommandBuffers()
     m_CommandBuffers.resize(FRAMES_IN_FLIGHT);
 
     VkCommandBufferAllocateInfo CommandBufferAllocateInfo = {};
-    CommandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    CommandBufferAllocateInfo.commandPool = m_CommandPool;
-    CommandBufferAllocateInfo.commandBufferCount = 1;
-    CommandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    CommandBufferAllocateInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    CommandBufferAllocateInfo.commandPool                 = m_CommandPool;
+    CommandBufferAllocateInfo.commandBufferCount          = 1;
+    CommandBufferAllocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
     for (auto& CommandBuffer : m_CommandBuffers)
     {

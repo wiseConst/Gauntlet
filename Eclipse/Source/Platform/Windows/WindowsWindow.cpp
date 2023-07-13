@@ -145,7 +145,7 @@ void WindowsWindow::SetCallbacks()
                                   auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
 
                                   WindowResizeEvent e(width, height);
-                                  Window.m_WindowSpec.Width = (uint32_t)width;
+                                  Window.m_WindowSpec.Width  = (uint32_t)width;
                                   Window.m_WindowSpec.Height = (uint32_t)height;
                                   Window.m_CallbackFn(e);
                               });
@@ -169,11 +169,6 @@ void WindowsWindow::OnUpdate()
         auto& Context = GraphicsContext::Get();
         Context.SwapBuffers();
     }
-
-    if (Input::IsKeyPressed(ELS_KEY_ESCAPE))
-    {
-        m_IsRunning = false;
-    }
 }
 
 void WindowsWindow::HandleMinimized()
@@ -191,15 +186,15 @@ void WindowsWindow::HandleMinimized()
 
 void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
 {
-    int32_t Width = 0;
-    int32_t Height = 0;
+    int32_t Width    = 0;
+    int32_t Height   = 0;
     int32_t Channels = 0;
-    stbi_uc* Pixels = ImageUtils::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
+    stbi_uc* Pixels  = ImageUtils::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
 
     GLFWimage IconImage = {};
-    IconImage.pixels = Pixels;
-    IconImage.width = Width;
-    IconImage.height = Height;
+    IconImage.pixels    = Pixels;
+    IconImage.width     = Width;
+    IconImage.height    = Height;
 
     glfwSetWindowIcon(m_Window, 1, &IconImage);
     ImageUtils::UnloadImage(Pixels);

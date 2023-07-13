@@ -18,9 +18,9 @@ enum class EImageFormat
 
 enum class EAnisotropyLevel : uint32_t
 {
-    X2 = 2,
-    X4 = 4,
-    X8 = 8,
+    X2  = 2,
+    X4  = 4,
+    X8  = 8,
     X16 = 16
 };
 
@@ -56,30 +56,30 @@ enum class ETextureFilter
 struct ImageSpecification
 {
   public:
-    uint32_t Width = 1;
+    uint32_t Width  = 1;
     uint32_t Height = 1;
-    uint32_t Mips = 1;
+    uint32_t Mips   = 1;
     uint32_t Layers = 1;
 
-    EImageFormat Format = EImageFormat::RGBA;
-    EImageUsage Usage = EImageUsage::TEXTURE;
-    ETextureWrap Wrap = ETextureWrap::REPEAT;
+    EImageFormat Format   = EImageFormat::RGBA;
+    EImageUsage Usage     = EImageUsage::TEXTURE;
+    ETextureWrap Wrap     = ETextureWrap::REPEAT;
     ETextureFilter Filter = ETextureFilter::LINEAR;
 
     EAnisotropyLevel AnisotropyLevel = EAnisotropyLevel::X4;
 
-    bool Copyable = false;
+    bool Copyable   = false;
     bool Comparable = false;  // For shadow passes only
 };
 
 class Image
 {
   public:
-    Image() = default;
+    Image()  = default;
     ~Image() = default;
 
-    FORCEINLINE virtual uint32_t GetWidth() const = 0;
-    FORCEINLINE virtual uint32_t GetHeight() const = 0;
+    FORCEINLINE virtual uint32_t GetWidth() const    = 0;
+    FORCEINLINE virtual uint32_t GetHeight() const   = 0;
     FORCEINLINE virtual float GetAspectRatio() const = 0;
 
     FORCEINLINE virtual const ImageSpecification& GetSpecification() = 0;

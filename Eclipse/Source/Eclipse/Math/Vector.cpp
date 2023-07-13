@@ -145,7 +145,7 @@ const Vec2& Vec2::Normalize()
 float Vec2::GetMagnitude() const
 {
     float magnitude = DotProduct(*this, *this);
-    magnitude = sqrtf(magnitude);
+    magnitude       = sqrtf(magnitude);
 
     return magnitude;
 }
@@ -313,7 +313,7 @@ const Vec3& Vec3::Normalize()
 float Vec3::GetMagnitude() const
 {
     float magnitude = DotProduct(*this, *this);
-    magnitude = sqrtf(magnitude);
+    magnitude       = sqrtf(magnitude);
 
     return magnitude;
 }
@@ -332,7 +332,7 @@ void Vec3::GetOrtho(Vec3& u, Vec3& v) const
     n.Normalize();
 
     const Vec3 w = (n.m_Z * n.m_Z > 0.9f * 0.9f) ? Vec3(1, 0, 0) : Vec3(0, 0, 1);
-    u = Cross(w, n).Normalize();
+    u            = Cross(w, n).Normalize();
 
     v = Cross(n, u).Normalize();
     u = Cross(v, n).Normalize();
@@ -485,7 +485,7 @@ float& Vec4::operator[](const int index)
 const Vec4& Vec4::Normalize()
 {
     float magnitude = GetMagnitude();
-    magnitude = sqrtf(magnitude);
+    magnitude       = sqrtf(magnitude);
 
     assert(false);
     return *this; /*magnitude*/

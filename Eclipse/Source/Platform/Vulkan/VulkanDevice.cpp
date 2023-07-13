@@ -81,13 +81,13 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
     uint32_t GPUsCount = 0;
     {
         const auto result = vkEnumeratePhysicalDevices(InInstance, &GPUsCount, nullptr);
-        ELS_ASSERT(result == VK_SUCCESS && GPUsCount > 0, "Failed to retrieve gpu count.")
+        ELS_ASSERT(result == VK_SUCCESS && GPUsCount > 0, "Failed to retrieve gpu count.");
     }
 
     std::vector<VkPhysicalDevice> PhysicalDevices(GPUsCount);
     {
         const auto result = vkEnumeratePhysicalDevices(InInstance, &GPUsCount, PhysicalDevices.data());
-        ELS_ASSERT(result == VK_SUCCESS && GPUsCount > 0, "Failed to retrieve gpu count.")
+        ELS_ASSERT(result == VK_SUCCESS && GPUsCount > 0, "Failed to retrieve gpu count.");
     }
 
 #if LOG_VULKAN_INFO
@@ -97,7 +97,7 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& InInstance, const VkSurf
     std::multimap<uint32_t, GPUInfo> Candidates;
     for (const auto& PhysicalDevice : PhysicalDevices)
     {
-        GPUInfo CurrentGPU = {};
+        GPUInfo CurrentGPU        = {};
         CurrentGPU.PhysicalDevice = PhysicalDevice;
 
         const uint32_t Score = RateDeviceSuitability(CurrentGPU, InSurface);
@@ -128,34 +128,34 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     for (auto QueueFamily : UniqueQueueFamilies)
     {
         VkDeviceQueueCreateInfo QueueCreateInfo = {};
-        QueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        QueueCreateInfo.pQueuePriorities = &QueuePriority;
-        QueueCreateInfo.queueCount = 1;
-        QueueCreateInfo.queueFamilyIndex = QueueFamily;
+        QueueCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        QueueCreateInfo.pQueuePriorities        = &QueuePriority;
+        QueueCreateInfo.queueCount              = 1;
+        QueueCreateInfo.queueFamilyIndex        = QueueFamily;
         QueueCreateInfos.push_back(QueueCreateInfo);
     }
 
-    VkDeviceCreateInfo deviceCI = {};
-    deviceCI.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCI.pQueueCreateInfos = QueueCreateInfos.data();
+    VkDeviceCreateInfo deviceCI   = {};
+    deviceCI.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCI.pQueueCreateInfos    = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
 
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
-    PhysicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
+    PhysicalDeviceFeatures.samplerAnisotropy        = VK_TRUE;
 
     // Features for texture batching (vulkan descriptors)
     VkPhysicalDeviceDescriptorIndexingFeatures PhysicalDeviceDescriptorIndexingFeatures = {};
     PhysicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
     PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-    deviceCI.pNext = &PhysicalDeviceDescriptorIndexingFeatures;
+    deviceCI.pNext                                                           = &PhysicalDeviceDescriptorIndexingFeatures;
 
-    deviceCI.pEnabledFeatures = &PhysicalDeviceFeatures;
-    deviceCI.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
+    deviceCI.pEnabledFeatures        = &PhysicalDeviceFeatures;
+    deviceCI.enabledExtensionCount   = static_cast<uint32_t>(DeviceExtensions.size());
     deviceCI.ppEnabledExtensionNames = DeviceExtensions.data();
 
     {
         const auto result = vkCreateDevice(m_GPUInfo.PhysicalDevice, &deviceCI, nullptr, &m_GPUInfo.LogicalDevice);
-        ELS_ASSERT(result == VK_SUCCESS, "Failed to create vulkan logical device && queues!")
+        ELS_ASSERT(result == VK_SUCCESS, "Failed to create vulkan logical device && queues!");
     }
     volkLoadDevice(m_GPUInfo.LogicalDevice);
 
@@ -230,8 +230,8 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
     InGPUInfo.GPUDriverProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
 
     VkPhysicalDeviceProperties2 GPUProperties2 = {};
-    GPUProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    GPUProperties2.pNext = &InGPUInfo.GPUDriverProperties;
+    GPUProperties2.sType                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    GPUProperties2.pNext                       = &InGPUInfo.GPUDriverProperties;
     vkGetPhysicalDeviceProperties2(InGPUInfo.PhysicalDevice, &GPUProperties2);
 
 #if LOG_VULKAN_INFO
@@ -298,18 +298,19 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
     }
 #endif
 
-    QueueFamilyIndices Indices = QueueFamilyIndices::FindQueueFamilyIndices(InSurface, InGPUInfo.PhysicalDevice);
+    QueueFamilyIndices Indices   = QueueFamilyIndices::FindQueueFamilyIndices(InSurface, InGPUInfo.PhysicalDevice);
     InGPUInfo.QueueFamilyIndices = Indices;
 
-    bool bIsSwapchainAdequate = false;
+    bool bIsSwapchainAdequate               = false;
     const bool bIsDeviceExtensionsSupported = CheckDeviceExtensionSupport(InGPUInfo.PhysicalDevice);
     if (bIsDeviceExtensionsSupported)
     {
         SwapchainSupportDetails Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(InGPUInfo.PhysicalDevice, InSurface);
-        bIsSwapchainAdequate = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
+        bIsSwapchainAdequate            = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
     }
 
-    ELS_ASSERT(InGPUInfo.GPUProperties.limits.maxSamplerAnisotropy > 0, "GPU has not valid Max Sampler Anisotropy!")
+
+    ELS_ASSERT(InGPUInfo.GPUProperties.limits.maxSamplerAnisotropy > 0, "GPU has not valid Max Sampler Anisotropy!");
     return InGPUInfo.GPUFeatures.samplerAnisotropy && InGPUInfo.GPUFeatures.geometryShader && Indices.IsComplete() &&
            bIsDeviceExtensionsSupported && bIsSwapchainAdequate;
 }

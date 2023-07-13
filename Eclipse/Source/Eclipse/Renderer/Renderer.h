@@ -9,7 +9,7 @@ namespace Eclipse
 class Renderer : private Uncopyable, private Unmovable
 {
   public:
-    Renderer() = default;
+    Renderer()  = default;
     ~Renderer() = default;
 
     static void Init(RendererAPI::EAPI GraphicsAPI);
@@ -19,7 +19,7 @@ class Renderer : private Uncopyable, private Unmovable
     static Renderer* s_Renderer;
 
   protected:
-    virtual void Create() = 0;
+    virtual void Create()  = 0;
     virtual void Destroy() = 0;
 };
 

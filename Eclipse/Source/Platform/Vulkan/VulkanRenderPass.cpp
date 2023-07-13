@@ -15,38 +15,41 @@ VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& InRenderPassSp
 
 void VulkanRenderPass::Invalidate()
 {
-    Destroy();
+    if (m_RenderPass != VK_NULL_HANDLE)
+    {
+        Destroy();
+    }
 
     auto& Context = (VulkanContext&)VulkanContext::Get();
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    std::vector<VkSubpassDescription> Subpasses(1);
-    Subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    std::vector<VkSubpassDescription> Subpasses(m_RenderPassSpecification.Subpasses.size());
+    Subpasses[0].pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
     Subpasses[0].colorAttachmentCount = 1;
 
     VkAttachmentReference ColorAttachmentRef = {};
-    ColorAttachmentRef.attachment = 0;
-    ColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    Subpasses[0].pColorAttachments = &ColorAttachmentRef;
+    ColorAttachmentRef.attachment            = 0;
+    ColorAttachmentRef.layout                = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    Subpasses[0].pColorAttachments           = &ColorAttachmentRef;
 
+    VkAttachmentReference DepthAttachmentRef = {};
     if (m_RenderPassSpecification.Subpasses[0].pDepthStencilAttachment)
     {
-        VkAttachmentReference DepthAttachmentRef = {};
         DepthAttachmentRef.attachment = 1;
-        DepthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        DepthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         Subpasses[0].pDepthStencilAttachment = &DepthAttachmentRef;
     }
     m_RenderPassSpecification.Subpasses = Subpasses;
 
     VkRenderPassCreateInfo RenderPassCreateInfo = {};
-    RenderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    RenderPassCreateInfo.attachmentCount = static_cast<uint32_t>(m_RenderPassSpecification.Attachments.size());
-    RenderPassCreateInfo.pAttachments = m_RenderPassSpecification.Attachments.data();
-    RenderPassCreateInfo.dependencyCount = static_cast<uint32_t>(m_RenderPassSpecification.Dependencies.size());
-    RenderPassCreateInfo.pDependencies = m_RenderPassSpecification.Dependencies.data();
-    RenderPassCreateInfo.subpassCount = static_cast<uint32_t>(m_RenderPassSpecification.Subpasses.size());  // ONLY 1 RN
-    RenderPassCreateInfo.pSubpasses = m_RenderPassSpecification.Subpasses.data();
+    RenderPassCreateInfo.sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    RenderPassCreateInfo.attachmentCount        = static_cast<uint32_t>(m_RenderPassSpecification.Attachments.size());
+    RenderPassCreateInfo.pAttachments           = m_RenderPassSpecification.Attachments.data();
+    RenderPassCreateInfo.dependencyCount        = static_cast<uint32_t>(m_RenderPassSpecification.Dependencies.size());
+    RenderPassCreateInfo.pDependencies          = m_RenderPassSpecification.Dependencies.data();
+    RenderPassCreateInfo.subpassCount           = static_cast<uint32_t>(m_RenderPassSpecification.Subpasses.size());  // ONLY 1 RN
+    RenderPassCreateInfo.pSubpasses             = m_RenderPassSpecification.Subpasses.data();
 
     VK_CHECK(vkCreateRenderPass(Context.GetDevice()->GetLogicalDevice(), &RenderPassCreateInfo, nullptr, &m_RenderPass),
              "Failed to create render pass!");
@@ -60,10 +63,10 @@ void VulkanRenderPass::Begin(const VkCommandBuffer& InCommandBuffer, const std::
     ELS_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
     VkRenderPassBeginInfo RenderPassBeginInfo = {};
-    RenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    RenderPassBeginInfo.clearValueCount = static_cast<uint32_t>(InClearValues.size());
-    RenderPassBeginInfo.pClearValues = InClearValues.data();
-    RenderPassBeginInfo.renderPass = m_RenderPass;
+    RenderPassBeginInfo.sType                 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    RenderPassBeginInfo.clearValueCount       = static_cast<uint32_t>(InClearValues.size());
+    RenderPassBeginInfo.pClearValues          = InClearValues.data();
+    RenderPassBeginInfo.renderPass            = m_RenderPass;
     RenderPassBeginInfo.framebuffer =
         m_Framebuffers[Context.GetSwapchain()->GetCurrentImageIndex()];  // What image we will render into for this renderpass.
     RenderPassBeginInfo.renderArea.extent = Context.GetSwapchain()->GetImageExtent();
@@ -88,13 +91,13 @@ void VulkanRenderPass::CreateFramebuffers()
 
     // VkFrameBuffer is what maps attachments to a renderpass. That's really all it is.
     VkFramebufferCreateInfo FramebufferCreateInfo = {};
-    FramebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    FramebufferCreateInfo.renderPass = m_RenderPass;
-    FramebufferCreateInfo.width = Context.GetSwapchain()->GetImageExtent().width;
-    FramebufferCreateInfo.height = Context.GetSwapchain()->GetImageExtent().height;
-    FramebufferCreateInfo.attachmentCount = static_cast<uint32_t>(Attachments.size());
-    FramebufferCreateInfo.pAttachments = Attachments.data();
-    FramebufferCreateInfo.layers = 1;
+    FramebufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    FramebufferCreateInfo.renderPass              = m_RenderPass;
+    FramebufferCreateInfo.width                   = Context.GetSwapchain()->GetImageExtent().width;
+    FramebufferCreateInfo.height                  = Context.GetSwapchain()->GetImageExtent().height;
+    FramebufferCreateInfo.attachmentCount         = static_cast<uint32_t>(Attachments.size());
+    FramebufferCreateInfo.pAttachments            = Attachments.data();
+    FramebufferCreateInfo.layers                  = 1;
 
     for (size_t i = 0; i < m_Framebuffers.size(); ++i)
     {

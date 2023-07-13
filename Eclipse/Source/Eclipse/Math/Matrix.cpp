@@ -184,7 +184,7 @@ Mat2 Mat3::Minor(const int i, const int j) const
 float Mat3::Cofactor(const int i, const int j) const
 {
     const Mat2 minor = Minor(i, j);
-    const float C = float(pow(-1, i + 1 + j + 1)) * minor.Determinant();
+    const float C    = float(pow(-1, i + 1 + j + 1)) * minor.Determinant();
     return C;
 }
 

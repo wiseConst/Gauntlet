@@ -44,25 +44,24 @@ void Application::Run()
     LOG_INFO("Application running...");
 
     uint32_t FrameCount = 0;
-    float LastTime = 0.0f;
+    float LastTime      = 0.0f;
     while (m_Window->IsRunning())
     {
         const float CurrentTime = (float)glfwGetTime();
-        Timestep ts = CurrentTime - m_LastFrameTime;
-        m_LastFrameTime = CurrentTime;
+        Timestep ts             = CurrentTime - m_LastFrameTime;
+        m_LastFrameTime         = CurrentTime;
 
         const float DeltaTime = CurrentTime - LastTime;
         ++FrameCount;
         if (DeltaTime >= 1.0f)
         {
-            const uint32_t FPS = FrameCount / DeltaTime;
+            const uint32_t FPS     = FrameCount / DeltaTime;
             const auto WindowTitle = std::string(m_AppInfo.AppName) + " " + std::to_string(FPS) + " FPS";
             m_Window->SetWindowTitle(WindowTitle.data());
             FrameCount = 0;
-            LastTime = CurrentTime;
+            LastTime   = CurrentTime;
         }
 
-        // LOG_INFO("Dt: %fms", ts.GetMilliseconds());
         if (!m_Window->IsMinimized())
         {
             // Actual geometry pass
@@ -80,23 +79,6 @@ void Application::Run()
             // Gui Pass
             m_ImGuiLayer->BeginRender();
 
-            static bool bShowAppStats = true;
-            if (bShowAppStats)
-            {
-                ImGui::Begin("Application Stats", &bShowAppStats);
-
-                ImGui::Text("Allocated images: %llu", Renderer2D::GetStats().AllocatedImages);
-                ImGui::Text("Allocated buffers: %llu", Renderer2D::GetStats().AllocatedBuffers);
-                ImGui::Text("GPU Memory Usage: %f MB", Renderer2D::GetStats().GPUMemoryAllocated/1024.0f/1024.0f);
-                ImGui::Text("CPU Wait Time: %f(ms)", Renderer2D::GetStats().CPUWaitTime);
-                ImGui::Text("GPU Wait Time: %f(ms)", Renderer2D::GetStats().GPUWaitTime);
-                ImGui::Text("VMA Allocations(rn only VMA count): %llu", Renderer2D::GetStats().Allocations);
-                ImGui::Text("DeltaTime: %f(ms)", ts.GetMilliseconds());
-                ImGui::Text("DrawCalls: %llu", Renderer2D::GetStats().DrawCalls);
-
-                ImGui::End();
-            }
-
             m_LayerQueue.OnImGuiRender();
 
             m_ImGuiLayer->EndRender();
@@ -109,7 +91,8 @@ void Application::Run()
 void Application::OnEvent(Event& e)
 {
     // LOG_TRACE("%s", e.Format().c_str());
-    if (e.GetType() == EEventType::WindowCloseEvent)
+    // TODO: EventDispatcher
+    if (e.GetType() == EEventType::WindowCloseEvent || Input::IsKeyPressed(ELS_KEY_ESCAPE))
     {
         m_Window->SetIsRunning(false);
     }

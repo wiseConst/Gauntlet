@@ -11,7 +11,7 @@ namespace Eclipse
 class LayerQueue final : private Uncopyable, private Unmovable
 {
   public:
-    LayerQueue() = default;
+    LayerQueue()  = default;
     ~LayerQueue() = default;
 
     FORCEINLINE void OnUpdate(const float DeltaTime)

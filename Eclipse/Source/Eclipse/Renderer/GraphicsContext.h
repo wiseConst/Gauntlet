@@ -16,11 +16,11 @@ class GraphicsContext : private Uncopyable, private Unmovable
     virtual ~GraphicsContext() { s_Context = nullptr; }
 
     virtual void BeginRender() = 0;
-    virtual void EndRender() = 0;
+    virtual void EndRender()   = 0;
 
-    virtual void SwapBuffers() = 0;
+    virtual void SwapBuffers()          = 0;
     virtual void SetVSync(bool IsVSync) = 0;
-    virtual void Destroy() = 0;
+    virtual void Destroy()              = 0;
 
     static GraphicsContext* Create(Scoped<Window>& InWindow);
 

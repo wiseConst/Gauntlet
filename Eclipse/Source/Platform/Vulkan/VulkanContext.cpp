@@ -34,16 +34,16 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
 
     {
         CommandPoolSpecification CommandPoolSpec = {};
-        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
-        CommandPoolSpec.QueueFamilyIndex = m_Device->GetQueueFamilyIndices().GetGraphicsFamily();
+        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
+        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GetGraphicsFamily();
 
         m_GraphicsCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
     }
 
     {
         CommandPoolSpecification CommandPoolSpec = {};
-        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_TRANSFER_USAGE;
-        CommandPoolSpec.QueueFamilyIndex = m_Device->GetQueueFamilyIndices().GetTransferFamily();
+        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_TRANSFER_USAGE;
+        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GetTransferFamily();
 
         m_TransferCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
     }
@@ -79,27 +79,27 @@ void VulkanContext::CreateInstance()
     }
 #endif
 
-    const auto& app = Application::Get();
-    VkApplicationInfo ApplicationInfo = {};
-    ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    ApplicationInfo.apiVersion = ELS_VK_API_VERSION;
+    const auto& app                    = Application::Get();
+    VkApplicationInfo ApplicationInfo  = {};
+    ApplicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    ApplicationInfo.apiVersion         = ELS_VK_API_VERSION;
     ApplicationInfo.applicationVersion = ApplicationVersion;
-    ApplicationInfo.engineVersion = EngineVersion;
-    ApplicationInfo.pApplicationName = app.GetInfo().AppName.data();
-    ApplicationInfo.pEngineName = EngineName;
+    ApplicationInfo.engineVersion      = EngineVersion;
+    ApplicationInfo.pApplicationName   = app.GetInfo().AppName.data();
+    ApplicationInfo.pEngineName        = EngineName;
 
-    const auto RequiredExtensions = GetRequiredExtensions();
-    VkInstanceCreateInfo InstanceCreateInfo = {};
-    InstanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    InstanceCreateInfo.pApplicationInfo = &ApplicationInfo;
-    InstanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(RequiredExtensions.size());
+    const auto RequiredExtensions              = GetRequiredExtensions();
+    VkInstanceCreateInfo InstanceCreateInfo    = {};
+    InstanceCreateInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    InstanceCreateInfo.pApplicationInfo        = &ApplicationInfo;
+    InstanceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(RequiredExtensions.size());
     InstanceCreateInfo.ppEnabledExtensionNames = RequiredExtensions.data();
 
 #if ELS_DEBUG
-    InstanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(VulkanLayers.size());
+    InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(VulkanLayers.size());
     InstanceCreateInfo.ppEnabledLayerNames = VulkanLayers.data();
 #else
-    InstanceCreateInfo.enabledLayerCount = 0;
+    InstanceCreateInfo.enabledLayerCount   = 0;
     InstanceCreateInfo.ppEnabledLayerNames = nullptr;
 #endif
 
@@ -114,7 +114,7 @@ void VulkanContext::CreateDebugMessenger()
     if (!bEnableValidationLayers) return;
 
     VkDebugUtilsMessengerCreateInfoEXT DebugMessengerCreateInfo = {};
-    DebugMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    DebugMessengerCreateInfo.sType                              = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     DebugMessengerCreateInfo.messageSeverity =
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -137,13 +137,13 @@ bool VulkanContext::CheckVulkanAPISupport() const
     uint32_t ExtensionCount = 0;
     {
         const auto result = vkEnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, nullptr);
-        ELS_ASSERT(result == VK_SUCCESS && ExtensionCount != 0, "Can't retrieve number of supported extensions.")
+        ELS_ASSERT(result == VK_SUCCESS && ExtensionCount != 0, "Can't retrieve number of supported extensions.");
     }
 
     std::vector<VkExtensionProperties> Extensions(ExtensionCount);
     {
         const auto result = vkEnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, Extensions.data());
-        ELS_ASSERT(result == VK_SUCCESS && ExtensionCount != 0, "Can't retrieve supported extensions.")
+        ELS_ASSERT(result == VK_SUCCESS && ExtensionCount != 0, "Can't retrieve supported extensions.");
     }
 
 #if LOG_VULKAN_INFO && ELS_DEBUG
@@ -195,13 +195,13 @@ bool VulkanContext::CheckValidationLayerSupport()
     uint32_t LayerCount{0};
     {
         const auto result = vkEnumerateInstanceLayerProperties(&LayerCount, nullptr);
-        ELS_ASSERT(result == VK_SUCCESS && LayerCount != 0, "Can't retrieve number of supported validation layers.")
+        ELS_ASSERT(result == VK_SUCCESS && LayerCount != 0, "Can't retrieve number of supported validation layers.");
     }
 
     std::vector<VkLayerProperties> AvailableLayers(LayerCount);
     {
         const auto result = vkEnumerateInstanceLayerProperties(&LayerCount, AvailableLayers.data());
-        ELS_ASSERT(result == VK_SUCCESS && LayerCount != 0, "Can't retrieve number of supported validation layers.")
+        ELS_ASSERT(result == VK_SUCCESS && LayerCount != 0, "Can't retrieve number of supported validation layers.");
     }
 
 #if ELS_DEBUG && LOG_VULKAN_INFO
@@ -254,11 +254,11 @@ const std::vector<const char*> VulkanContext::GetRequiredExtensions()
 void VulkanContext::CreateSyncObjects()
 {
     VkSemaphoreCreateInfo SemaphoreCreateInfo = {};
-    SemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    SemaphoreCreateInfo.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
     VkFenceCreateInfo FenceCreateInfo = {};
-    FenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    FenceCreateInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    FenceCreateInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
 
     m_InFlightFences.resize(FRAMES_IN_FLIGHT);
     m_RenderFinishedSemaphores.resize(FRAMES_IN_FLIGHT);
@@ -277,41 +277,41 @@ void VulkanContext::CreateGlobalRenderPass()
     RenderPassSpecification RenderPassSpec = {};
     {
         std::vector<VkAttachmentDescription> Attachments(2);
-        Attachments[0].format = m_Swapchain->GetImageFormat();
-        Attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-        Attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        Attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        Attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        Attachments[0].format         = m_Swapchain->GetImageFormat();
+        Attachments[0].samples        = VK_SAMPLE_COUNT_1_BIT;
+        Attachments[0].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        Attachments[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        Attachments[0].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         Attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        Attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        Attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        Attachments[0].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        Attachments[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        Attachments[1].format = m_Swapchain->GetDepthFormat();
-        Attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-        Attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        Attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        Attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        Attachments[1].format         = m_Swapchain->GetDepthFormat();
+        Attachments[1].samples        = VK_SAMPLE_COUNT_1_BIT;
+        Attachments[1].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        Attachments[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        Attachments[1].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         Attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        Attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        Attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        Attachments[1].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        Attachments[1].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         RenderPassSpec.Attachments = Attachments;
 
         std::vector<VkAttachmentReference> AttachmentRefs(2);
         AttachmentRefs[0].attachment = 0;
-        AttachmentRefs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        AttachmentRefs[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         AttachmentRefs[1].attachment = 1;
-        AttachmentRefs[1].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        AttachmentRefs[1].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         RenderPassSpec.AttachmentRefs = AttachmentRefs;
 
         std::vector<VkSubpassDescription> Subpasses(1);
-        Subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        Subpasses[0].colorAttachmentCount = 1;
-        Subpasses[0].pColorAttachments = &AttachmentRefs[0];
+        Subpasses[0].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        Subpasses[0].colorAttachmentCount    = 1;
+        Subpasses[0].pColorAttachments       = &AttachmentRefs[0];
         Subpasses[0].pDepthStencilAttachment = &AttachmentRefs[1];
-        RenderPassSpec.Subpasses = Subpasses;
+        RenderPassSpec.Subpasses             = Subpasses;
 
         /* Subpass Dependency
          * Now we have to adjust the renderpass synchronization.
@@ -319,15 +319,15 @@ void VulkanContext::CreateGlobalRenderPass()
          * This is a problem when using depth buffers, because one frame could overwrite the depth buffer
          * while a previous frame is still rendering to it.
          */
-        std::vector<VkSubpassDependency> Dependencies(1);
-        Dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-        Dependencies[0].dstSubpass = 0;
-        Dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        Dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        Dependencies[0].srcAccessMask = 0;
-        Dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        VkSubpassDependency Dependency = {};
+        Dependency.srcSubpass          = VK_SUBPASS_EXTERNAL;
+        Dependency.dstSubpass          = 0;
+        Dependency.srcStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        Dependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        Dependency.srcAccessMask       = 0;
+        Dependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        RenderPassSpec.Dependencies = Dependencies;
+        RenderPassSpec.Dependencies = {Dependency};
 
         RenderPassSpec.DepthImageView = m_Swapchain->GetDepthImageView();
         m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
@@ -370,7 +370,7 @@ void VulkanContext::BeginRender()
     CommandBuffer.BeginRecording();
 
     std::vector<VkClearValue> ClearValues(2);
-    ClearValues[0].color = ClearColor;
+    ClearValues[0].color              = ClearColor;
     ClearValues[1].depthStencil.depth = 1.0f;
 
     m_GlobalRenderPass->Begin(CommandBuffer.Get(), ClearValues);
@@ -385,19 +385,19 @@ void VulkanContext::EndRender()
     CommandBuffer.EndRecording();
 
     std::vector<VkPipelineStageFlags> WaitStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSubmitInfo SubmitInfo = {};
-    SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo SubmitInfo       = {};
+    SubmitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers = &CommandBuffer.Get();
+    SubmitInfo.pCommandBuffers    = &CommandBuffer.Get();
     SubmitInfo.waitSemaphoreCount = 1;
-    SubmitInfo.pWaitSemaphores = &m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Wait for semaphore signal until we
-                                                                                                   // acuired image from the swapchain
+    SubmitInfo.pWaitSemaphores    = &m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Wait for semaphore signal until we
+                                                                                                      // acuired image from the swapchain
     SubmitInfo.signalSemaphoreCount = 1;
     SubmitInfo.pSignalSemaphores =
         &m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Signal semaphore when render finished
     SubmitInfo.pWaitDstStageMask = WaitStages.data();
 
-    const auto CurrentTime = (float)glfwGetTime();
+    const auto CurrentTime             = (float)glfwGetTime();
     Renderer2D::GetStats().CPUWaitTime = CurrentTime - m_CPULastWaitTime;
 
     // Submit command buffer to the queue and execute it.

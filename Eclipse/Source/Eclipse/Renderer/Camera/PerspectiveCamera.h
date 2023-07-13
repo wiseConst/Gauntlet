@@ -38,7 +38,6 @@ class PerspectiveCamera final : public Camera
     void SetProjection(const float zNear = 0.0f, const float zFar = 1.0f)
     {
         m_ProjectionMatrix = glm::perspective(glm::radians(m_FOV), m_AspectRatio, zNear, zFar);
-        m_ViewProjectionMatrix = m_ProjectionMatrix * m_ViewMatrix;
     }
 
     void OnEvent(Event& InEvent) final override

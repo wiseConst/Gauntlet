@@ -50,6 +50,18 @@ void Renderer2D::DrawRotatedQuad(const glm::vec3& InPosition, const glm::vec2& I
     s_Renderer->DrawRotatedQuadImpl(InPosition, InSize, InRotation, InColor);
 }
 
+void Renderer2D::DrawQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
+                          const Ref<Texture2D>& InTexture, const glm::vec4& InColor)
+{
+    DrawQuad({InPosition.x, InPosition.y, 0.0f}, InSize, InRotation, InTexture, InColor);
+}
+
+void Renderer2D::DrawQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
+                          const Ref<Texture2D>& InTexture, const glm::vec4& InColor)
+{
+    s_Renderer->DrawQuadImpl(InPosition, InSize, InRotation, InTexture, InColor);
+}
+
 void Renderer2D::DrawTexturedQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
                                   const glm::vec4& InBlendColor)
 {

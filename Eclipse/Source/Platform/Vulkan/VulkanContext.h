@@ -56,13 +56,12 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE auto& GetGlobalRenderPass() { return m_GlobalRenderPass; }
 
     FORCEINLINE void SetClearColor(const glm::vec4& InColor) { ClearColor = {InColor.r, InColor.g, InColor.b, InColor.a}; }
-
     FORCEINLINE void AddResizeCallback(const std::function<void()>& InResizeCallback) { m_ResizeCallbacks.emplace_back(InResizeCallback); }
 
   private:
-    VkInstance m_Instance = VK_NULL_HANDLE;
+    VkInstance m_Instance                     = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
-    VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
+    VkSurfaceKHR m_Surface                    = VK_NULL_HANDLE;
 
     Scoped<VulkanDevice> m_Device;
     Scoped<VulkanAllocator> m_Allocator;

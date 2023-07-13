@@ -35,13 +35,13 @@ bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSema
 
 bool VulkanSwapchain::TryPresentImage(const VkSemaphore& InRenderFinishedSemaphore)
 {
-    VkPresentInfoKHR PresentInfo = {};
-    PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    VkPresentInfoKHR PresentInfo   = {};
+    PresentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     PresentInfo.waitSemaphoreCount = 1;
-    PresentInfo.pWaitSemaphores = &InRenderFinishedSemaphore;
-    PresentInfo.pImageIndices = &m_ImageIndex;
-    PresentInfo.swapchainCount = 1;
-    PresentInfo.pSwapchains = &m_Swapchain;
+    PresentInfo.pWaitSemaphores    = &InRenderFinishedSemaphore;
+    PresentInfo.pImageIndices      = &m_ImageIndex;
+    PresentInfo.swapchainCount     = 1;
+    PresentInfo.pSwapchains        = &m_Swapchain;
 
     const auto result = vkQueuePresentKHR(m_Device->GetPresentQueue(), &PresentInfo);
     if (result == VK_SUCCESS)
@@ -73,26 +73,26 @@ void VulkanSwapchain::Invalidate()
     m_FrameIndex = 0;
 
     VkSwapchainCreateInfoKHR SwapchainCreateInfo = {};
-    SwapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    SwapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    SwapchainCreateInfo.clipped = VK_TRUE;
-    SwapchainCreateInfo.imageArrayLayers = 1;
-    SwapchainCreateInfo.surface = m_Surface;
-    SwapchainCreateInfo.oldSwapchain = OldSwapchain;
+    SwapchainCreateInfo.sType                    = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    SwapchainCreateInfo.compositeAlpha           = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    SwapchainCreateInfo.clipped                  = VK_TRUE;
+    SwapchainCreateInfo.imageArrayLayers         = 1;
+    SwapchainCreateInfo.surface                  = m_Surface;
+    SwapchainCreateInfo.oldSwapchain             = OldSwapchain;
 
-    auto Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(m_Device->GetPhysicalDevice(), m_Surface);
+    auto Details                     = SwapchainSupportDetails::QuerySwapchainSupportDetails(m_Device->GetPhysicalDevice(), m_Surface);
     SwapchainCreateInfo.preTransform = Details.SurfaceCapabilities.currentTransform;
 
-    m_SwapchainImageFormat = Details.ChooseBestSurfaceFormat(Details.ImageFormats);
+    m_SwapchainImageFormat              = Details.ChooseBestSurfaceFormat(Details.ImageFormats);
     SwapchainCreateInfo.imageColorSpace = m_SwapchainImageFormat.colorSpace;
-    SwapchainCreateInfo.imageFormat = m_SwapchainImageFormat.format;
+    SwapchainCreateInfo.imageFormat     = m_SwapchainImageFormat.format;
 
-    m_CurrentPresentMode = Details.ChooseBestPresentMode(Details.PresentModes, Application::Get().GetWindow()->IsVSync());
+    m_CurrentPresentMode            = Details.ChooseBestPresentMode(Details.PresentModes, Application::Get().GetWindow()->IsVSync());
     SwapchainCreateInfo.presentMode = m_CurrentPresentMode;
 
     ELS_ASSERT(Details.SurfaceCapabilities.maxImageCount > 0, "Swapchain max image count less than zero!");
-    m_SwapchainImageCount = std::clamp(Details.SurfaceCapabilities.minImageCount + 1, Details.SurfaceCapabilities.minImageCount,
-                                       Details.SurfaceCapabilities.maxImageCount);
+    m_SwapchainImageCount             = std::clamp(Details.SurfaceCapabilities.minImageCount + 1, Details.SurfaceCapabilities.minImageCount,
+                                                   Details.SurfaceCapabilities.maxImageCount);
     SwapchainCreateInfo.minImageCount = m_SwapchainImageCount;
 
     m_SwapchainImageExtent =
@@ -104,9 +104,9 @@ void VulkanSwapchain::Invalidate()
     if (m_Device->GetQueueFamilyIndices().GetGraphicsFamily() != m_Device->GetQueueFamilyIndices().GetPresentFamily())
     {
         uint32_t Indices[] = {m_Device->GetQueueFamilyIndices().GetGraphicsFamily(), m_Device->GetQueueFamilyIndices().GetPresentFamily()};
-        SwapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        SwapchainCreateInfo.imageSharingMode      = VK_SHARING_MODE_CONCURRENT;
         SwapchainCreateInfo.queueFamilyIndexCount = 2;
-        SwapchainCreateInfo.pQueueFamilyIndices = Indices;
+        SwapchainCreateInfo.pQueueFamilyIndices   = Indices;
     }
     else
     {
@@ -135,10 +135,10 @@ void VulkanSwapchain::Invalidate()
     {
         // Depth Buffer
         ImageSpecification DepthImageSpec;
-        DepthImageSpec.Usage = EImageUsage::Attachment;
+        DepthImageSpec.Usage  = EImageUsage::Attachment;
         DepthImageSpec.Format = EImageFormat::DEPTH32F;
         DepthImageSpec.Height = m_SwapchainImageExtent.height;
-        DepthImageSpec.Width = m_SwapchainImageExtent.width;
+        DepthImageSpec.Width  = m_SwapchainImageExtent.width;
         m_DepthImage.reset(new VulkanImage(DepthImageSpec));
 
         return;

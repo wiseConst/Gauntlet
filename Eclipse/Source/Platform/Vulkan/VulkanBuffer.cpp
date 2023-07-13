@@ -44,12 +44,12 @@ void CreateBuffer(const EBufferUsage InBufferUsage, const VkDeviceSize InSize, A
                   VmaMemoryUsage InMemoryUsage)
 {
     VkBufferCreateInfo BufferCreateInfo = {};
-    BufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    BufferCreateInfo.usage = EclipseBufferUsageToVulkan(InBufferUsage);
-    BufferCreateInfo.size = InSize;
-    BufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    BufferCreateInfo.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    BufferCreateInfo.usage              = EclipseBufferUsageToVulkan(InBufferUsage);
+    BufferCreateInfo.size               = InSize;
+    BufferCreateInfo.sharingMode        = VK_SHARING_MODE_EXCLUSIVE;
 
-    auto& Context = (VulkanContext&)VulkanContext::Get();
+    auto& Context                   = (VulkanContext&)VulkanContext::Get();
     InOutAllocatedBuffer.Allocation = Context.GetAllocator()->CreateBuffer(BufferCreateInfo, &InOutAllocatedBuffer.Buffer, InMemoryUsage);
 }
 
@@ -61,9 +61,9 @@ void CopyBuffer(VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDevice
     auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
 
     VkBufferCopy CopyRegion = {};
-    CopyRegion.size = InSize;
-    CopyRegion.srcOffset = 0;  // Optional
-    CopyRegion.dstOffset = 0;  // Optional
+    CopyRegion.size         = InSize;
+    CopyRegion.srcOffset    = 0;  // Optional
+    CopyRegion.dstOffset    = 0;  // Optional
 
     vkCmdCopyBuffer(CommandBuffer, InSourceBuffer, InDestBuffer, 1, &CopyRegion);
     Utility::EndSingleTimeCommands(CommandBuffer, Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetTransferQueue(),
@@ -77,7 +77,7 @@ void DestroyBuffer(AllocatedBuffer& InBuffer)
 
     Context.GetDevice()->WaitDeviceOnFinish();
     Context.GetAllocator()->DestroyBuffer(InBuffer.Buffer, InBuffer.Allocation);
-    InBuffer.Buffer = VK_NULL_HANDLE;
+    InBuffer.Buffer     = VK_NULL_HANDLE;
     InBuffer.Allocation = VK_NULL_HANDLE;
 }
 
@@ -120,7 +120,7 @@ void VulkanVertexBuffer::Destroy()
 
 VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& InBufferInfo) : IndexBuffer(InBufferInfo), m_IndicesCount(InBufferInfo.Count)
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
+    auto& Context                 = (VulkanContext&)VulkanContext::Get();
     AllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, InBufferInfo.Size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
 

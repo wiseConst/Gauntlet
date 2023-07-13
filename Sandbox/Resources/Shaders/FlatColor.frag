@@ -14,7 +14,7 @@ void main()
 	if(TextureId >= 32) TextureId = 0;
 
 	const vec4 Color = texture(Sprites[TextureId], InTexCoord) * InColor;
-	if(Color.a == 0) discard;
+	if(Color.a < 0.5) discard;
 
 	OutFragColor = Color;
 }

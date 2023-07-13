@@ -10,7 +10,7 @@ class Event;
 struct WindowSpecification
 {
   public:
-    WindowSpecification() = delete;
+    WindowSpecification()  = delete;
     ~WindowSpecification() = default;
 
     WindowSpecification(const std::string_view& InTitle = "Eclipse Engine", uint32_t width = 1280, uint32_t height = 720)
@@ -31,15 +31,15 @@ class Window : private Unmovable, private Uncopyable
   public:
     Window(const WindowSpecification& InWindowSpec) : m_WindowSpec(InWindowSpec) {}
 
-    Window() = delete;
+    Window()          = delete;
     virtual ~Window() = default;
 
-    virtual void OnUpdate() = 0;
+    virtual void OnUpdate()        = 0;
     virtual void HandleMinimized() = 0;
 
     virtual void SetWindowLogo(const std::string_view& InFilePath) = 0;
-    virtual void SetWindowTitle(const std::string_view& InTitle) = 0;
-    virtual void SetVSync(bool IsVsync) = 0;
+    virtual void SetWindowTitle(const std::string_view& InTitle)   = 0;
+    virtual void SetVSync(bool IsVsync)                            = 0;
     FORCEINLINE void SetIsRunning(bool IsRunning) { m_IsRunning = IsRunning; }
     FORCEINLINE virtual void SetWindowCallback(const EventCallbackFn& InFnCallback) = 0;
 

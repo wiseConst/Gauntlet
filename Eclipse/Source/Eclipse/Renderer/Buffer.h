@@ -124,12 +124,12 @@ class BufferLayout final
 
 enum EBufferUsageFlags
 {
-    NONE = BIT(0),
+    NONE           = BIT(0),
     STAGING_BUFFER = BIT(1),  // Means transfer source
-    TRANSFER_DST = BIT(2),
+    TRANSFER_DST   = BIT(2),
     UNIFORM_BUFFER = BIT(4),
-    INDEX_BUFFER = BIT(6),
-    VERTEX_BUFFER = BIT(7),
+    INDEX_BUFFER   = BIT(6),
+    VERTEX_BUFFER  = BIT(7),
 };
 
 typedef uint32_t EBufferUsage;
@@ -140,9 +140,9 @@ struct BufferInfo
     BufferInfo()
     {
         Usage = EBufferUsageFlags::NONE;
-        Size = 0;
+        Size  = 0;
         Count = 0;
-        Data = nullptr;
+        Data  = nullptr;
     }
 
     BufferInfo(EBufferUsage InBufferUsage, const uint64_t InSize, const uint64_t InCount, void* InData)
@@ -170,12 +170,12 @@ class VertexBuffer : private Uncopyable, private Unmovable
 
     virtual ~VertexBuffer() = default;
 
-    virtual const BufferLayout& GetLayout() const = 0;
-    virtual void SetLayout(const BufferLayout& InLayout) = 0;
+    virtual const BufferLayout& GetLayout() const                     = 0;
+    virtual void SetLayout(const BufferLayout& InLayout)              = 0;
     virtual void SetData(const void* InData, const size_t InDataSize) = 0;
 
     virtual uint64_t GetCount() const = 0;
-    virtual void Destroy() = 0;
+    virtual void Destroy()            = 0;
 
     static VertexBuffer* Create(BufferInfo& InBufferInfo);
 };
@@ -188,7 +188,7 @@ class IndexBuffer : private Uncopyable, private Unmovable
     IndexBuffer() = delete;
     IndexBuffer(BufferInfo& InBufferInfo);
 
-    virtual ~IndexBuffer() = default;
+    virtual ~IndexBuffer()            = default;
     virtual uint64_t GetCount() const = 0;
 
     virtual void Destroy() = 0;

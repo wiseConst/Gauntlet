@@ -14,14 +14,14 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
     ELS_ASSERT(TextureFilePath.data(), "Texture file path is not valid!");
 
     // Get our image data
-    int32_t Width = 0;
-    int32_t Height = 0;
+    int32_t Width    = 0;
+    int32_t Height   = 0;
     int32_t Channels = 0;
-    auto* ImageData = ImageUtils::LoadImageFromFile(TextureFilePath, &Width, &Height, &Channels);
+    auto* ImageData  = ImageUtils::LoadImageFromFile(TextureFilePath, &Width, &Height, &Channels);
 
-    Channels = 4;  // Vulkan perceives only 4 channels
+    Channels                     = 4;  // Vulkan perceives only 4 channels
     const VkDeviceSize ImageSize = Width * Height * Channels;
-    auto& Context = (VulkanContext&)VulkanContext::Get();
+    auto& Context                = (VulkanContext&)VulkanContext::Get();
 
     // Create staging buffer for image data
     AllocatedBuffer StagingBuffer = {};
@@ -37,9 +37,9 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
 
     // Simple image creation
     ImageSpecification ImageSpec = {};
-    ImageSpec.Usage = EImageUsage::TEXTURE;
-    ImageSpec.Height = Height;
-    ImageSpec.Width = Width;
+    ImageSpec.Usage              = EImageUsage::TEXTURE;
+    ImageSpec.Height             = Height;
+    ImageSpec.Width              = Width;
     m_Image.reset(new VulkanImage(ImageSpec));
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make it
@@ -53,8 +53,8 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
 
     // TODO: Should depend on ImageSpecification
     // Creating image sampler
-    VkSamplerCreateInfo SamplerCreateInfo = {};
-    SamplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    VkSamplerCreateInfo SamplerCreateInfo     = {};
+    SamplerCreateInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     SamplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
 
     SamplerCreateInfo.minFilter = VK_FILTER_NEAREST;
@@ -65,7 +65,7 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
     SamplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
     SamplerCreateInfo.anisotropyEnable = VK_TRUE;
-    SamplerCreateInfo.maxAnisotropy = Context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
+    SamplerCreateInfo.maxAnisotropy    = Context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
 
     //  The <borderColor> specifies which color is returned when sampling beyond the image with clamp to border addressing mode. It is
     //  possible to return black, white or transparent in either float or int formats. You cannot specify an arbitrary color.
@@ -74,13 +74,13 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
     // ShadowPasses only
     // https://developer.nvidia.com/gpugems/gpugems/part-ii-lighting-and-shadows/chapter-11-shadow-map-antialiasing
     SamplerCreateInfo.compareEnable = VK_FALSE;
-    SamplerCreateInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    SamplerCreateInfo.compareOp     = VK_COMPARE_OP_ALWAYS;
 
     // Mipmapping
     SamplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     SamplerCreateInfo.mipLodBias = 0.0f;
-    SamplerCreateInfo.minLod = 0.0f;
-    SamplerCreateInfo.maxLod = 0.0f;
+    SamplerCreateInfo.minLod     = 0.0f;
+    SamplerCreateInfo.maxLod     = 0.0f;
 
     VK_CHECK(vkCreateSampler(Context.GetDevice()->GetLogicalDevice(), &SamplerCreateInfo, nullptr, &m_Sampler),
              "Failed to create an image sampler!");
@@ -102,9 +102,9 @@ VulkanTexture2D::VulkanTexture2D(const void* InData, const size_t InDataSize, co
 
     // Simple image creation
     ImageSpecification ImageSpec = {};
-    ImageSpec.Usage = EImageUsage::TEXTURE;
-    ImageSpec.Height = InImageWidth;
-    ImageSpec.Width = InImageHeight;
+    ImageSpec.Usage              = EImageUsage::TEXTURE;
+    ImageSpec.Height             = InImageWidth;
+    ImageSpec.Width              = InImageHeight;
     m_Image.reset(new VulkanImage(ImageSpec));
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make it
@@ -117,8 +117,8 @@ VulkanTexture2D::VulkanTexture2D(const void* InData, const size_t InDataSize, co
     BufferUtils::DestroyBuffer(StagingBuffer);
 
     // Creating image sampler
-    VkSamplerCreateInfo SamplerCreateInfo = {};
-    SamplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    VkSamplerCreateInfo SamplerCreateInfo     = {};
+    SamplerCreateInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     SamplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
 
     SamplerCreateInfo.minFilter = VK_FILTER_NEAREST;
