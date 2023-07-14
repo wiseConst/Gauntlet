@@ -1,16 +1,18 @@
 #include <Eclipse.h>
 #include <Eclipse/Core/Entrypoint.h>
 
+#include "Sandbox2DLayer.h"
 #include "Pong2D/PongLayer.h"
-// #include "1HourGame/GameLayer.h"
+#include "1HourGame/GameLayer.h"
 
 class Sandbox final : public Eclipse::Application
 {
   public:
     Sandbox(const Eclipse::ApplicationSpecification& InApplicationSpec) : Eclipse::Application(InApplicationSpec)
     {
-            PushLayer(new PongLayer());
-            // PushLayer(new GameLayer());
+        // PushLayer(new PongLayer());
+        // PushLayer(new GameLayer());
+        PushLayer(new Sandbox2DLayer());
     }
 
     ~Sandbox() {}

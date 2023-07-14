@@ -37,6 +37,8 @@ class VulkanVertexBuffer final : public VertexBuffer
     FORCEINLINE const auto& Get() const { return m_AllocatedBuffer.Buffer; }
     FORCEINLINE auto& Get() { return m_AllocatedBuffer.Buffer; }
 
+    void SetStagedData(const AllocatedBuffer& InStagingBuffer, const VkDeviceSize InBufferDataSize);
+
   private:
     AllocatedBuffer m_AllocatedBuffer;
     BufferLayout m_Layout;
@@ -70,9 +72,11 @@ VkBufferUsageFlags EclipseBufferUsageToVulkan(const EBufferUsage InBufferUsage);
 void CreateBuffer(const EBufferUsage InBufferUsage, const VkDeviceSize InSize, AllocatedBuffer& InOutAllocatedBuffer,
                   VmaMemoryUsage InMemoryUsage = VMA_MEMORY_USAGE_AUTO);
 
-void CopyBuffer(VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize);
+void CopyBuffer(const VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize);
 
 void DestroyBuffer(AllocatedBuffer& InBuffer);
+
+void CopyDataToBuffer(AllocatedBuffer& InBuffer, const VkDeviceSize InDataSize, const void* InData);
 
 }  // namespace BufferUtils
 

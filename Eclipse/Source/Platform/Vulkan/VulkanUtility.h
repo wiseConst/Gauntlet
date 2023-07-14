@@ -201,6 +201,37 @@ static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescript
     return DescriptorSetAllocateInfo;
 }
 
+static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInfo(
+    const uint32_t InBindingCount, const VkDescriptorSetLayoutBinding* InBindings,
+    const VkDescriptorSetLayoutCreateFlags InDescriptorSetLayoutCreateFlags = 0, const void* InPNext = nullptr)
+{
+    VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {};
+    DescriptorSetLayoutCreateInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    DescriptorSetLayoutCreateInfo.bindingCount                    = InBindingCount;
+    DescriptorSetLayoutCreateInfo.pBindings                       = InBindings;
+    DescriptorSetLayoutCreateInfo.pNext                           = InPNext;
+    DescriptorSetLayoutCreateInfo.flags                           = InDescriptorSetLayoutCreateFlags;
+
+    return DescriptorSetLayoutCreateInfo;
+}
+
+static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t InPoolSizeCount, const uint32_t InMaxSetCount,
+                                                              const VkDescriptorPoolSize* InPoolSizes,
+                                                              VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags = 0,
+                                                              const void* InPNext                                     = nullptr)
+{
+
+    VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = {};
+    DescriptorPoolCreateInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    DescriptorPoolCreateInfo.poolSizeCount              = InPoolSizeCount;
+    DescriptorPoolCreateInfo.maxSets                    = InMaxSetCount;
+    DescriptorPoolCreateInfo.pPoolSizes                 = InPoolSizes;
+    DescriptorPoolCreateInfo.flags                      = InDescriptorPoolCreateFlags;
+    DescriptorPoolCreateInfo.pNext                      = InPNext;
+
+    return DescriptorPoolCreateInfo;
+}
+
 }  // namespace Utility
 
 }  // namespace Eclipse

@@ -199,14 +199,15 @@ void VulkanPipeline::CreatePipeline()
     ColorBlendState.logicOpEnable                       = VK_FALSE;
     ColorBlendState.logicOp                             = VK_LOGIC_OP_COPY;
 
+    // Unlike OpenGL([-1, 1]), Vulkan has depth range [0, 1]
+    // Also flip up the viewport and set frontface to ccw
     VkViewport Viewport = {};
     Viewport.height     = -static_cast<float>(Context.GetSwapchain()->GetImageExtent().height);
     Viewport.width      = static_cast<float>(Context.GetSwapchain()->GetImageExtent().width);
-    // Unlike OpenGL([-1, 1]), Vulkan has depth range [0, 1]
-    Viewport.minDepth = 0.0f;
-    Viewport.maxDepth = 1.0f;
-    Viewport.x        = 0.0f;
-    Viewport.y        = static_cast<float>(Context.GetSwapchain()->GetImageExtent().height);
+    Viewport.minDepth   = 0.0f;
+    Viewport.maxDepth   = 1.0f;
+    Viewport.x          = 0.0f;
+    Viewport.y          = static_cast<float>(Context.GetSwapchain()->GetImageExtent().height);
 
     VkRect2D Scissor = {};
     Scissor.offset   = {0, 0};

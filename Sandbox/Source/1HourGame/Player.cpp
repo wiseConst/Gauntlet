@@ -68,8 +68,7 @@ void Player::OnUpdate(const float DeltaTime)
 void Player::OnRender()
 {
     m_ParticleSystem.OnRender();
-    Renderer2D::DrawQuad({m_Position.x, m_Position.y, 0.0f /*0.5f*/}, {1.0f, 1.3f}, glm::vec3(0, 0, GetRotation()),
-                         m_ShipTexture);
+    Renderer2D::DrawQuad({m_Position.x, m_Position.y, 0.0f /*0.5f*/}, {1.0f, 1.3f}, glm::vec3(0, 0, GetRotation()), m_ShipTexture);
 }
 
 void Player::OnImGuiRender()

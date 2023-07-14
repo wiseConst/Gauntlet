@@ -35,7 +35,7 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
     {
         CommandPoolSpecification CommandPoolSpec = {};
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
-        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GetGraphicsFamily();
+        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GraphicsFamily;
 
         m_GraphicsCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
     }
@@ -43,7 +43,7 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
     {
         CommandPoolSpecification CommandPoolSpec = {};
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_TRANSFER_USAGE;
-        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GetTransferFamily();
+        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().TransferFamily;
 
         m_TransferCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
     }

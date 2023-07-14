@@ -8,15 +8,14 @@
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
 
+#include "VulkanUtility.h"
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
 #include "VulkanCommandBuffer.h"
-#include "VulkanCommandPool.h"
 
 namespace Eclipse
 {
-
 void VulkanImGuiLayer::OnAttach()
 {
     auto& Context                                       = (VulkanContext&)VulkanContext::Get();
@@ -108,7 +107,7 @@ void VulkanImGuiLayer::OnAttach()
     {
         CommandPoolSpecification CommandPoolSpec = {};
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
-        CommandPoolSpec.QueueFamilyIndex         = Context.GetDevice()->GetQueueFamilyIndices().GetGraphicsFamily();
+        CommandPoolSpec.QueueFamilyIndex         = Context.GetDevice()->GetQueueFamilyIndices().GraphicsFamily;
 
         m_ImGuiCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
     }
@@ -119,7 +118,7 @@ void VulkanImGuiLayer::OnAttach()
     InitInfo.Instance                  = Context.GetInstance();
     InitInfo.PhysicalDevice            = Context.GetDevice()->GetPhysicalDevice();
     InitInfo.Device                    = Context.GetDevice()->GetLogicalDevice();
-    InitInfo.QueueFamily               = Context.GetDevice()->GetQueueFamilyIndices().GetGraphicsFamily();
+    InitInfo.QueueFamily               = Context.GetDevice()->GetQueueFamilyIndices().GraphicsFamily;
     InitInfo.Queue                     = Context.GetDevice()->GetGraphicsQueue();
     InitInfo.PipelineCache             = VK_NULL_HANDLE;
     InitInfo.DescriptorPool            = m_ImGuiDescriptorPool;
@@ -297,8 +296,8 @@ void VulkanImGuiLayer::SetStyle()
     style.Colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
     style.Colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
 
-    style.ChildRounding     = 6;
-    style.FrameRounding     = 6;
+    style.ChildRounding     = 0;
+    style.FrameRounding     = 9;
     style.GrabMinSize       = 7.0f;
     style.PopupRounding     = 6.0f;
     style.ScrollbarRounding = 6.0f;

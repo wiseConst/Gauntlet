@@ -1,10 +1,12 @@
 #include "EclipsePCH.h"
 #include "VulkanAllocator.h"
 
+#include "VulkanUtility.h"
+#include "VulkanContext.h"
 #include "VulkanDevice.h"
 #include "VulkanTexture.h"
 
-#include "VulkanRenderer2D.h"
+#include "Eclipse/Renderer/Renderer2D.h"
 
 namespace Eclipse
 {
@@ -42,23 +44,23 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreat
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create vulkan image via VMA!");
 
     VmaAllocationInfo AllocationInfo = {};
-    vmaGetAllocationInfo(m_Allocator, Allocation, &AllocationInfo);
-    VulkanRenderer2D::GetStats().GPUMemoryAllocated += AllocationInfo.size;
+    QueryAllocationInfo(AllocationInfo, Allocation);
+    Renderer2D::GetStats().GPUMemoryAllocated += AllocationInfo.size;
 
-    ++VulkanRenderer2D::GetStats().Allocations;
-    ++VulkanRenderer2D::GetStats().AllocatedImages;
+    ++Renderer2D::GetStats().Allocations;
+    ++Renderer2D::GetStats().AllocatedImages;
     return Allocation;
 }
 
 void VulkanAllocator::DestroyImage(VkImage& InImage, VmaAllocation& InAllocation) const
 {
     VmaAllocationInfo AllocationInfo = {};
-    vmaGetAllocationInfo(m_Allocator, InAllocation, &AllocationInfo);
-    VulkanRenderer2D::GetStats().GPUMemoryAllocated -= AllocationInfo.size;
+    QueryAllocationInfo(AllocationInfo, InAllocation);
+    Renderer2D::GetStats().GPUMemoryAllocated -= AllocationInfo.size;
 
     vmaDestroyImage(m_Allocator, InImage, InAllocation);
-    --VulkanRenderer2D::GetStats().Allocations;
-    --VulkanRenderer2D::GetStats().AllocatedImages;
+    --Renderer2D::GetStats().Allocations;
+    --Renderer2D::GetStats().AllocatedImages;
 }
 
 VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer,
@@ -80,29 +82,35 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
     if (InMemoryUsage & VMA_MEMORY_USAGE_GPU_ONLY)
     {
         VmaAllocationInfo AllocationInfo = {};
-        vmaGetAllocationInfo(m_Allocator, Allocation, &AllocationInfo);
-        VulkanRenderer2D::GetStats().GPUMemoryAllocated += AllocationInfo.size;
+        QueryAllocationInfo(AllocationInfo, Allocation);
+        Renderer2D::GetStats().GPUMemoryAllocated += AllocationInfo.size;
     }
 
-    ++VulkanRenderer2D::GetStats().Allocations;
-    ++VulkanRenderer2D::GetStats().AllocatedBuffers;
+    ++Renderer2D::GetStats().Allocations;
+    ++Renderer2D::GetStats().AllocatedBuffers;
     return Allocation;
 }
 
 void VulkanAllocator::DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const
 {
-    auto& Context                    = (VulkanContext&)VulkanContext::Get();
+    auto& Context = (VulkanContext&)VulkanContext::Get();
+
     VmaAllocationInfo AllocationInfo = {};
-    vmaGetAllocationInfo(m_Allocator, InAllocation, &AllocationInfo);
+    QueryAllocationInfo(AllocationInfo, InAllocation);
     if ((Context.GetDevice()->GetMemoryProperties().memoryHeaps[AllocationInfo.memoryType - 1].flags &
          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     {
-        VulkanRenderer2D::GetStats().GPUMemoryAllocated -= AllocationInfo.size;
+        Renderer2D::GetStats().GPUMemoryAllocated -= AllocationInfo.size;
     }
 
     vmaDestroyBuffer(m_Allocator, InBuffer, InAllocation);
-    --VulkanRenderer2D::GetStats().Allocations;
-    --VulkanRenderer2D::GetStats().AllocatedBuffers;
+    --Renderer2D::GetStats().Allocations;
+    --Renderer2D::GetStats().AllocatedBuffers;
+}
+
+void VulkanAllocator::QueryAllocationInfo(VmaAllocationInfo& InOutAllocationInfo, const VmaAllocation& InAllocation) const
+{
+    vmaGetAllocationInfo(m_Allocator, InAllocation, &InOutAllocationInfo);
 }
 
 void* VulkanAllocator::Map(VmaAllocation& InAllocation) const
@@ -123,15 +131,15 @@ void VulkanAllocator::Unmap(VmaAllocation& InAllocation) const
 void VulkanAllocator::Destroy()
 {
 #if ELS_DEBUG
-    LOG_WARN("Before VMA destroying! Remaining data: buffers (%u), images (%u).", VulkanRenderer2D::GetStats().AllocatedBuffers,
-             VulkanRenderer2D::GetStats().AllocatedImages);
+    LOG_WARN("Before VMA destroying! Remaining data: buffers (%u), images (%u).", Renderer2D::GetStats().AllocatedBuffers,
+             Renderer2D::GetStats().AllocatedImages);
 #endif
 
     vmaDestroyAllocator(m_Allocator);
 
 #if ELS_DEBUG
-    LOG_WARN("VMA destroyed! Remaining data: buffers (%u), images (%u).", VulkanRenderer2D::GetStats().AllocatedBuffers,
-             VulkanRenderer2D::GetStats().AllocatedImages);
+    LOG_WARN("VMA destroyed! Remaining data: buffers (%u), images (%u).", Renderer2D::GetStats().AllocatedBuffers,
+             Renderer2D::GetStats().AllocatedImages);
 #endif
 }
 

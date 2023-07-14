@@ -2,6 +2,7 @@
 #include "VulkanSwapchain.h"
 
 #include "VulkanCore.h"
+#include "VulkanUtility.h"
 #include "VulkanDevice.h"
 #include "VulkanContext.h"
 #include "VulkanImage.h"
@@ -101,9 +102,9 @@ void VulkanSwapchain::Invalidate()
 
     SwapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    if (m_Device->GetQueueFamilyIndices().GetGraphicsFamily() != m_Device->GetQueueFamilyIndices().GetPresentFamily())
+    if (m_Device->GetQueueFamilyIndices().GraphicsFamily != m_Device->GetQueueFamilyIndices().PresentFamily)
     {
-        uint32_t Indices[] = {m_Device->GetQueueFamilyIndices().GetGraphicsFamily(), m_Device->GetQueueFamilyIndices().GetPresentFamily()};
+        uint32_t Indices[] = {m_Device->GetQueueFamilyIndices().GraphicsFamily, m_Device->GetQueueFamilyIndices().PresentFamily};
         SwapchainCreateInfo.imageSharingMode      = VK_SHARING_MODE_CONCURRENT;
         SwapchainCreateInfo.queueFamilyIndexCount = 2;
         SwapchainCreateInfo.pQueueFamilyIndices   = Indices;

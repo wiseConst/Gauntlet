@@ -54,9 +54,9 @@ void GameLayer::OnUpdate(const float DeltaTime)
 
 void GameLayer::OnImGuiRender()
 {
-    ImGui::Begin("Settings");
-    m_Level.OnImGuiRender();
-    ImGui::End();
+    // ImGui::Begin("Settings");
+    // m_Level.OnImGuiRender();
+    // ImGui::End();
 
     // UI?
 
@@ -95,6 +95,26 @@ void GameLayer::OnImGuiRender()
             ImGui::GetForegroundDrawList()->AddText(/*m_Font, 48.0f,*/ pos, 0xffffffff, scoreStr.c_str());
             break;
         }
+    }
+
+
+      static bool bShowAppStats = true;
+    if (bShowAppStats)
+    {
+        ImGui::Begin("Application Stats", &bShowAppStats);
+
+        const auto& Stats = Renderer2D::GetStats();
+        ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages);
+        ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers);
+        ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers);
+        ImGui::Text("VRAM Usage: %f MB", Stats.GPUMemoryAllocated / 1024.0f / 1024.0f);
+        ImGui::Text("CPU Wait Time: %f(ms)", Stats.CPUWaitTime);
+        ImGui::Text("GPU Wait Time: %f(ms)", Stats.GPUWaitTime);
+        ImGui::Text("VMA Allocations: %llu", Stats.Allocations);
+        ImGui::Text("DrawCalls: %llu", Stats.DrawCalls);
+        ImGui::Text("QuadCount: %llu", Stats.QuadCount);
+
+        ImGui::End();
     }
 }
 

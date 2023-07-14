@@ -23,6 +23,8 @@ class VulkanAllocator final : private Uncopyable, private Unmovable
                                VmaMemoryUsage InMemoryUsage = VMA_MEMORY_USAGE_AUTO) const;
     void DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const;
 
+    void QueryAllocationInfo(VmaAllocationInfo& InOutAllocationInfo, const VmaAllocation& InAllocation) const;
+
     void* Map(VmaAllocation& InAllocation) const;
     void Unmap(VmaAllocation& InAllocation) const;
 

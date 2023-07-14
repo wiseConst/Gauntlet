@@ -3,6 +3,7 @@
 
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
+#include "VulkanCore.h"
 
 namespace Eclipse
 {

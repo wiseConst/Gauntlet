@@ -1,6 +1,8 @@
 #include "EclipsePCH.h"
 #include "VulkanRenderer2D.h"
 
+#include "VulkanContext.h"
+#include "VulkanUtility.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
 #include "VulkanShader.h"
@@ -13,11 +15,19 @@
 
 namespace Eclipse
 {
+// The way it works now: create staging buffer && vertex buffer every frame and destroy
 
-// How should it work: Allocate one big staging buffer and copy it's data to vertex buffer, that's it.
+// The way it should  work: Allocate one big staging buffer and copy it's data to vertex buffer, that's it.
 struct VulkanStagingStorage
 {
-    std::vector<AllocatedBuffer> StagingBuffers;
+    struct StagingBuffer
+    {
+        AllocatedBuffer Buffer;
+        size_t Capacity = 0;
+        size_t Size     = 0;
+    };
+
+    std::vector<Scoped<StagingBuffer>> StagingBuffers;
     uint32_t CurentStagingBufferIndex = 0;
 };
 
@@ -37,8 +47,11 @@ struct VulkanRenderer2DStorage
                                                          {0.5f, 0.5f, 0.0f, 1.0f},    //
                                                          {-0.5f, 0.5f, 0.0f, 1.0f}};
 
+    static constexpr size_t DefaultVertexBufferSize = MaxVertices * sizeof(QuadVertex);
+
     BufferLayout VertexBufferLayout;
 
+    VulkanStagingStorage StagingStorage;
     std::vector<Ref<VulkanVertexBuffer>> QuadVertexBuffers;
     uint32_t CurrentQuadVertexBufferIndex = 0;
 
@@ -51,7 +64,7 @@ struct VulkanRenderer2DStorage
     VkDescriptorSetLayout QuadDescriptorSetLayout;
 
     std::vector<VkDescriptorSet> QuadDescriptorSets;
-    uint32_t CurrentDescriptorSetIndex = 0;  // Initially we have 1 quad descriptor set
+    uint32_t CurrentDescriptorSetIndex = 0;
 
     Ref<VulkanTexture2D> QuadWhiteTexture;  // Texture Slot 0 = white tex
     uint32_t CurrentTextureSlotIndex = 1;   // 0 slot already tied with white texture
@@ -136,24 +149,15 @@ void VulkanRenderer2D::Create()
     BindingFlagsInfo.bindingCount                                = 1;
     BindingFlagsInfo.pBindingFlags                               = &BindingFlags;
 
-    VkDescriptorSetLayoutCreateInfo QuadDescriptorSetLayoutCreateInfo = {};
-    QuadDescriptorSetLayoutCreateInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    QuadDescriptorSetLayoutCreateInfo.bindingCount                    = 1;
-    QuadDescriptorSetLayoutCreateInfo.pBindings                       = &TextureBinding;
-    QuadDescriptorSetLayoutCreateInfo.pNext                           = &BindingFlagsInfo;
-
+    auto QuadDescriptorSetLayoutCreateInfo = Utility::GetDescriptorSetLayoutCreateInfo(1, &TextureBinding, 0, &BindingFlagsInfo);
     VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorSetLayoutCreateInfo, nullptr,
                                          &s_Data.QuadDescriptorSetLayout),
              "Failed ot create descriptor set layout!");
 
     VkDescriptorPoolSize PoolSizes[] = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, FRAMES_IN_FLIGHT}};
 
-    VkDescriptorPoolCreateInfo QuadDescriptorPoolCreateInfo = {};
-    QuadDescriptorPoolCreateInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    QuadDescriptorPoolCreateInfo.poolSizeCount              = 1;
-    QuadDescriptorPoolCreateInfo.maxSets    = VulkanRenderer2DStorage::MaxTextureSlots * VulkanRenderer2DStorage::MaxTextureSlots;
-    QuadDescriptorPoolCreateInfo.pPoolSizes = PoolSizes;
-
+    auto QuadDescriptorPoolCreateInfo = Utility::GetDescriptorPoolCreateInfo(
+        1, VulkanRenderer2DStorage::MaxTextureSlots * VulkanRenderer2DStorage::MaxTextureSlots, PoolSizes);
     VK_CHECK(vkCreateDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorPoolCreateInfo, nullptr,
                                     &s_Data.QuadDescriptorPool),
              "Failed to create descriptor pool!");
@@ -207,6 +211,13 @@ void VulkanRenderer2D::Create()
             s_Data.QuadPipeline->SetRenderPass(m_Context.GetGlobalRenderPass()->Get());
             s_Data.QuadPipeline->Create();
         });
+
+    // Initially 1
+    Scoped<VulkanStagingStorage::StagingBuffer> QuadVertexStagingBuffer(new VulkanStagingStorage::StagingBuffer());
+    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data.DefaultVertexBufferSize, (*QuadVertexStagingBuffer).Buffer);
+    QuadVertexStagingBuffer->Capacity = s_Data.DefaultVertexBufferSize;
+    s_Data.StagingStorage.StagingBuffers.push_back(std::move(QuadVertexStagingBuffer));
+    ++Renderer2D::GetStats().StagingVertexBuffers;
 }
 
 void VulkanRenderer2D::BeginImpl()
@@ -228,6 +239,12 @@ void VulkanRenderer2D::BeginImpl()
     m_Context.GetDevice()->WaitDeviceOnFinish();
     VK_CHECK(vkResetDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), s_Data.QuadDescriptorPool, 0),
              "Failed to reset descriptor pool!");
+
+    for (auto& StagingBuffer : s_Data.StagingStorage.StagingBuffers)
+    {
+        StagingBuffer->Size = 0;
+    }
+    s_Data.StagingStorage.CurentStagingBufferIndex = 0;
 }
 
 void VulkanRenderer2D::SetClearColorImpl(const glm::vec4& InColor)
@@ -390,6 +407,13 @@ void VulkanRenderer2D::FlushAndReset()
     s_Data.CurrentTextureSlotIndex = 1;
     s_Data.QuadIndexCount          = 0;
     s_Data.QuadVertexBufferPtr     = s_Data.QuadVertexBufferBase;
+
+    // Reset
+    s_Data.StagingStorage.CurentStagingBufferIndex = 0;
+    for (auto& StagingBuffer : s_Data.StagingStorage.StagingBuffers)
+    {
+        StagingBuffer->Size = 0;
+    }
 }
 
 void VulkanRenderer2D::PreallocateRenderStorage()
@@ -425,6 +449,28 @@ void VulkanRenderer2D::FlushImpl()
 
     PreallocateRenderStorage();
 
+    const uint32_t DataSize = (uint32_t)((uint8_t*)s_Data.QuadVertexBufferPtr - (uint8_t*)s_Data.QuadVertexBufferBase);
+
+    // Check if we're out of staging buffer memory bounds or not
+    if (s_Data.StagingStorage.StagingBuffers[s_Data.StagingStorage.CurentStagingBufferIndex]->Size + DataSize >
+        s_Data.StagingStorage.StagingBuffers[s_Data.StagingStorage.CurentStagingBufferIndex]->Capacity)
+    {
+        // Get new staging buffer && set capacity
+        ++Renderer2D::GetStats().StagingVertexBuffers;
+
+        Scoped<VulkanStagingStorage::StagingBuffer> QuadVertexStagingBuffer(new VulkanStagingStorage::StagingBuffer());
+        BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data.DefaultVertexBufferSize, (*QuadVertexStagingBuffer).Buffer);
+        QuadVertexStagingBuffer->Capacity = s_Data.DefaultVertexBufferSize;
+        s_Data.StagingStorage.StagingBuffers.push_back(std::move(QuadVertexStagingBuffer));
+        ++s_Data.StagingStorage.CurentStagingBufferIndex;
+    }
+    BufferUtils::CopyDataToBuffer(s_Data.StagingStorage.StagingBuffers[s_Data.StagingStorage.CurentStagingBufferIndex]->Buffer, DataSize,
+                                  s_Data.QuadVertexBufferBase);
+    s_Data.StagingStorage.StagingBuffers[s_Data.StagingStorage.CurentStagingBufferIndex]->Size += DataSize;
+
+    s_Data.QuadVertexBuffers[s_Data.CurrentQuadVertexBufferIndex]->SetStagedData(
+        (*s_Data.StagingStorage.StagingBuffers[s_Data.StagingStorage.CurentStagingBufferIndex]).Buffer, DataSize);
+
     std::vector<VkDescriptorImageInfo> ImageInfos;
     for (uint32_t i = 0; i < VulkanRenderer2DStorage::MaxTextureSlots; ++i)
     {
@@ -449,9 +495,6 @@ void VulkanRenderer2D::FlushImpl()
                                                                 s_Data.QuadDescriptorSets[s_Data.CurrentDescriptorSetIndex],
                                                                 (uint32_t)ImageInfos.size(), ImageInfos.data());
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
-
-    const uint32_t DataSize = (uint32_t)((uint8_t*)s_Data.QuadVertexBufferPtr - (uint8_t*)s_Data.QuadVertexBufferBase);
-    s_Data.QuadVertexBuffers[s_Data.CurrentQuadVertexBufferIndex]->SetData(s_Data.QuadVertexBufferBase, DataSize);
 
     const auto& Swapchain = m_Context.GetSwapchain();
     auto& CommandBuffer   = m_Context.GetGraphicsCommandPool()->GetCommandBuffer(Swapchain->GetCurrentFrameIndex());
@@ -489,6 +532,9 @@ void VulkanRenderer2D::Destroy()
 
     for (auto& QuadVertexBuffer : s_Data.QuadVertexBuffers)
         QuadVertexBuffer->Destroy();
+
+    for (auto& QuadVertexStagingBuffer : s_Data.StagingStorage.StagingBuffers)
+        BufferUtils::DestroyBuffer((*QuadVertexStagingBuffer).Buffer);
 
     s_Data.QuadIndexBuffer->Destroy();
 

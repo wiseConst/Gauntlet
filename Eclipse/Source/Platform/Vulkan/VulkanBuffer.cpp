@@ -5,6 +5,7 @@
 #include "VulkanCommandPool.h"
 #include "VulkanDevice.h"
 #include "VulkanAllocator.h"
+#include "VulkanUtility.h"
 
 /*
  * In the very beginning all our data is stored in RAM,
@@ -53,7 +54,7 @@ void CreateBuffer(const EBufferUsage InBufferUsage, const VkDeviceSize InSize, A
     InOutAllocatedBuffer.Allocation = Context.GetAllocator()->CreateBuffer(BufferCreateInfo, &InOutAllocatedBuffer.Buffer, InMemoryUsage);
 }
 
-void CopyBuffer(VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize)
+void CopyBuffer(const VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
@@ -81,6 +82,17 @@ void DestroyBuffer(AllocatedBuffer& InBuffer)
     InBuffer.Allocation = VK_NULL_HANDLE;
 }
 
+// Usually used for copying data to staging buffer
+void CopyDataToBuffer(AllocatedBuffer& InBuffer, const VkDeviceSize InDataSize, const void* InData)
+{
+    auto& Context = (VulkanContext&)VulkanContext::Get();
+
+    ELS_ASSERT(InData, "Data you want to copy is not valid!");
+    void* Mapped = Context.GetAllocator()->Map(InBuffer.Allocation);
+    memcpy(Mapped, InData, InDataSize);
+    Context.GetAllocator()->Unmap(InBuffer.Allocation);
+}
+
 }  // namespace BufferUtils
 
 // VERTEX
@@ -94,15 +106,9 @@ void VulkanVertexBuffer::SetData(const void* InData, const size_t InDataSize)
         BufferUtils::DestroyBuffer(m_AllocatedBuffer);
     }
 
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-
     AllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, InDataSize, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
-
-    ELS_ASSERT(InData, "Vertex buffer data is null!");
-    void* Mapped = Context.GetAllocator()->Map(StagingBuffer.Allocation);
-    memcpy(Mapped, InData, InDataSize);
-    Context.GetAllocator()->Unmap(StagingBuffer.Allocation);
+    BufferUtils::CopyDataToBuffer(StagingBuffer, InDataSize, InData);
 
     BufferUtils::CreateBuffer(EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST, InDataSize, m_AllocatedBuffer,
                               VMA_MEMORY_USAGE_GPU_ONLY);
@@ -116,18 +122,38 @@ void VulkanVertexBuffer::Destroy()
     BufferUtils::DestroyBuffer(m_AllocatedBuffer);
 }
 
+void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& InStagingBuffer, const VkDeviceSize InBufferDataSize)
+{
+    // First call on this vertex buffer
+    if (!m_AllocatedBuffer.Buffer)
+    {
+        BufferUtils::CreateBuffer(EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST, InBufferDataSize, m_AllocatedBuffer,
+                                  VMA_MEMORY_USAGE_GPU_ONLY);
+    }
+
+    // Special case if created buffer above has size less than we need to put into it.
+    auto& Context                    = (VulkanContext&)VulkanContext::Get();
+    VmaAllocationInfo AllocationInfo = {};
+    Context.GetAllocator()->QueryAllocationInfo(AllocationInfo, m_AllocatedBuffer.Allocation);
+
+    // If new buffer data size greater than we our current buffer size, then recreate it
+    if (InBufferDataSize > AllocationInfo.size)
+    {
+        BufferUtils::DestroyBuffer(m_AllocatedBuffer);
+        BufferUtils::CreateBuffer(EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST, InBufferDataSize, m_AllocatedBuffer,
+                                  VMA_MEMORY_USAGE_GPU_ONLY);
+    }
+
+    BufferUtils::CopyBuffer(InStagingBuffer.Buffer, m_AllocatedBuffer.Buffer, InBufferDataSize);
+}
+
 // INDEX
 
 VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& InBufferInfo) : IndexBuffer(InBufferInfo), m_IndicesCount(InBufferInfo.Count)
 {
-    auto& Context                 = (VulkanContext&)VulkanContext::Get();
     AllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, InBufferInfo.Size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
-
-    ELS_ASSERT(InBufferInfo.Data, "Index buffer data is null!");
-    void* Mapped = Context.GetAllocator()->Map(StagingBuffer.Allocation);
-    memcpy(Mapped, InBufferInfo.Data, InBufferInfo.Size);
-    Context.GetAllocator()->Unmap(StagingBuffer.Allocation);
+    BufferUtils::CopyDataToBuffer(StagingBuffer, InBufferInfo.Size, InBufferInfo.Data);
 
     BufferUtils::CreateBuffer(InBufferInfo.Usage | EBufferUsageFlags::TRANSFER_DST, InBufferInfo.Size, m_AllocatedBuffer,
                               VMA_MEMORY_USAGE_GPU_ONLY);

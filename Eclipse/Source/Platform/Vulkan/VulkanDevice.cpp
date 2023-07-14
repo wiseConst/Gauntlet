@@ -6,6 +6,8 @@
 
 namespace Eclipse
 {
+
+
 static const char* GetVendorNameCString(uint32_t vendorID)
 {
     switch (vendorID)
@@ -121,9 +123,9 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     const float QueuePriority = 1.0f;  // [0.0, 1.0]
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos = {};
-    std::set<uint32_t> UniqueQueueFamilies{m_GPUInfo.QueueFamilyIndices.GetGraphicsFamily(),
-                                           m_GPUInfo.QueueFamilyIndices.GetPresentFamily(),
-                                           m_GPUInfo.QueueFamilyIndices.GetTransferFamily()};
+    std::set<uint32_t> UniqueQueueFamilies{m_GPUInfo.QueueFamilyIndices.GraphicsFamily,
+                                           m_GPUInfo.QueueFamilyIndices.PresentFamily,
+                                           m_GPUInfo.QueueFamilyIndices.TransferFamily};
 
     for (auto QueueFamily : UniqueQueueFamilies)
     {
@@ -159,9 +161,9 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     }
     volkLoadDevice(m_GPUInfo.LogicalDevice);
 
-    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetGraphicsFamily(), 0, &m_GPUInfo.GraphicsQueue);
-    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetPresentFamily(), 0, &m_GPUInfo.PresentQueue);
-    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GetTransferFamily(), 0, &m_GPUInfo.TransferQueue);
+    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.GraphicsFamily, 0, &m_GPUInfo.GraphicsQueue);
+    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.PresentFamily, 0, &m_GPUInfo.PresentQueue);
+    vkGetDeviceQueue(m_GPUInfo.LogicalDevice, m_GPUInfo.QueueFamilyIndices.TransferFamily, 0, &m_GPUInfo.TransferQueue);
 
     ELS_ASSERT(m_GPUInfo.GraphicsQueue && m_GPUInfo.PresentQueue && m_GPUInfo.TransferQueue, "Failed to retrieve queue handles!");
 }
@@ -308,7 +310,6 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSu
         SwapchainSupportDetails Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(InGPUInfo.PhysicalDevice, InSurface);
         bIsSwapchainAdequate            = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
     }
-
 
     ELS_ASSERT(InGPUInfo.GPUProperties.limits.maxSamplerAnisotropy > 0, "GPU has not valid Max Sampler Anisotropy!");
     return InGPUInfo.GPUFeatures.samplerAnisotropy && InGPUInfo.GPUFeatures.geometryShader && Indices.IsComplete() &&

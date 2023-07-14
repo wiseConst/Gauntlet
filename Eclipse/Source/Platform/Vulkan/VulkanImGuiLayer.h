@@ -3,17 +3,21 @@
 #include "Eclipse/ImGui/ImGuiLayer.h"
 
 #include "volk/volk.h"
+
 #include "VulkanRenderPass.h"
 #include "VulkanCommandPool.h"
 
 namespace Eclipse
 {
-class VulkanCommandPool;
+
+// Forward decls compile error
+//class VulkanCommandPool;
+//class VulkanRenderPass;
 
 class VulkanImGuiLayer final : public ImGuiLayer
 {
   public:
-    VulkanImGuiLayer() : ImGuiLayer("ImGuiLayer"){};
+    VulkanImGuiLayer() : ImGuiLayer("ImGuiLayer"), m_ImGuiCommandPool(nullptr), m_ImGuiRenderPass(nullptr){};
     ~VulkanImGuiLayer() = default;
 
     void OnAttach() final override;

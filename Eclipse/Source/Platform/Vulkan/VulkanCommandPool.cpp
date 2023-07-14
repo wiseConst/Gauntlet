@@ -1,6 +1,7 @@
 #include "EclipsePCH.h"
 #include "VulkanCommandPool.h"
 
+#include "VulkanUtility.h"
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
 

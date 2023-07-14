@@ -2,12 +2,11 @@
 
 #include "Eclipse/Renderer/Renderer2D.h"
 
-#include "VulkanContext.h"
-
 namespace Eclipse
 {
 
 class Texture2D;
+class VulkanContext;
 
 class VulkanRenderer2D final : public Renderer2D
 {

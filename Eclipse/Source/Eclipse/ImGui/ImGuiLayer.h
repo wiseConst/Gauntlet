@@ -19,8 +19,8 @@ class ImGuiLayer : public Layer
     virtual void OnEvent(Event& InEvent) {}
     virtual void OnImGuiRender() {}
 
-    virtual void OnAttach()                                                             = 0;
-    virtual void OnDetach()                                                             = 0;
+    virtual void OnAttach() = 0;
+    virtual void OnDetach() = 0;
 
     virtual void BeginRender() = 0;
     virtual void EndRender()   = 0;

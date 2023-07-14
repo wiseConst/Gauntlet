@@ -15,7 +15,7 @@ class OrthographicCamera final : public Camera
     OrthographicCamera(const float InAspectRatio = 0.0f, const float InCameraWidth = 8.0f)
         : Camera(InAspectRatio), m_CameraWidth(InCameraWidth)
     {
-        ELS_ASSERT(InCameraWidth > 0.0f, "Camera width can only be positive!");
+        ELS_ASSERT(InAspectRatio >= 0.0f && InCameraWidth > 0.0f, "Camera width && aspect ratio can only be positive!");
         SetProjection(m_AspectRatio * -m_CameraWidth, m_AspectRatio * m_CameraWidth, -m_CameraWidth, m_CameraWidth, -m_CameraWidth,
                       m_CameraWidth);
         m_ZoomLevel = m_CameraWidth;
@@ -48,10 +48,10 @@ class OrthographicCamera final : public Camera
             OnWindowResized((WindowResizeEvent&)InEvent);
         }
 
-        /*if (InEvent.GetType() == EEventType::MouseScrolledEvent)
+        if (InEvent.GetType() == EEventType::MouseScrolledEvent)
         {
             OnMouseScrolled((MouseScrolledEvent&)InEvent);
-        }*/
+        }
     }
 
     FORCEINLINE void SetProjection(const float left, const float right, const float bottom, const float top, const float zNear,
