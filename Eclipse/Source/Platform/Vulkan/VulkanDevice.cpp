@@ -7,7 +7,6 @@
 namespace Eclipse
 {
 
-
 static const char* GetVendorNameCString(uint32_t vendorID)
 {
     switch (vendorID)
@@ -123,8 +122,7 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     const float QueuePriority = 1.0f;  // [0.0, 1.0]
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos = {};
-    std::set<uint32_t> UniqueQueueFamilies{m_GPUInfo.QueueFamilyIndices.GraphicsFamily,
-                                           m_GPUInfo.QueueFamilyIndices.PresentFamily,
+    std::set<uint32_t> UniqueQueueFamilies{m_GPUInfo.QueueFamilyIndices.GraphicsFamily, m_GPUInfo.QueueFamilyIndices.PresentFamily,
                                            m_GPUInfo.QueueFamilyIndices.TransferFamily};
 
     for (auto QueueFamily : UniqueQueueFamilies)

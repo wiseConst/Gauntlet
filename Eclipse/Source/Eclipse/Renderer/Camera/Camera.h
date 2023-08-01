@@ -4,6 +4,8 @@
 #include "Eclipse/Core/Input.h"
 
 #include "Eclipse/Event/Event.h"
+#include "Eclipse/Event/WindowEvent.h"
+#include "Eclipse/Event/MouseEvent.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -18,8 +20,9 @@ namespace Eclipse
 
 class Camera : private Uncopyable, private Unmovable
 {
-
   public:
+    Camera() = default;
+
     virtual void OnUpdate(const float DeltaTime) = 0;
     virtual void OnEvent(Event& InEvent)         = 0;
 
@@ -47,13 +50,13 @@ class Camera : private Uncopyable, private Unmovable
     }
 
   protected:
-    glm::mat4 m_ProjectionMatrix;
-    glm::mat4 m_ViewMatrix;  // Currently unused
+    glm::mat4 m_ProjectionMatrix = glm::mat4(1.0f);
+    glm::mat4 m_ViewMatrix       = glm::mat4(1.0f);
 
     glm::vec3 m_Position = {0.f, 0.f, 0.f};
-    glm::vec3 m_Rotation = {0.f, 0.f, 0.f};  // Z axis in degrees
+    glm::vec3 m_Rotation = {0.f, 0.f, 0.f};
 
-    float m_AspectRatio;
+    float m_AspectRatio            = 1.0f;
     float m_CameraTranslationSpeed = 1.0f;
     float m_CameraRotationSpeed    = 180.0f;
 
@@ -67,13 +70,7 @@ class Camera : private Uncopyable, private Unmovable
     }
     virtual ~Camera() = default;
 
-    FORCEINLINE void RecalculateViewMatrix()
-    {
-        glm::mat4 TransformMatrix = glm::translate(glm::mat4(1.0f), m_Position) *
-                                    glm::rotate(glm::mat4(1.0f), glm::radians(m_Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-
-        m_ViewMatrix = glm::inverse(TransformMatrix);
-    };
+    virtual void RecalculateViewMatrix() = 0;
 };
 
 }  // namespace Eclipse

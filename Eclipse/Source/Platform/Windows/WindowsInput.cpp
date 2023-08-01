@@ -21,6 +21,18 @@ bool WindowsInput::IsMouseButtonPressedImpl(int Button) const
     return State == GLFW_PRESS || State == GLFW_REPEAT;
 }
 
+bool WindowsInput::IsKeyReleasedImpl(int KeyCode) const
+{
+    const auto State = glfwGetKey(GetNativeWindow(), KeyCode);
+    return State == GLFW_RELEASE;
+}
+
+bool WindowsInput::IsMouseButtonReleasedImpl(int Button) const
+{
+    const auto State = glfwGetMouseButton(GetNativeWindow(), Button);
+    return State == GLFW_RELEASE;
+}
+
 std::pair<int, int> WindowsInput::GetMousePositionImpl() const
 {
     std::pair<int, int> MousePosition = {0, 0};

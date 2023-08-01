@@ -2,24 +2,21 @@
 
 #include "Eclipse/Core/Core.h"
 #include "VulkanCore.h"
+#include "VulkanUtility.h"
+
 #include <volk/volk.h>
+
+#include <glm/glm.hpp>
 
 namespace Eclipse
 {
 
-/*
-    One very important part with command buffers is that they can be recorded in parallel.
-    You can record different command buffers from different threads safely.
-    To do that, you need to have 1 VkCommandPool and 1 VkCommandBuffer per thread(minimum),
-    and make sure that each thread only uses their own command buffers & pools.
-    Once that is done, it’s possible to submit the command buffers in one of the threads.
-    vkQueueSubmit is not thread - safe, only one thread can push the commands at a time.
-*/
+class VulkanPipeline;
+
 class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
 {
   public:
-    VulkanCommandBuffer() = default;
-    // VulkanCommandBuffer(const VkCommandPool& InCommandPool);
+    VulkanCommandBuffer()  = default;
     ~VulkanCommandBuffer() = default;
 
     FORCEINLINE const auto& Get() const { return m_CommandBuffer; }
@@ -27,11 +24,14 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
 
     FORCEINLINE void Reset() const { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
 
+    void BeginDebugLabel(const char* InCommandBufferLabelName = "NONAME", const glm::vec4& InLabelColor = glm::vec4(1.0f)) const;
+    FORCEINLINE void EndDebugLabel() const
+    {
+        if (bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
+    }
+
     void BeginRecording() const;
     FORCEINLINE void EndRecording() const { VK_CHECK(vkEndCommandBuffer(m_CommandBuffer), "Failed to end recording command buffer"); }
-
-    // TODO: Make it configurable
-    void SetViewportAndScissors() const;
 
     FORCEINLINE void BindPushConstants(VkPipelineLayout InPipelineLayout, const VkShaderStageFlags InShaderStageFlags,
                                        const uint32_t InOffset, const uint32_t InSize, const void* InValues = VK_NULL_HANDLE) const
@@ -48,11 +48,8 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
                                 InDynamicOffsetCount, InDynamicOffsets);
     }
 
-    FORCEINLINE void BindPipeline(const VkPipeline& InPipeline,
-                                  VkPipelineBindPoint InPipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const
-    {
-        vkCmdBindPipeline(m_CommandBuffer, InPipelineBindPoint, InPipeline);
-    }
+    void BindPipeline(const Ref<VulkanPipeline>& InPipeline,
+                      VkPipelineBindPoint InPipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
 
     FORCEINLINE void DrawIndexed(const uint32_t InIndexCount, const uint32_t InInstanceCount = 1, const uint32_t InFirstIndex = 0,
                                  const int32_t InVertexOffset = 0, const uint32_t InFirstInstance = 0) const

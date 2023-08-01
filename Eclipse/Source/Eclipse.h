@@ -28,6 +28,8 @@
 #include <Eclipse/Renderer/Camera/Camera.h>
 #include <Eclipse/Renderer/Camera/OrthographicCamera.h>
 #include <Eclipse/Renderer/Camera/PerspectiveCamera.h>
+#include <Eclipse/Renderer/Framebuffer.h>
+#include <Eclipse/Renderer/Mesh.h>
 
 // UI
 #include <Eclipse/ImGui/ImGuiLayer.h>

@@ -18,6 +18,8 @@ class KeyButtonPressedEvent final : public Event
         return formatted;
     }
 
+    EVENT_CLASS_TYPE(KeyButtonPressedEvent)
+
   private:
     int m_Key;
     int m_Scancode;
@@ -36,6 +38,8 @@ class KeyButtonReleasedEvent final : public Event
         std::string formatted = m_Name + ": (" + std::to_string(m_Key) + ", " + std::to_string(m_Scancode) + ")";
         return formatted;
     }
+
+    EVENT_CLASS_TYPE(KeyButtonReleasedEvent)
 
   private:
     int m_Key;
@@ -57,6 +61,8 @@ class KeyButtonRepeatedEvent final : public Event
                                 std::to_string(m_Action) + ", " + std::to_string(m_Count) + ")";
         return formatted;
     }
+
+    EVENT_CLASS_TYPE(KeyButtonRepeatedEvent)
 
   private:
     int m_Key;

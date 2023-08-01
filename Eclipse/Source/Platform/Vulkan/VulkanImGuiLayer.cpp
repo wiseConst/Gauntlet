@@ -14,11 +14,16 @@
 #include "VulkanSwapchain.h"
 #include "VulkanCommandBuffer.h"
 
+#include "VulkanFramebuffer.h"
+#include "VulkanCommandPool.h"
+
 namespace Eclipse
 {
 void VulkanImGuiLayer::OnAttach()
 {
-    auto& Context                                       = (VulkanContext&)VulkanContext::Get();
+    auto& Context      = (VulkanContext&)VulkanContext::Get();
+    const auto& Device = Context.GetDevice();
+
     VkDescriptorPoolSize PoolSizes[]                    = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
                                         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
@@ -36,7 +41,7 @@ void VulkanImGuiLayer::OnAttach()
     DescriptorPoolCreateInfo.maxSets                    = 1000 * IM_ARRAYSIZE(PoolSizes);
     DescriptorPoolCreateInfo.poolSizeCount              = (uint32_t)IM_ARRAYSIZE(PoolSizes);
     DescriptorPoolCreateInfo.pPoolSizes                 = PoolSizes;
-    VK_CHECK(vkCreateDescriptorPool(Context.GetDevice()->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &m_ImGuiDescriptorPool),
+    VK_CHECK(vkCreateDescriptorPool(Device->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &m_ImGuiDescriptorPool),
              "Failed to create imgui descriptor pool!");
 
     // Setup Dear ImGui context
@@ -46,8 +51,8 @@ void VulkanImGuiLayer::OnAttach()
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;  // Enable Docking
-    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Multi-Viewport / Platform Windows
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Multi-Viewport / Platform Windows
 
     // io.ConfigViewportsNoAutoMerge = true;
     // io.ConfigViewportsNoTaskBarIcon = true;
@@ -62,88 +67,74 @@ void VulkanImGuiLayer::OnAttach()
                                    { return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(VulkanInstance)), FunctionName); },
                                    &Context.GetInstance());
 
+    const auto& Swapchain = Context.GetSwapchain();
+
     // ImGui RenderPass
     {
-        RenderPassSpecification RenderPassSpec  = {};
-        VkAttachmentDescription ColorAttachment = {};
-        ColorAttachment.format                  = Context.GetSwapchain()->GetImageFormat();
-        ColorAttachment.samples                 = VK_SAMPLE_COUNT_1_BIT;
-        ColorAttachment.loadOp                  = VK_ATTACHMENT_LOAD_OP_LOAD;
-        ColorAttachment.storeOp                 = VK_ATTACHMENT_STORE_OP_STORE;
-        ColorAttachment.stencilLoadOp           = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        ColorAttachment.stencilStoreOp          = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        ColorAttachment.initialLayout           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        ColorAttachment.finalLayout             = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        FramebufferSpecification FramebufferSpec = {};
+        FramebufferSpec.bHasDepth                = false;
+        FramebufferSpec.bIsSwapchainTarget       = true;
+        FramebufferSpec.LoadOp                   = ELoadOp::LOAD;
+        FramebufferSpec.StoreOp                  = EStoreOp::STORE;
 
-        RenderPassSpec.Attachments = {ColorAttachment};
-
-        VkAttachmentReference ColorAttachmentRef = {};
-        ColorAttachmentRef.attachment            = 0;
-        ColorAttachmentRef.layout                = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        RenderPassSpec.AttachmentRefs = {ColorAttachmentRef};
-
-        VkSubpassDescription Subpass = {};
-        Subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        Subpass.colorAttachmentCount = 1;
-        Subpass.pColorAttachments    = &ColorAttachmentRef;
-        RenderPassSpec.Subpasses     = {Subpass};
-
-        VkSubpassDependency Dependency = {};
-        Dependency.srcSubpass          = VK_SUBPASS_EXTERNAL;
-        Dependency.dstSubpass          = 0;
-        Dependency.srcStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        Dependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        Dependency.srcAccessMask       = 0;
-        Dependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-        RenderPassSpec.Dependencies = {Dependency};
-
-        m_ImGuiRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
-        Context.AddResizeCallback([this] { m_ImGuiRenderPass->Invalidate(); });  // Auto render pass resize
+        m_Framebuffer.reset(new VulkanFramebuffer(FramebufferSpec));
+        Context.AddResizeCallback([this] { m_Framebuffer->InvalidateRenderPass(); });  // Auto render pass recreate
     }
 
     // ImGui CommandBuffers
     {
         CommandPoolSpecification CommandPoolSpec = {};
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
-        CommandPoolSpec.QueueFamilyIndex         = Context.GetDevice()->GetQueueFamilyIndices().GraphicsFamily;
+        CommandPoolSpec.QueueFamilyIndex         = Device->GetQueueFamilyIndices().GraphicsFamily;
 
         m_ImGuiCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
     }
+
+    const uint32_t ImageCount = Swapchain->GetImageCount();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForVulkan((GLFWwindow*)App.GetWindow()->GetNativeWindow(), true);
     ImGui_ImplVulkan_InitInfo InitInfo = {};
     InitInfo.Instance                  = Context.GetInstance();
-    InitInfo.PhysicalDevice            = Context.GetDevice()->GetPhysicalDevice();
-    InitInfo.Device                    = Context.GetDevice()->GetLogicalDevice();
-    InitInfo.QueueFamily               = Context.GetDevice()->GetQueueFamilyIndices().GraphicsFamily;
-    InitInfo.Queue                     = Context.GetDevice()->GetGraphicsQueue();
+    InitInfo.PhysicalDevice            = Device->GetPhysicalDevice();
+    InitInfo.Device                    = Device->GetLogicalDevice();
+    InitInfo.QueueFamily               = Device->GetQueueFamilyIndices().GraphicsFamily;
+    InitInfo.Queue                     = Device->GetGraphicsQueue();
     InitInfo.PipelineCache             = VK_NULL_HANDLE;
     InitInfo.DescriptorPool            = m_ImGuiDescriptorPool;
-    InitInfo.MinImageCount             = Context.GetSwapchain()->GetImageCount();
-    InitInfo.ImageCount                = Context.GetSwapchain()->GetImageCount();
+    InitInfo.MinImageCount             = ImageCount;
+    InitInfo.ImageCount                = ImageCount;
     InitInfo.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;
     InitInfo.Allocator                 = VK_NULL_HANDLE;
-    ImGui_ImplVulkan_Init(&InitInfo, m_ImGuiRenderPass->Get());
+    ImGui_ImplVulkan_Init(&InitInfo, m_Framebuffer->GetRenderPass());
 
     // Load default font
     {
-        m_DefaultFont  = io.Fonts->AddFontFromFileTTF("Resources/Fonts/Rubik-Regular.ttf", 18.0f);
-        io.FontDefault = m_DefaultFont;
+        const auto FontPath = std::string(ASSETS_PATH) + std::string("Fonts/Rubik-Regular.ttf");
+        m_DefaultFont       = io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
+        io.FontDefault      = m_DefaultFont;
 
-        auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Context.GetDevice()->GetLogicalDevice());
+        auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Device->GetLogicalDevice());
         ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
 
-        Utility::EndSingleTimeCommands(CommandBuffer, m_ImGuiCommandPool->Get(), Context.GetDevice()->GetGraphicsQueue(),
-                                       Context.GetDevice()->GetLogicalDevice());
+        Utility::EndSingleTimeCommands(CommandBuffer, m_ImGuiCommandPool->Get(), Device->GetGraphicsQueue(), Device->GetLogicalDevice());
         Context.GetDevice()->WaitDeviceOnFinish();
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
 #if ELS_DEBUG
     LOG_INFO("ImGui created!");
+#endif
+
+#if ELS_EDITOR
+    const auto& MainFramebuffer = Context.GetViewportFramebuffer();
+
+    for (uint32_t i = 0; i < ImageCount; ++i)
+    {
+        const auto& ColorAttachment = MainFramebuffer->GetColorAttachments()[i];
+        m_TextureIDs.push_back(ImGui_ImplVulkan_AddTexture(ColorAttachment->GetSampler(), ColorAttachment->GetView(),
+                                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+    }
 #endif
 }
 
@@ -155,7 +146,7 @@ void VulkanImGuiLayer::OnDetach()
     Context.GetDevice()->WaitDeviceOnFinish();
     vkDestroyDescriptorPool(Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
 
-    m_ImGuiRenderPass->Destroy();
+    m_Framebuffer->Destroy();
     m_ImGuiCommandPool->Destroy();
 
     ImGui_ImplVulkan_Shutdown();
@@ -175,17 +166,72 @@ void VulkanImGuiLayer::BeginRender()
 
     const auto& CommandBuffer = m_ImGuiCommandPool->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex());
     CommandBuffer.BeginRecording();
+    CommandBuffer.BeginDebugLabel("ImGui", glm::vec4(0.0f, 0.0f, 0.8f, 1.0f));
 
-    m_ImGuiRenderPass->Begin(CommandBuffer.Get(), {{0.1f, 0.1f, 0.1f, 1.0f}});
-
-    /*static bool ShowDemoWindow = true;
-    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
+    m_Framebuffer->BeginRenderPass(CommandBuffer.Get());
 }
 
 void VulkanImGuiLayer::EndRender()
 {
     const auto& Context       = (VulkanContext&)VulkanContext::Get();
     const auto& CommandBuffer = m_ImGuiCommandPool->GetCommandBuffer(Context.GetSwapchain()->GetCurrentFrameIndex());
+
+#if ELS_EDITOR
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
+
+    ImGui::Begin("Viewport");
+    m_ViewportSize             = ImGui::GetContentRegionAvail();
+    const auto MainFramebuffer = Context.GetViewportFramebuffer();
+
+    // float ImageAspectRatio =
+    //     MainFramebuffer->GetColorAttachments()[0]->GetWidth() / (float)MainFramebuffer->GetColorAttachments()[0]->GetHeight();
+    // const float ViewportAspectRatio = m_ViewportSize.x / m_ViewportSize.y;
+
+    //// Scale the image horizontally if the viewport region is wider than the image
+    // if (ViewportAspectRatio > ImageAspectRatio)
+    //{
+    //     float NewViewportWidth = m_ViewportSize.y * ImageAspectRatio;
+    //     float xPadding         = (m_ViewportSize.x - NewViewportWidth) / 2;
+    //     //ImGui::SetCursorPosX(ImGui::GetCursorPosX() + xPadding);
+    //     m_ViewportSize.x = NewViewportWidth;
+    // }
+    //// Scale the image vertically if the viewport region is taller than the image
+    // else if (ViewportAspectRatio != ImageAspectRatio)
+    //{
+    //     float NewViewportHeight = m_ViewportSize.x / ImageAspectRatio;
+    //     float yPadding          = (m_ViewportSize.y - ImageAspectRatio) / 2;
+    //     //ImGui::SetCursorPosY(ImGui::GetCursorPosY() + yPadding);
+    //     m_ViewportSize.y = NewViewportHeight;
+    // }
+
+    if (m_ViewportSize.x != MainFramebuffer->GetColorAttachments()[0]->GetWidth() ||
+        m_ViewportSize.y != MainFramebuffer->GetColorAttachments()[0]->GetHeight())
+    {
+        Context.GetDevice()->WaitDeviceOnFinish();
+        MainFramebuffer->GetSpec().Width  = m_ViewportSize.x;
+        MainFramebuffer->GetSpec().Height = m_ViewportSize.y;
+        MainFramebuffer->InvalidateRenderPass();
+
+        for (uint32_t i = 0; i < Context.GetSwapchain()->GetImageCount(); ++i)
+        {
+            const auto& ColorAttachment = MainFramebuffer->GetColorAttachments()[i];
+            m_TextureIDs[i]             = ImGui_ImplVulkan_AddTexture(ColorAttachment->GetSampler(), ColorAttachment->GetView(),
+                                                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        }
+    }
+    else
+    {
+        ImGui::Image(m_TextureIDs[Context.GetSwapchain()->GetCurrentImageIndex()], m_ViewportSize);
+    }
+    ImGui::End();
+
+    ImGui::PopStyleVar();
+
+#endif
+
+    /*static bool ShowDemoWindow = true;
+    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
 
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), CommandBuffer.Get());
@@ -200,7 +246,8 @@ void VulkanImGuiLayer::EndRender()
         glfwMakeContextCurrent(BackupCurrentContext);
     }
 
-    m_ImGuiRenderPass->End(CommandBuffer.Get());
+    CommandBuffer.EndDebugLabel();
+    m_Framebuffer->EndRenderPass(CommandBuffer.Get());
     CommandBuffer.EndRecording();
 
     VkSubmitInfo SubmitInfo       = {};

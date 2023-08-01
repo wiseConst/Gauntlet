@@ -131,12 +131,12 @@ void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& InStagingBuffer, c
                                   VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    // Special case if created buffer above has size less than we need to put into it.
+    // Special case if created buffer above has less size than we need to put into it.
     auto& Context                    = (VulkanContext&)VulkanContext::Get();
     VmaAllocationInfo AllocationInfo = {};
     Context.GetAllocator()->QueryAllocationInfo(AllocationInfo, m_AllocatedBuffer.Allocation);
 
-    // If new buffer data size greater than we our current buffer size, then recreate it
+    // If new buffer data size greater than our current buffer size, then recreate it
     if (InBufferDataSize > AllocationInfo.size)
     {
         BufferUtils::DestroyBuffer(m_AllocatedBuffer);

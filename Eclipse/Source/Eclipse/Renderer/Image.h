@@ -5,7 +5,7 @@
 
 namespace Eclipse
 {
-enum class EImageFormat
+enum class EImageFormat : uint8_t
 {
     NONE = 0,
     RGB,
@@ -24,7 +24,7 @@ enum class EAnisotropyLevel : uint32_t
     X16 = 16
 };
 
-enum class EImageUsage
+enum class EImageUsage : uint8_t
 {
     NONE = 0,
     TEXTURE,
@@ -39,18 +39,25 @@ enum class ELoadImageType : uint8_t
     RGB_ALPHA,
 };
 
-enum class ETextureWrap
+enum class ETextureWrap : uint8_t
 {
     NONE = 0,
     CLAMP,
     REPEAT
 };
 
-enum class ETextureFilter
+enum class ETextureFilter : uint8_t
 {
-    None = 0,
+    NONE = 0,
     LINEAR,
     NEAREST
+};
+
+enum class EImageTiling : uint8_t
+{
+    NONE = 0,
+    OPTIMAL,
+    LINEAR
 };
 
 struct ImageSpecification
@@ -61,15 +68,15 @@ struct ImageSpecification
     uint32_t Mips   = 1;
     uint32_t Layers = 1;
 
-    EImageFormat Format   = EImageFormat::RGBA;
-    EImageUsage Usage     = EImageUsage::TEXTURE;
-    ETextureWrap Wrap     = ETextureWrap::REPEAT;
-    ETextureFilter Filter = ETextureFilter::LINEAR;
-
+    EImageFormat Format              = EImageFormat::RGBA;
+    EImageUsage Usage                = EImageUsage::TEXTURE;
+    ETextureWrap Wrap                = ETextureWrap::REPEAT;
+    ETextureFilter Filter            = ETextureFilter::LINEAR;
+    EImageTiling Tiling              = EImageTiling::OPTIMAL;
     EAnisotropyLevel AnisotropyLevel = EAnisotropyLevel::X4;
 
     bool Copyable   = false;
-    bool Comparable = false;  // For shadow passes only
+    bool Comparable = false;
 };
 
 class Image

@@ -1,7 +1,5 @@
 #pragma once
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -16,6 +14,23 @@ struct QuadVertex
     float TextureId;
 };
 
+struct MeshVertex
+{
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec4 Color;
+    glm::vec2 TexCoord;
+    glm::vec3 Tangent;
+    glm::vec3 Bitangent;
+};
+
+struct Vertex
+{
+    Vertex(const glm::vec3& InPosition) : Position(InPosition) {}
+
+    glm::vec3 Position;
+};
+
 // From vkguide.dev unused currently
 struct SceneDataBuffer
 {
@@ -26,11 +41,11 @@ struct SceneDataBuffer
     glm::vec4 SunlightColor;
 };
 
-struct alignas(16) CameraDataBuffer
+struct CameraDataBuffer
 {
     glm::mat4 View;
     glm::mat4 Projection;
-    glm::mat4 ViewProjection;
+    alignas(16) glm::vec3 Position;
 };
 
 struct alignas(16) MeshPushConstants

@@ -6,6 +6,7 @@
 namespace Eclipse
 {
 class VulkanShader;
+class VulkanFramebuffer;
 
 enum class EPrimitiveTopology : uint8_t
 {
@@ -126,13 +127,7 @@ class VulkanPipeline final
     FORCEINLINE const auto& GetLayout() const { return m_PipelineLayout; }
     FORCEINLINE auto& GetLayout() { return m_PipelineLayout; }
 
-    // TEST PURPOSES
     FORCEINLINE const auto& GetPushConstantsShaderStageFlags(const uint32_t Index = 0) const
-    {
-        return m_PipelineSpecification.PushConstantRanges[Index].stageFlags;
-    }
-
-    FORCEINLINE auto& GetPushConstantsShaderStageFlags(const uint32_t Index = 0)
     {
         return m_PipelineSpecification.PushConstantRanges[Index].stageFlags;
     }

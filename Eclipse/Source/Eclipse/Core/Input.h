@@ -16,6 +16,9 @@ class Input : private Uncopyable, private Unmovable
     static FORCEINLINE bool IsKeyPressed(int KeyCode) { return s_Instance->IsKeyPressedImpl(KeyCode); }
     static FORCEINLINE bool IsMouseButtonPressed(int Button) { return s_Instance->IsMouseButtonPressedImpl(Button); }
 
+    static FORCEINLINE bool IsKeyReleased(int KeyCode) { return s_Instance->IsKeyReleasedImpl(KeyCode); }
+    static FORCEINLINE bool IsMouseButtonReleased(int Button) { return s_Instance->IsMouseButtonReleasedImpl(Button); }
+
     static FORCEINLINE std::pair<int, int> GetMousePosition() { return s_Instance->GetMousePositionImpl(); }
     static FORCEINLINE int GetMouseX() { return s_Instance->GetMouseXImpl(); }
     static FORCEINLINE int GetMouseY() { return s_Instance->GetMouseYImpl(); }
@@ -28,6 +31,9 @@ class Input : private Uncopyable, private Unmovable
 
     virtual bool IsKeyPressedImpl(int KeyCode) const        = 0;
     virtual bool IsMouseButtonPressedImpl(int Button) const = 0;
+
+    virtual bool IsKeyReleasedImpl(int KeyCode) const        = 0;
+    virtual bool IsMouseButtonReleasedImpl(int Button) const = 0;
 
     virtual std::pair<int, int> GetMousePositionImpl() const = 0;
     virtual int GetMouseXImpl() const                        = 0;

@@ -35,9 +35,14 @@ void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageVi
 
 VkFormat EclipseImageFormatToVulkan(EImageFormat InImageFormat);
 
-void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout);
+void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout, const bool InIsCubeMap = false);
 
-void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent);
+void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent,
+                           const bool InIsCubeMap = false);
+
+VkFilter EclipseTextureFilterToVulkan(ETextureFilter InTextureFilter);
+
+VkSamplerAddressMode EclipseTextureWrapToVulkan(ETextureWrap InTextureWrap);
 
 }  // namespace ImageUtils
 
@@ -56,13 +61,16 @@ class VulkanImage final : public Image
     FORCEINLINE const auto& GetView() const { return m_Image.ImageView; }
     FORCEINLINE auto& GetView() { return m_Image.ImageView; }
 
-    FORCEINLINE const auto GetFormat() const { return ImageUtils::EclipseImageFormatToVulkan(m_ImageSpecification.Format); }
-    FORCEINLINE auto GetFormat() { return ImageUtils::EclipseImageFormatToVulkan(m_ImageSpecification.Format); }
+    FORCEINLINE const auto& GetSampler() const { return m_Sampler; }
+    FORCEINLINE auto& GetSampler() { return m_Sampler; }
 
-    FORCEINLINE const ImageSpecification& GetSpecification() { return m_ImageSpecification; }
+    FORCEINLINE const auto GetFormat() const { return ImageUtils::EclipseImageFormatToVulkan(m_Specification.Format); }
+    FORCEINLINE auto GetFormat() { return ImageUtils::EclipseImageFormatToVulkan(m_Specification.Format); }
 
-    FORCEINLINE uint32_t GetWidth() const final override { return m_ImageSpecification.Width; }
-    FORCEINLINE uint32_t GetHeight() const final override { return m_ImageSpecification.Height; }
+    FORCEINLINE const ImageSpecification& GetSpecification() { return m_Specification; }
+
+    FORCEINLINE uint32_t GetWidth() const final override { return m_Specification.Width; }
+    FORCEINLINE uint32_t GetHeight() const final override { return m_Specification.Height; }
     FORCEINLINE float GetAspectRatio() const final override
     {
         ELS_ASSERT(GetHeight() != 0, "Zero divison!");
@@ -71,14 +79,20 @@ class VulkanImage final : public Image
 
     FORCEINLINE void SetExtent(const VkExtent2D& InExtent)
     {
-        m_ImageSpecification.Width  = InExtent.width;
-        m_ImageSpecification.Height = InExtent.height;
+        m_Specification.Width  = InExtent.width;
+        m_Specification.Height = InExtent.height;
     }
 
+    FORCEINLINE const auto& GetDescriptorInfo() const { return m_DescriptorImageInfo; }
+
   private:
-    ImageSpecification m_ImageSpecification;
+    ImageSpecification m_Specification;
 
     AllocatedImage m_Image;
+    VkSampler m_Sampler = VK_NULL_HANDLE;
+    VkDescriptorImageInfo m_DescriptorImageInfo;
+
+    void CreateSampler();
 };
 
 }  // namespace Eclipse

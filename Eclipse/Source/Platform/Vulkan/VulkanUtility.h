@@ -22,9 +22,9 @@ const std::vector<const char*> DeviceExtensions = {
 };
 
 #ifdef ELS_DEBUG
-constexpr bool bEnableValidationLayers = true;
+static constexpr bool bEnableValidationLayers = true;
 #else
-constexpr bool bEnableValidationLayers = false;
+static constexpr bool bEnableValidationLayers = false;
 #endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -215,6 +215,8 @@ static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInfo(
     return DescriptorSetLayoutCreateInfo;
 }
 
+// InMaxSetCount -  How many descriptor sets can be allocated from the pool
+//  How many things can be submitted to descriptor depending on it's type (mb it's wrong)
 static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t InPoolSizeCount, const uint32_t InMaxSetCount,
                                                               const VkDescriptorPoolSize* InPoolSizes,
                                                               VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags = 0,

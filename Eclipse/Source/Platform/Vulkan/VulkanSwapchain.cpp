@@ -20,6 +20,27 @@ VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& I
     Invalidate();
 }
 
+void VulkanSwapchain::BeginRenderPass(const VkCommandBuffer& InCommandBuffer)
+{
+    std::vector<VkClearValue> ClearValues(2);
+    ClearValues[0].color        = {m_ClearColor};
+    ClearValues[1].depthStencil = {1.0f};
+
+    VkRenderPassBeginInfo RenderPassBeginInfo = {};
+    RenderPassBeginInfo.sType                 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    RenderPassBeginInfo.framebuffer           = m_Framebuffers[m_ImageIndex];
+    RenderPassBeginInfo.pClearValues          = ClearValues.data();
+    RenderPassBeginInfo.clearValueCount       = static_cast<uint32_t>(ClearValues.size());
+    RenderPassBeginInfo.renderPass            = m_RenderPass;
+
+    VkRect2D RenderArea            = {};
+    RenderArea.offset              = {0, 0};
+    RenderArea.extent              = m_SwapchainImageExtent;
+    RenderPassBeginInfo.renderArea = RenderArea;
+
+    vkCmdBeginRenderPass(InCommandBuffer, &RenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
 bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence)
 {
     const auto result =
@@ -60,6 +81,7 @@ void VulkanSwapchain::Invalidate()
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     if (m_DepthImage) m_DepthImage->Destroy();
+    if (m_RenderPass) DestroyRenderPass();
 
     const auto OldSwapchain = m_Swapchain;
     if (OldSwapchain)
@@ -132,6 +154,7 @@ void VulkanSwapchain::Invalidate()
                                     m_SwapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
+    // First call return.
     if (!m_DepthImage)
     {
         // Depth Buffer
@@ -142,6 +165,8 @@ void VulkanSwapchain::Invalidate()
         DepthImageSpec.Width  = m_SwapchainImageExtent.width;
         m_DepthImage.reset(new VulkanImage(DepthImageSpec));
 
+        InvalidateRenderPass();
+
         return;
     }
 
@@ -149,19 +174,111 @@ void VulkanSwapchain::Invalidate()
     {
         m_DepthImage->SetExtent(m_SwapchainImageExtent);
         m_DepthImage->Create();
+
+        InvalidateRenderPass();
     }
 }
 
 void VulkanSwapchain::Destroy()
 {
-    if (m_DepthImage) m_DepthImage->Destroy();
-
     vkDestroySwapchainKHR(m_Device->GetLogicalDevice(), m_Swapchain, nullptr);
 
     for (auto& ImageView : m_SwapchainImageViews)
     {
         vkDestroyImageView(m_Device->GetLogicalDevice(), ImageView, nullptr);
     }
+
+    m_DepthImage->Destroy();
+    DestroyRenderPass();
+}
+
+void VulkanSwapchain::InvalidateRenderPass()
+{
+    // RenderPass creation
+    {
+        std::vector<VkAttachmentDescription> Attachments(2);
+        Attachments[0].format         = VK_FORMAT_B8G8R8A8_UNORM /*m_Swapchain->GetImageFormat()*/;
+        Attachments[0].samples        = VK_SAMPLE_COUNT_1_BIT;
+        Attachments[0].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        Attachments[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        Attachments[0].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        Attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        Attachments[0].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        Attachments[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        Attachments[1].format         = m_DepthImage->GetFormat();
+        Attachments[1].samples        = VK_SAMPLE_COUNT_1_BIT;
+        Attachments[1].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        Attachments[1].storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        Attachments[1].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        Attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        Attachments[1].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        Attachments[1].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        std::vector<VkAttachmentReference> AttachmentRefs(2);
+        AttachmentRefs[0].attachment = 0;
+        AttachmentRefs[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        AttachmentRefs[1].attachment = 1;
+        AttachmentRefs[1].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        std::vector<VkSubpassDescription> Subpasses(1);
+        Subpasses[0].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        Subpasses[0].colorAttachmentCount    = 1;
+        Subpasses[0].pColorAttachments       = &AttachmentRefs[0];
+        Subpasses[0].pDepthStencilAttachment = &AttachmentRefs[1];
+
+        std::vector<VkSubpassDependency> Dependencies(1);
+        Dependencies[0].srcSubpass    = VK_SUBPASS_EXTERNAL;
+        Dependencies[0].dstSubpass    = 0;
+        Dependencies[0].srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        Dependencies[0].dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        Dependencies[0].srcAccessMask = 0;
+        Dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        VkRenderPassCreateInfo RenderPassCreateInfo = {};
+        RenderPassCreateInfo.sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        RenderPassCreateInfo.dependencyCount        = static_cast<uint32_t>(Dependencies.size());
+        RenderPassCreateInfo.pDependencies          = Dependencies.data();
+        RenderPassCreateInfo.pSubpasses             = Subpasses.data();
+        RenderPassCreateInfo.subpassCount           = static_cast<uint32_t>(Subpasses.size());
+        RenderPassCreateInfo.pAttachments           = Attachments.data();
+        RenderPassCreateInfo.attachmentCount        = static_cast<uint32_t>(Attachments.size());
+
+        VK_CHECK(vkCreateRenderPass(m_Device->GetLogicalDevice(), &RenderPassCreateInfo, nullptr, &m_RenderPass),
+                 "Failed to create swapchain render pass!");
+    }
+
+    // Framebuffers creation
+
+    m_Framebuffers.resize(m_SwapchainImageCount);
+
+    VkImageView Attachments[2] = {m_SwapchainImageViews[0], m_DepthImage->GetView()};
+
+    VkFramebufferCreateInfo FramebufferCreateInfo = {};
+    FramebufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    FramebufferCreateInfo.width                   = m_SwapchainImageExtent.width;
+    FramebufferCreateInfo.height                  = m_SwapchainImageExtent.height;
+    FramebufferCreateInfo.layers                  = 1;
+    FramebufferCreateInfo.pAttachments            = &Attachments[0];
+    FramebufferCreateInfo.attachmentCount         = 2;
+    FramebufferCreateInfo.renderPass              = m_RenderPass;
+
+    for (uint32_t i = 0; i < m_SwapchainImageCount; ++i)
+    {
+        Attachments[0] = m_SwapchainImageViews[i];
+
+        VK_CHECK(vkCreateFramebuffer(m_Device->GetLogicalDevice(), &FramebufferCreateInfo, nullptr, &m_Framebuffers[i]),
+                 "Failed to create framebuffer!");
+    }
+}
+
+void VulkanSwapchain::DestroyRenderPass()
+{
+    vkDestroyRenderPass(m_Device->GetLogicalDevice(), m_RenderPass, nullptr);
+
+    for (auto& Framebuffer : m_Framebuffers)
+        vkDestroyFramebuffer(m_Device->GetLogicalDevice(), Framebuffer, nullptr);
 }
 
 }  // namespace Eclipse

@@ -43,15 +43,9 @@ class OrthographicCamera final : public Camera
 
     void OnEvent(Event& InEvent) final override
     {
-        if (InEvent.GetType() == EEventType::WindowResizeEvent)
-        {
-            OnWindowResized((WindowResizeEvent&)InEvent);
-        }
-
-        if (InEvent.GetType() == EEventType::MouseScrolledEvent)
-        {
-            OnMouseScrolled((MouseScrolledEvent&)InEvent);
-        }
+        EventDispatcher dispatcher(InEvent);
+        dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(OrthographicCamera::OnWindowResized));
+        dispatcher.Dispatch<MouseScrolledEvent>(BIND_EVENT_FN(OrthographicCamera::OnMouseScrolled));
     }
 
     FORCEINLINE void SetProjection(const float left, const float right, const float bottom, const float top, const float zNear,
@@ -85,6 +79,14 @@ class OrthographicCamera final : public Camera
 
         SetProjection(m_AspectRatio * -m_ZoomLevel, m_AspectRatio * m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel);
     }
+
+    void RecalculateViewMatrix() final override
+    {
+        glm::mat4 TransformMatrix = glm::translate(glm::mat4(1.0f), m_Position) *
+                                    glm::rotate(glm::mat4(1.0f), glm::radians(m_Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        m_ViewMatrix = glm::inverse(TransformMatrix);
+    };
 };
 
 }  // namespace Eclipse

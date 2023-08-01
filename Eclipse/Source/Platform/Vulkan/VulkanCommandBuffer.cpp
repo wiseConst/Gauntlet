@@ -3,6 +3,7 @@
 
 #include "VulkanContext.h"
 #include "VulkanSwapchain.h"
+#include "VulkanPipeline.h"
 
 namespace Eclipse
 {
@@ -14,8 +15,25 @@ void VulkanCommandBuffer::BeginRecording() const
     VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &CommandBufferBeginInfo), "Failed to begin command buffer recording!");
 }
 
-void VulkanCommandBuffer::SetViewportAndScissors() const
+void VulkanCommandBuffer::BeginDebugLabel(const char* InCommandBufferLabelName, const glm::vec4& InLabelColor) const
 {
+    if (bEnableValidationLayers)
+    {
+        VkDebugUtilsLabelEXT CommandBufferLabelEXT = {};
+        CommandBufferLabelEXT.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        CommandBufferLabelEXT.pLabelName           = InCommandBufferLabelName;
+        CommandBufferLabelEXT.color[0]             = InLabelColor.r;
+        CommandBufferLabelEXT.color[1]             = InLabelColor.g;
+        CommandBufferLabelEXT.color[2]             = InLabelColor.b;
+        CommandBufferLabelEXT.color[3]             = InLabelColor.a;
+
+        vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
+    }
+}
+
+void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& InPipeline, VkPipelineBindPoint InPipelineBindPoint) const
+{
+
     auto& Context         = (VulkanContext&)VulkanContext::Get();
     const auto& Swapchain = Context.GetSwapchain();
     ELS_ASSERT(Swapchain->IsValid(), "Vulkan swapchain is not valid!");
@@ -31,6 +49,8 @@ void VulkanCommandBuffer::SetViewportAndScissors() const
 
     VkRect2D Scissor = {{0, 0}, Swapchain->GetImageExtent()};
     vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
+
+    vkCmdBindPipeline(m_CommandBuffer, InPipelineBindPoint, InPipeline->Get());
 }
 
 }  // namespace Eclipse

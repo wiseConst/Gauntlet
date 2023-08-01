@@ -9,12 +9,15 @@ namespace Eclipse
 {
 #define OUT_MESSAGE_LENGTH 32000
 
+std::mutex Log::s_LogMutex;
+
 void Log::Init() {}
 
 void Log::Shutdown() {}
 
 void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
 {
+    std::scoped_lock m_Lock(s_LogMutex);
     constexpr char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: ", "[TRACE]: "};
     // const bool bIsError = InLogLevel < ELogLevel::LL_WARN;
 

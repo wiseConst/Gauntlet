@@ -1,0 +1,11 @@
+Model Information:
+* title:	Stanford Bunny (Zipper reconstruction)
+* source:	https://sketchfab.com/3d-models/stanford-bunny-zipper-reconstruction-6b197d03ba2447ba83ae94f64b908539
+* author:	3D graphics 101 (https://sketchfab.com/3dgraphics)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Stanford Bunny (Zipper reconstruction)" (https://sketchfab.com/3d-models/stanford-bunny-zipper-reconstruction-6b197d03ba2447ba83ae94f64b908539) by 3D graphics 101 (https://sketchfab.com/3dgraphics) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

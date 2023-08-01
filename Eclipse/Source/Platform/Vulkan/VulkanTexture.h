@@ -6,6 +6,14 @@
 
 namespace Eclipse
 {
+struct TextureCreateInfo
+{
+    const void* Data  = nullptr;
+    size_t DataSize   = 0;
+    uint32_t Width    = 0;
+    uint32_t Height   = 0;
+    uint16_t Channels = 4;
+};
 
 class VulkanTexture2D final : public Texture2D
 {
@@ -22,15 +30,14 @@ class VulkanTexture2D final : public Texture2D
     FORCEINLINE const auto& GetImage() const { return m_Image; }
     FORCEINLINE const auto& GetImage() { return m_Image; }
 
-    FORCEINLINE const auto& GetSampler() const { return m_Sampler; }
-    FORCEINLINE auto& GetSampler() { return m_Sampler; }
+    FORCEINLINE const auto& GetImageDescriptorInfo() const { return m_Image->GetDescriptorInfo(); }
 
     void Destroy() final override;
 
   private:
     Ref<VulkanImage> m_Image;
 
-    VkSampler m_Sampler = VK_NULL_HANDLE;
+    void Create(const TextureCreateInfo& InTextureCreateInfo);
 };
 
 }  // namespace Eclipse

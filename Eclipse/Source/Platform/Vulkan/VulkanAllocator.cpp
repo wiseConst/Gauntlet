@@ -6,7 +6,7 @@
 #include "VulkanDevice.h"
 #include "VulkanTexture.h"
 
-#include "Eclipse/Renderer/Renderer2D.h"
+#include "Eclipse/Renderer/Renderer.h"
 
 namespace Eclipse
 {
@@ -45,10 +45,12 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreat
 
     VmaAllocationInfo AllocationInfo = {};
     QueryAllocationInfo(AllocationInfo, Allocation);
-    Renderer2D::GetStats().GPUMemoryAllocated += AllocationInfo.size;
 
-    ++Renderer2D::GetStats().Allocations;
-    ++Renderer2D::GetStats().AllocatedImages;
+    auto& RendererStats = Renderer::GetStats();
+    RendererStats.GPUMemoryAllocated += AllocationInfo.size;
+
+    ++RendererStats.Allocations;
+    ++RendererStats.AllocatedImages;
     return Allocation;
 }
 
@@ -56,11 +58,13 @@ void VulkanAllocator::DestroyImage(VkImage& InImage, VmaAllocation& InAllocation
 {
     VmaAllocationInfo AllocationInfo = {};
     QueryAllocationInfo(AllocationInfo, InAllocation);
-    Renderer2D::GetStats().GPUMemoryAllocated -= AllocationInfo.size;
+
+    auto& RendererStats = Renderer::GetStats();
+    RendererStats.GPUMemoryAllocated -= AllocationInfo.size;
 
     vmaDestroyImage(m_Allocator, InImage, InAllocation);
-    --Renderer2D::GetStats().Allocations;
-    --Renderer2D::GetStats().AllocatedImages;
+    --RendererStats.Allocations;
+    --RendererStats.AllocatedImages;
 }
 
 VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer,
@@ -79,33 +83,35 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
     const auto result        = vmaCreateBuffer(m_Allocator, &InBufferCreateInfo, &AllocationCreateInfo, InBuffer, &Allocation, nullptr);
     ELS_ASSERT(result == VK_SUCCESS, "Failed to create buffer via VMA!");
 
+    auto& RendererStats = Renderer::GetStats();
     if (InMemoryUsage & VMA_MEMORY_USAGE_GPU_ONLY)
     {
         VmaAllocationInfo AllocationInfo = {};
         QueryAllocationInfo(AllocationInfo, Allocation);
-        Renderer2D::GetStats().GPUMemoryAllocated += AllocationInfo.size;
+        RendererStats.GPUMemoryAllocated += AllocationInfo.size;
     }
 
-    ++Renderer2D::GetStats().Allocations;
-    ++Renderer2D::GetStats().AllocatedBuffers;
+    ++RendererStats.Allocations;
+    ++RendererStats.AllocatedBuffers;
     return Allocation;
 }
 
 void VulkanAllocator::DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-
+    auto& Context                    = (VulkanContext&)VulkanContext::Get();
     VmaAllocationInfo AllocationInfo = {};
     QueryAllocationInfo(AllocationInfo, InAllocation);
+
+    auto& RendererStats = Renderer::GetStats();
     if ((Context.GetDevice()->GetMemoryProperties().memoryHeaps[AllocationInfo.memoryType - 1].flags &
          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     {
-        Renderer2D::GetStats().GPUMemoryAllocated -= AllocationInfo.size;
+        RendererStats.GPUMemoryAllocated -= AllocationInfo.size;
     }
 
     vmaDestroyBuffer(m_Allocator, InBuffer, InAllocation);
-    --Renderer2D::GetStats().Allocations;
-    --Renderer2D::GetStats().AllocatedBuffers;
+    --RendererStats.Allocations;
+    --RendererStats.AllocatedBuffers;
 }
 
 void VulkanAllocator::QueryAllocationInfo(VmaAllocationInfo& InOutAllocationInfo, const VmaAllocation& InAllocation) const
@@ -130,16 +136,16 @@ void VulkanAllocator::Unmap(VmaAllocation& InAllocation) const
 
 void VulkanAllocator::Destroy()
 {
+    auto& RendererStats = Renderer::GetStats();
 #if ELS_DEBUG
-    LOG_WARN("Before VMA destroying! Remaining data: buffers (%u), images (%u).", Renderer2D::GetStats().AllocatedBuffers,
-             Renderer2D::GetStats().AllocatedImages);
+    LOG_WARN("Before VMA destroying! Remaining data: buffers (%u), images (%u).", RendererStats.AllocatedBuffers,
+             RendererStats.AllocatedImages);
 #endif
 
     vmaDestroyAllocator(m_Allocator);
 
 #if ELS_DEBUG
-    LOG_WARN("VMA destroyed! Remaining data: buffers (%u), images (%u).", Renderer2D::GetStats().AllocatedBuffers,
-             Renderer2D::GetStats().AllocatedImages);
+    LOG_WARN("VMA destroyed! Remaining data: buffers (%u), images (%u).", RendererStats.AllocatedBuffers, RendererStats.AllocatedImages);
 #endif
 }
 

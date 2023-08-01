@@ -1,160 +1,86 @@
 #pragma once
 
 #include "Eclipse/Core/Core.h"
+#include "Eclipse/Renderer/Buffer.h"
+
 #include "Eclipse/Renderer/CoreRendererStructs.h"
-#include <vector>
 
-#define GLM_DEPTH_ZERO_TO_ONE
-#define GLM_FORCE_RADIANS
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/glm.hpp>
-
-#include <tiny_obj_loader.h>
-
-#include "Buffer.h"
-
-#include "Eclipse/Core/Application.h"
-
-#include <GLFW/glfw3.h>
+struct aiNode;
+struct aiScene;
+struct aiMesh;
+struct aiMaterial;
+enum aiTextureType;
 
 namespace Eclipse
 {
 
-class Mesh
+class Texture2D;
+
+class Mesh final
 {
   public:
-    Mesh(const BufferInfo& InBufferInfo) : m_FilePath("NONE"), m_VertexBufferInfo(InBufferInfo)
-    {
-        Application::Get().GetThreadPool()->Enqueue([this] { LoadMesh(); });
-        // std::async(std::launch::async, [this] { LoadMesh(); });
-        // LoadMesh();
-    }
-
-    Mesh(const std::string_view& InFilePath) : m_FilePath(InFilePath)
-    {
-        Application::Get().GetThreadPool()->Enqueue([this] { LoadMesh(); });
-        // std::async(std::launch::async, [this] { LoadMesh(); });
-        // LoadMesh();
-    }
-
-    template <typename T> FORCEINLINE const Ref<T> GetVertexBuffer() const { return std::static_pointer_cast<T>(m_VertexBuffer); }
-
-    template <typename T> FORCEINLINE Ref<T> GetVertexBuffer() { return std::static_pointer_cast<T>(m_VertexBuffer); }
-
-    FORCEINLINE const auto& GetVertexBuffer() const { return m_VertexBuffer; }
-    FORCEINLINE auto& GetVertexBuffer() { return m_VertexBuffer; }
-
+    Mesh()          = default;
     virtual ~Mesh() = default;
-    virtual void Destroy() { m_VertexBuffer->Destroy(); }
 
-  protected:
-    BufferInfo m_VertexBufferInfo;
-    Ref<VertexBuffer> m_VertexBuffer;
-    const std::string_view m_FilePath;
+    void Destroy();
+
+    FORCEINLINE const auto& GetVertexBuffers() const { return m_VertexBuffers; }
+    FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
+
+    FORCEINLINE bool HasDiffuseTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].DiffuseTextures.size() > 0; }
+    FORCEINLINE bool HasNormalMapTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].NormalMapTextures.size() > 0; }
+
+    FORCEINLINE const auto& GetDiffuseTexture(const uint32_t MeshIndex, const uint32_t DiffuseTextureIndex = 0) const
+    {
+        return m_MeshesData[MeshIndex].DiffuseTextures[DiffuseTextureIndex].Texture;
+    }
+
+    FORCEINLINE const auto& GetNormalMapTexture(const uint32_t MeshIndex, const uint32_t NormalMapTextureIndex = 0) const
+    {
+        return m_MeshesData[MeshIndex].NormalMapTextures[NormalMapTextureIndex].Texture;
+    }
+
+    static Ref<Mesh> Create(const std::string& InModelPath);
+    static Ref<Mesh> CreateCube();
 
   private:
-    void LoadMesh()
+    struct MeshTexture
     {
-        if (strcmp(m_FilePath.data(), "NONE") != 0)
-        {
-            std::vector<Vertex> OutVertexData;
-            LoadObject(m_FilePath, OutVertexData);
+        Ref<Texture2D> Texture;
+        std::string FilePath;
+    };
 
-            BufferLayout VertexBufferLayout = {
-                {EShaderDataType::Vec3, "InPosition"},  //
-                {EShaderDataType::Vec3, "InNormal"},    //
-                {EShaderDataType::Vec3, "InColor"}      //
-            };                                          //
-
-            BufferInfo VertexBufferInfo = {};
-            VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
-            VertexBufferInfo.Count      = OutVertexData.size();
-            VertexBufferInfo.Size       = OutVertexData.size() * sizeof(OutVertexData[0]);
-            VertexBufferInfo.Data       = OutVertexData.data();
-            VertexBufferInfo.Layout     = VertexBufferLayout;
-
-            m_VertexBuffer.reset(VertexBuffer::Create(VertexBufferInfo));
-        }
-        else
-        {
-            m_VertexBuffer.reset(VertexBuffer::Create(m_VertexBufferInfo));
-        }
-    }
-
-    void LoadObject(const std::string_view& InFilePath, std::vector<Vertex>& OutVertexData)
+    struct MeshData
     {
-        // Attributes will contain the vertex arrays of the file
-        tinyobj::attrib_t Attributes = {};
-
-        // Shapes contains the info for each separate object in the file
-        std::vector<tinyobj::shape_t> Shapes;
-
-        // Materials contains the information about the material of each shape, but we won't use it.
-        std::vector<tinyobj::material_t> Materials;
-
-        // Error and warning output from the load function
-        std::string Warning;
-        std::string Error;
-
-        tinyobj::LoadObj(&Attributes, &Shapes, &Materials, &Warning, &Error, InFilePath.data());
-        if (!Warning.empty())
+        MeshData(const std::vector<MeshVertex>& InVertices, const std::vector<uint32_t>& InIndices,
+                 const std::vector<MeshTexture>& InDiffuseTextures, const std::vector<MeshTexture>& InNormalMapTextures)
+            : Vertices(InVertices), Indices(InIndices), DiffuseTextures(InDiffuseTextures), NormalMapTextures(InNormalMapTextures)
         {
-            LOG_WARN("TinyObjWarn: %s", Warning);
         }
 
-        // This happens if the file can't be found or is malformed
-        if (!Error.empty())
-        {
-            LOG_ERROR("TinyObjWarn: %s", Error);
+        std::vector<MeshVertex> Vertices;
+        std::vector<uint32_t> Indices;
+        std::vector<MeshTexture> DiffuseTextures;
+        std::vector<MeshTexture> NormalMapTextures;
+    };
 
-            return;
-        }
+    std::string m_Directory;
+    std::vector<MeshData> m_MeshesData;  // Is it submeshes?
 
-        // Loop over shapes
-        for (size_t s = 0; s < Shapes.size(); s++)
-        {
-            // Loop over faces(polygon)
-            size_t index_offset = 0;
-            for (size_t f = 0; f < Shapes[s].mesh.num_face_vertices.size(); f++)
-            {
+    // Optimization to prevent loading the same textures.
+    std::vector<MeshTexture> m_LoadedTextures;
 
-                // hardcode loading to triangles
-                int fv = 3;
+    std::vector<Ref<VertexBuffer>> m_VertexBuffers;
+    std::vector<Ref<IndexBuffer>> m_IndexBuffers;
 
-                // Loop over vertices in the face.
-                for (size_t v = 0; v < fv; v++)
-                {
-                    // access to vertex
-                    tinyobj::index_t idx = Shapes[s].mesh.indices[index_offset + v];
+    Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices);
+    Mesh(const std::string& InMeshPath);
 
-                    // vertex position
-                    tinyobj::real_t vx = Attributes.vertices[3 * idx.vertex_index + 0];
-                    tinyobj::real_t vy = Attributes.vertices[3 * idx.vertex_index + 1];
-                    tinyobj::real_t vz = Attributes.vertices[3 * idx.vertex_index + 2];
-                    // vertex normal
-                    tinyobj::real_t nx = Attributes.normals[3 * idx.normal_index + 0];
-                    tinyobj::real_t ny = Attributes.normals[3 * idx.normal_index + 1];
-                    tinyobj::real_t nz = Attributes.normals[3 * idx.normal_index + 2];
+    void LoadMesh(const std::string& InMeshPath);
 
-                    // copy it into our vertex
-                    Vertex new_vert;
-                    new_vert.Position.x = vx;
-                    new_vert.Position.y = vy;
-                    new_vert.Position.z = vz;
-
-                    new_vert.Normal.x = nx;
-                    new_vert.Normal.y = ny;
-                    new_vert.Normal.z = nz;
-
-                    // we are setting the vertex color as the vertex normal. This is just for display purposes
-                    new_vert.Color = new_vert.Normal;
-
-                    OutVertexData.push_back(new_vert);
-                }
-                index_offset += fv;
-            }
-        }
-    }
+    void ProcessNode(aiNode* node, const aiScene* scene);
+    MeshData ProcessMeshData(aiMesh* mesh, const aiScene* scene);
+    std::vector<MeshTexture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type);
 };
 
 }  // namespace Eclipse

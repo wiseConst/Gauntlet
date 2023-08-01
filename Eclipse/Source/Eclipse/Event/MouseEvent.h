@@ -16,6 +16,11 @@ class MouseMovedEvent final : public Event
         return formatted;
     }
 
+    FORCEINLINE const auto GetOffsetX() const { return m_X; }
+    FORCEINLINE const auto GetOffsetY() const { return m_Y; }
+
+    EVENT_CLASS_TYPE(MouseMovedEvent)
+
   private:
     int m_X;
     int m_Y;
@@ -38,8 +43,7 @@ class MouseScrolledEvent final : public Event
     FORCEINLINE const auto GetOffsetX() const { return m_XOffset; }
     FORCEINLINE const auto GetOffsetY() const { return m_YOffset; }
 
-    FORCEINLINE auto GetOffsetX() { return m_XOffset; }
-    FORCEINLINE auto GetOffsetY() { return m_YOffset; }
+    EVENT_CLASS_TYPE(MouseScrolledEvent)
 
   private:
     int m_XOffset;
@@ -60,6 +64,8 @@ class MouseButtonPressedEvent final : public Event
         return formatted;
     }
 
+    EVENT_CLASS_TYPE(MouseButtonPressedEvent)
+
   private:
     int m_Button;
     int m_Action;
@@ -78,6 +84,8 @@ class MouseButtonReleasedEvent final : public Event
         std::string formatted = m_Name + ": (" + std::to_string(m_Button) + ", " + std::to_string(m_Action) + ")";
         return formatted;
     }
+
+    EVENT_CLASS_TYPE(MouseButtonReleasedEvent)
 
   private:
     int m_Button;
@@ -98,6 +106,8 @@ class MouseButtonRepeatedEvent final : public Event
             m_Name + ": (" + std::to_string(m_Count) + ") - (" + std::to_string(m_Button) + ", " + std::to_string(m_Action) + ")";
         return formatted;
     }
+
+    EVENT_CLASS_TYPE(MouseButtonRepeatedEvent)
 
   private:
     int m_Button;

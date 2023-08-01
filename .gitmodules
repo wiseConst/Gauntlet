@@ -10,9 +10,6 @@
 [submodule "Eclipse/vendor/stb"]
 	path = Eclipse/vendor/stb
 	url = https://github.com/nothings/stb.git
-[submodule "Eclipse/vendor/tinyobjloader"]
-	path = Eclipse/vendor/tinyobjloader
-	url = https://github.com/tinyobjloader/tinyobjloader.git
 [submodule "Eclipse/vendor/GLFW"]
 	path = Eclipse/vendor/GLFW
 	url = https://github.com/wiseConst/glfw.git

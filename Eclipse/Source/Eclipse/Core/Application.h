@@ -6,13 +6,13 @@
 #include "Eclipse/Renderer/RendererAPI.h"
 
 #include "Eclipse/Layer/LayerQueue.h"
-#include "ThreadPool.h"
 
 namespace Eclipse
 {
 class Window;
 class GraphicsContext;
 class ImGuiLayer;
+class WindowCloseEvent;
 
 struct ApplicationSpecification final
 {
@@ -49,8 +49,7 @@ class Application : private Uncopyable, private Unmovable
 
     FORCEINLINE static Application& Get() { return *s_Instance; }
 
-    FORCEINLINE const auto& GetThreadPool() const { return m_ThreadPool; }
-    FORCEINLINE auto& GetThreadPool() { return m_ThreadPool; }
+    FORCEINLINE const auto& GetGUILayer() const { return m_ImGuiLayer; }
 
     FORCEINLINE const auto& GetInfo() const { return m_AppInfo; }
     FORCEINLINE auto& GetInfo() { return m_AppInfo; }
@@ -66,11 +65,13 @@ class Application : private Uncopyable, private Unmovable
 
     Scoped<Window> m_Window;
     Scoped<GraphicsContext> m_Context;
-    Scoped<ThreadPool> m_ThreadPool;
     Scoped<ImGuiLayer> m_ImGuiLayer;
 
     LayerQueue m_LayerQueue;
-    float m_LastFrameTime = 0.0f;
+    float m_MainThreadDelta = 0.0f;
+    const std::thread::id m_MainThreadID;
+
+    void OnWindowClosed(WindowCloseEvent& InEvent);
 };
 
 Scoped<Application> CreateApplication();

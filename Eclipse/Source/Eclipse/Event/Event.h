@@ -23,6 +23,9 @@ enum class EEventType : uint8_t
     WindowCloseEvent
 };
 
+#define EVENT_CLASS_TYPE(type)                                                                                                             \
+    FORCEINLINE static EEventType GetStaticType() { return EEventType::type; }
+
 class Event
 {
   public:
@@ -46,4 +49,24 @@ class Event
     EEventType m_Type;
     std::string m_Name;
 };
+
+// Event Dispatcher
+
+class EventDispatcher final : private Uncopyable, private Unmovable
+{
+  public:
+    EventDispatcher(Event& InEvent) : m_Event(InEvent) {}
+
+    template <typename T, typename F> void Dispatch(const F& InFunc)
+    {
+        if (m_Event.GetType() == T::GetStaticType())
+        {
+            InFunc(static_cast<T&>(m_Event));
+        }
+    }
+
+  private:
+    Event& m_Event;
+};
+
 }  // namespace Eclipse

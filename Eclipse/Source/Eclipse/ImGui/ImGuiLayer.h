@@ -5,6 +5,8 @@
 
 #include <imgui/imgui.h>
 
+#include <glm/glm.hpp>
+
 namespace Eclipse
 {
 
@@ -24,6 +26,10 @@ class ImGuiLayer : public Layer
 
     virtual void BeginRender() = 0;
     virtual void EndRender()   = 0;
+
+#if ELS_EDITOR
+    FORCEINLINE virtual const glm::vec2 GetViewportSize() const = 0;
+#endif
 
     static ImGuiLayer* Create();
 };

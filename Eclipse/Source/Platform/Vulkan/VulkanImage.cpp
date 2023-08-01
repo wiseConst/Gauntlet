@@ -28,6 +28,7 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
     ImageCreateInfo.mipLevels   = InMipLevels;
     ImageCreateInfo.arrayLayers = InArrayLayers;
     ImageCreateInfo.format      = InFormat;
+    ImageCreateInfo.flags       = InArrayLayers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
     /*
      * The tiling field can have one of two values:
@@ -103,7 +104,7 @@ void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageVi
     ImageViewCreateInfo.subresourceRange.baseMipLevel   = 0;
     ImageViewCreateInfo.subresourceRange.levelCount     = 1;
     ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount     = 1;
+    ImageViewCreateInfo.subresourceRange.layerCount     = InImageViewType == VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
 
     // We don't need to swizzle ( swap around ) any of the
     // color channels
@@ -142,13 +143,13 @@ VkFormat EclipseImageFormatToVulkan(EImageFormat InImageFormat)
     return (VkFormat)0;
 }
 
-void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout)
+void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout, const bool InIsCubeMap)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
 
     VkImageSubresourceRange SubresourceRange = {};
     SubresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
-    SubresourceRange.layerCount              = 1;
+    SubresourceRange.layerCount              = InIsCubeMap ? 6 : 1;
     SubresourceRange.levelCount              = 1;
 
     VkImageMemoryBarrier ImageMemoryBarrier = {};
@@ -206,13 +207,14 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
         Context.GetDevice()->GetLogicalDevice());
 }
 
-void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent)
+void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent,
+                           const bool InIsCubeMap)
 {
     auto& Context      = (VulkanContext&)VulkanContext::Get();
     auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
 
     VkBufferImageCopy CopyRegion           = {};
-    CopyRegion.imageSubresource.layerCount = 1;
+    CopyRegion.imageSubresource.layerCount = InIsCubeMap ? 6 : 1;
     CopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     CopyRegion.imageExtent                 = InImageExtent;
 
@@ -222,9 +224,32 @@ void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinatio
                                    Context.GetDevice()->GetLogicalDevice());
 }
 
+VkFilter EclipseTextureFilterToVulkan(ETextureFilter InTextureFilter)
+{
+    switch (InTextureFilter)
+    {
+        case ETextureFilter::LINEAR: return VK_FILTER_LINEAR;
+        case ETextureFilter::NEAREST: return VK_FILTER_NEAREST;
+    }
+    ELS_ASSERT(false, "Unknown texture filter!");
+    return VK_FILTER_NEAREST;
+}
+
+VkSamplerAddressMode EclipseTextureWrapToVulkan(ETextureWrap InTextureWrap)
+{
+    switch (InTextureWrap)
+    {
+        case ETextureWrap::REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case ETextureWrap::CLAMP: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    }
+
+    ELS_ASSERT(false, "Unknown texture wrap!");
+    return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+}
+
 }  // namespace ImageUtils
 
-VulkanImage::VulkanImage(const ImageSpecification& InImageSecification) : m_ImageSpecification(InImageSecification)
+VulkanImage::VulkanImage(const ImageSpecification& InImageSecification) : m_Specification(InImageSecification)
 {
     Create();
 }
@@ -235,11 +260,11 @@ void VulkanImage::Create()
     ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkImageUsageFlags ImageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT;
-    if (m_ImageSpecification.Copyable) ImageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (m_Specification.Copyable) ImageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-    if (m_ImageSpecification.Usage == EImageUsage::Attachment)
+    if (m_Specification.Usage == EImageUsage::Attachment)
     {
-        if (ImageUtils::IsDepthFormat(m_ImageSpecification.Format))
+        if (ImageUtils::IsDepthFormat(m_Specification.Format))
         {
             ImageUsageFlags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         }
@@ -248,18 +273,66 @@ void VulkanImage::Create()
             ImageUsageFlags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         }
     }
-    else if (m_ImageSpecification.Usage == EImageUsage::TEXTURE)
+    else if (m_Specification.Usage == EImageUsage::TEXTURE)
     {
         ImageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    const auto ImageFormat = ImageUtils::EclipseImageFormatToVulkan(m_ImageSpecification.Format);
-    ImageUtils::CreateImage(&m_Image, m_ImageSpecification.Width, m_ImageSpecification.Height, ImageUsageFlags, ImageFormat,
-                            VK_IMAGE_TILING_OPTIMAL, m_ImageSpecification.Mips, m_ImageSpecification.Layers);
+    const auto ImageFormat = ImageUtils::EclipseImageFormatToVulkan(m_Specification.Format);
+    ImageUtils::CreateImage(&m_Image, m_Specification.Width, m_Specification.Height, ImageUsageFlags, ImageFormat, VK_IMAGE_TILING_OPTIMAL,
+                            m_Specification.Mips, m_Specification.Layers);
     ImageUtils::CreateImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.Image, &m_Image.ImageView, ImageFormat,
-                                ImageUtils::IsDepthFormat(m_ImageSpecification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT
-                                                                                       : VK_IMAGE_ASPECT_COLOR_BIT,
-                                VK_IMAGE_VIEW_TYPE_2D);
+                                ImageUtils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
+                                m_Specification.Layers == 6 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D);
+
+    CreateSampler();
+
+    // Temporary hardcoding layout
+    m_DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    m_DescriptorImageInfo.imageView   = m_Image.ImageView;
+    m_DescriptorImageInfo.sampler     = m_Sampler;
+}
+
+void VulkanImage::CreateSampler()
+{
+    auto& Context = (VulkanContext&)VulkanContext::Get();
+    ELS_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    VkSamplerCreateInfo SamplerCreateInfo     = {};
+    SamplerCreateInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    SamplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+
+    const bool bIsCubeMap       = m_Specification.Layers == 6;
+    SamplerCreateInfo.minFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::EclipseTextureFilterToVulkan(m_Specification.Filter);
+    SamplerCreateInfo.magFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::EclipseTextureFilterToVulkan(m_Specification.Filter);
+
+    SamplerCreateInfo.addressModeU =
+        bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::EclipseTextureWrapToVulkan(m_Specification.Wrap);
+    SamplerCreateInfo.addressModeV =
+        bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::EclipseTextureWrapToVulkan(m_Specification.Wrap);
+    SamplerCreateInfo.addressModeW =
+        bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::EclipseTextureWrapToVulkan(m_Specification.Wrap);
+
+    SamplerCreateInfo.anisotropyEnable = VK_TRUE;
+    SamplerCreateInfo.maxAnisotropy    = Context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
+
+    //  The <borderColor> specifies which color is returned when sampling beyond the image with clamp to border addressing mode. It is
+    //  possible to return black, white or transparent in either float or int formats. You cannot specify an arbitrary color.
+    SamplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    // ShadowPasses only
+    // https://developer.nvidia.com/gpugems/gpugems/part-ii-lighting-and-shadows/chapter-11-shadow-map-antialiasing
+    SamplerCreateInfo.compareEnable = VK_FALSE;
+    SamplerCreateInfo.compareOp     = VK_COMPARE_OP_ALWAYS;
+
+    // Mipmapping
+    SamplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    SamplerCreateInfo.mipLodBias = 0.0f;
+    SamplerCreateInfo.minLod     = 0.0f;
+    SamplerCreateInfo.maxLod     = 0.0f;
+
+    VK_CHECK(vkCreateSampler(Context.GetDevice()->GetLogicalDevice(), &SamplerCreateInfo, nullptr, &m_Sampler),
+             "Failed to create an image sampler!");
 }
 
 void VulkanImage::Destroy()
@@ -271,6 +344,7 @@ void VulkanImage::Destroy()
     Context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 
     vkDestroyImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);
+    vkDestroySampler(Context.GetDevice()->GetLogicalDevice(), m_Sampler, nullptr);
 }
 
 }  // namespace Eclipse

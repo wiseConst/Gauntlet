@@ -14,6 +14,8 @@
 #define ELS_ENABLE_ASSERTS
 #endif
 
+#define ELS_EDITOR 1
+
 #ifdef ELS_ENABLE_ASSERTS
 
 #include <Eclipse/Core/Log.h>

@@ -20,9 +20,7 @@ class VulkanRenderer2D final : public Renderer2D
     void BeginImpl() final override;
     void FlushImpl() final override;
 
-    void BeginSceneImpl(const OrthographicCamera& InCamera, const bool bUseViewProj) final override;
-
-    void SetClearColorImpl(const glm::vec4& InColor) final override;
+    void BeginSceneImpl(const Camera& InCamera) final override;
 
     void DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec4& InColor) final override;
 

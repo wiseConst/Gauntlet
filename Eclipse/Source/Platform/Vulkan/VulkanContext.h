@@ -14,8 +14,7 @@ class VulkanAllocator;
 class VulkanSwapchain;
 class VulkanCommandPool;
 
-class VulkanRenderPass;
-class VulkanPipeline;
+class VulkanFramebuffer;
 
 class VulkanContext final : public GraphicsContext
 {
@@ -52,11 +51,13 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetGraphicsCommandPool() const { return m_GraphicsCommandPool; }
     FORCEINLINE auto& GetGraphicsCommandPool() { return m_GraphicsCommandPool; }
 
-    FORCEINLINE const auto& GetGlobalRenderPass() const { return m_GlobalRenderPass; }
-    FORCEINLINE auto& GetGlobalRenderPass() { return m_GlobalRenderPass; }
-
-    FORCEINLINE void SetClearColor(const glm::vec4& InColor) { ClearColor = {InColor.r, InColor.g, InColor.b, InColor.a}; }
     FORCEINLINE void AddResizeCallback(const std::function<void()>& InResizeCallback) { m_ResizeCallbacks.emplace_back(InResizeCallback); }
+
+    const VkRenderPass& GetMainRenderPass() const;
+
+#if ELS_EDITOR
+    FORCEINLINE const auto& GetViewportFramebuffer() const { return m_Framebuffer; }
+#endif
 
   private:
     VkInstance m_Instance                     = VK_NULL_HANDLE;
@@ -69,10 +70,6 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanCommandPool> m_TransferCommandPool;
     Scoped<VulkanCommandPool> m_GraphicsCommandPool;
 
-    VkClearColorValue ClearColor = {0.1f, 0.1f, 0.1f, 1.0f};
-
-    Scoped<VulkanRenderPass> m_GlobalRenderPass;  // Tied with Swapchain.
-
     // Sync objects GPU-GPU.
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
     std::vector<VkSemaphore> m_ImageAcquiredSemaphores;
@@ -83,11 +80,12 @@ class VulkanContext final : public GraphicsContext
     std::vector<ResizeCallback> m_ResizeCallbacks;
     float m_CPULastWaitTime = 0.0f;
 
+    Ref<VulkanFramebuffer> m_Framebuffer;
+
     void CreateInstance();
     void CreateDebugMessenger();
     void CreateSurface();
     void CreateSyncObjects();
-    void CreateGlobalRenderPass();
 
     void RecreateSwapchain();
 

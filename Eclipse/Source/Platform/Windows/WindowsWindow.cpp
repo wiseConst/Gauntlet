@@ -173,12 +173,10 @@ void WindowsWindow::OnUpdate()
 
 void WindowsWindow::HandleMinimized()
 {
-    int Width{0}, Height{0};
+    int32_t Width{0}, Height{0};
     glfwGetFramebufferSize(m_Window, &Width, &Height);
-    while (Width == 0 || Height == 0)
+    while (Width == 0 || Height == 0 || !IsRunning())
     {
-        if (!IsRunning()) return;
-
         glfwWaitEvents();
         glfwGetFramebufferSize(m_Window, &Width, &Height);
     }

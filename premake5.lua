@@ -5,6 +5,7 @@ startproject "Sandbox"
 configurations { "Debug", "Release"}
 
 VULKAN_PATH = os.getenv("VULKAN_SDK")
+local CURRENT_WORKING_DIRECTORY = os.getcwd()
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
@@ -15,12 +16,13 @@ IncludeDir["ImGui"] = "Eclipse/vendor/imgui"
 IncludeDir["vma"] =  "Eclipse/vendor/vma/include"
 IncludeDir["stb"] =  "Eclipse/vendor/stb"
 IncludeDir["glm"] =  "Eclipse/vendor/glm"
-IncludeDir["tinyobjloader"] = "Eclipse/vendor/tinyobjloader"
+IncludeDir["assimp"] = "Eclipse/vendor/assimp"
 
 group "Dependencies"
     include "Eclipse/vendor/GLFW"
     include "Eclipse/vendor/imgui"
     include "Eclipse/vendor/vma"
+    include "Eclipse/vendor/assimp"
 group ""
 
 project "Eclipse"
@@ -55,14 +57,15 @@ project "Eclipse"
         "%{IncludeDir.stb}",
         "%{IncludeDir.VULKAN}/Include",
         "%{IncludeDir.vma}/Include",
-        "%{IncludeDir.tinyobjloader}"
+        "%{IncludeDir.assimp}/Include"
     }
 
     links
     {
         "GLFW",
         "ImGui",
-        "VulkanMemoryAllocator"
+        "VulkanMemoryAllocator",
+        "assimp"
     }
 
 	filter "system:windows"
@@ -71,7 +74,10 @@ project "Eclipse"
 		defines
 		{
 			"GLFW_INCLUDE_NONE",
-			"_CRT_SECURE_NO_WARNINGS"
+			"_CRT_SECURE_NO_WARNINGS",
+			"GLM_FORCE_RADIANS",
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE",
+		    "ASSETS_PATH=\"".. CURRENT_WORKING_DIRECTORY .. "/Assets/\""
 		}
 
     filter "configurations:Debug"
@@ -116,7 +122,58 @@ project "Sandbox"
 
 		defines
 		{
-			"_CRT_SECURE_NO_WARNINGS"
+			"_CRT_SECURE_NO_WARNINGS",
+			"GLM_FORCE_RADIANS",
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE",
+		    "ASSETS_PATH=\"".. CURRENT_WORKING_DIRECTORY .. "/Assets/\""
+		}
+
+    filter "configurations:Debug"
+        defines "ELS_DEBUG"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines "ELS_RELEASE"
+        optimize "On"
+        
+project "EclipseEd"
+    location "EclipseEd"
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++17"
+    staticruntime "on"
+    
+    targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
+    objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
+
+    files 
+    {
+        "%{prj.name}/Source/**.h","%{prj.name}/Source/**.cpp"
+    }
+
+    includedirs
+    {
+        "EclipseEd/Source",
+        "%{IncludeDir.glm}",
+		"Eclipse/vendor",
+		"Eclipse/Source"
+    }
+
+    links 
+    {
+		"Eclipse"
+    }
+
+
+	filter "system:windows"
+		systemversion "latest"
+
+		defines
+		{
+			"_CRT_SECURE_NO_WARNINGS",
+			"GLM_FORCE_RADIANS",
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE",
+		    "ASSETS_PATH=\"".. CURRENT_WORKING_DIRECTORY .. "/Assets/\""
 		}
 
     filter "configurations:Debug"

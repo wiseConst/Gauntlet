@@ -46,9 +46,9 @@ void GameLayer::OnUpdate(const float DeltaTime)
     }
 
     // Render
-    Renderer2D::SetClearColor({0.0f, 0.0f, 0.0f, 1});
+    // Renderer2D::SetClearColor({0.0f, 0.0f, 0.0f, 1});
 
-    Renderer2D::BeginScene(*m_Camera, true);
+    Renderer2D::BeginScene(*m_Camera);
     m_Level.OnRender();
 }
 
@@ -97,13 +97,12 @@ void GameLayer::OnImGuiRender()
         }
     }
 
-
-      static bool bShowAppStats = true;
+    static bool bShowAppStats = true;
     if (bShowAppStats)
     {
         ImGui::Begin("Application Stats", &bShowAppStats);
 
-        const auto& Stats = Renderer2D::GetStats();
+        const auto& Stats = Renderer::GetStats();
         ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages);
         ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers);
         ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers);

@@ -10,7 +10,6 @@
 namespace Eclipse
 {
 Renderer2D* Renderer2D::s_Renderer = nullptr;
-Renderer2D::Renderer2DStats Renderer2D::s_Renderer2DStats;
 
 void Renderer2D::Init()
 {
@@ -26,6 +25,8 @@ void Renderer2D::Init()
             LOG_ERROR("RendererAPI::EAPI::None!");
         }
     }
+
+    ELS_ASSERT(false, "Unknown RendererAPI!");
 }
 
 void Renderer2D::DrawQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const glm::vec4& InColor)

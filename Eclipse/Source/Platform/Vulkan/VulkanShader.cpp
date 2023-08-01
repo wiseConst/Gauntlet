@@ -10,7 +10,8 @@ namespace Eclipse
 static const std::vector<uint32_t> ReadFromeFile(const std::string_view& InFilePath)
 {
     std::ifstream in(InFilePath.data(), std::ios::in | std::ios::binary);
-    ELS_ASSERT(in, "Failed to open file! FilePath: %s", InFilePath.data());
+    const auto ErrorMessage = std::string("Failed to open file! FilePath: ") + std::string(InFilePath.data());
+    ELS_ASSERT(in, ErrorMessage.data());
 
     in.seekg(0, std::ios::end);
     std::vector<uint32_t> Result(in.tellg());

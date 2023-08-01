@@ -6,6 +6,7 @@
 
 #include "SwapchainSupportDetails.h"
 #include "VulkanImage.h"
+#include "VulkanFramebuffer.h"
 
 namespace Eclipse
 {
@@ -41,6 +42,17 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetDepthImageView() const { return m_DepthImage->GetView(); }
     FORCEINLINE auto& GetDepthImageView() { return m_DepthImage->GetView(); }
 
+    FORCEINLINE const auto& GetRenderPass() const { return m_RenderPass; }
+    FORCEINLINE auto& GetRenderPass() { return m_RenderPass; }
+
+    FORCEINLINE void SetClearColor(const glm::vec4& InClearColor)
+    {
+        m_ClearColor = {InClearColor.r, InClearColor.g, InClearColor.b, InClearColor.a};
+    }
+
+    void BeginRenderPass(const VkCommandBuffer& InCommandBuffer);
+    FORCEINLINE void EndRenderPass(const VkCommandBuffer& InCommandBuffer) { vkCmdEndRenderPass(InCommandBuffer); }
+
     bool TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence = VK_NULL_HANDLE);
     bool TryPresentImage(const VkSemaphore& InRenderFinishedSemaphore);
 
@@ -50,7 +62,10 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
   private:
     VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
 
-    Scoped<VulkanImage> m_DepthImage;
+    VkRenderPass m_RenderPass = VK_NULL_HANDLE;
+    std::vector<VkFramebuffer> m_Framebuffers;
+    VkClearColorValue m_ClearColor;
+
     Scoped<VulkanDevice>& m_Device;
     VkSurfaceKHR& m_Surface;
 
@@ -59,10 +74,14 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     VkSurfaceFormatKHR m_SwapchainImageFormat;
     VkExtent2D m_SwapchainImageExtent;
 
+    Scoped<VulkanImage> m_DepthImage;
     std::vector<VkImage> m_SwapchainImages;
     std::vector<VkImageView> m_SwapchainImageViews;
 
     uint32_t m_ImageIndex{0};
     uint32_t m_FrameIndex{0};
+
+    void InvalidateRenderPass();
+    void DestroyRenderPass();
 };
 }  // namespace Eclipse

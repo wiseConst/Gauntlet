@@ -5,12 +5,6 @@
 
 #include "VulkanCommandBuffer.h"
 
-/*
-    You can allocate as many VkCommandBuffer as you want from a given pool,
-    but you can only record commands from one thread at a time.
-    If you want multithreaded command recording, you need more VkCommandPool objects.
-*/
-
 namespace Eclipse
 {
 

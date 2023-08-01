@@ -22,8 +22,7 @@ class WindowResizeEvent final : public Event
     FORCEINLINE const auto GetHeight() const { return m_Height; }
     FORCEINLINE const auto GetWidth() const { return m_Width; }
 
-    FORCEINLINE auto GetHeight() { return m_Height; }
-    FORCEINLINE auto GetWidth() { return m_Width; }
+    EVENT_CLASS_TYPE(WindowResizeEvent)
 
   private:
     int m_Width;
@@ -36,6 +35,8 @@ class WindowCloseEvent final : public Event
     WindowCloseEvent() : Event("WindowCloseEvent", EEventType::WindowCloseEvent) {}
 
     virtual std::string Format() const override final { return m_Name; }
+
+    EVENT_CLASS_TYPE(WindowCloseEvent)
 };
 
 }  // namespace Eclipse

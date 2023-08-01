@@ -125,7 +125,7 @@ void VulkanPipeline::CreatePipeline()
     for (size_t i = 0; i < m_PipelineSpecification.ShaderStages.size(); ++i)
     {
         ShaderStages[i].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        ShaderStages[i].pName  = "main";  // m_PipelineSpecification.ShaderStages[i].EntryPointName.data();
+        ShaderStages[i].pName  = "main";
         ShaderStages[i].module = m_PipelineSpecification.ShaderStages[i].Shader->GetModule();
         ShaderStages[i].stage  = EclipseShaderStageToVulkan(m_PipelineSpecification.ShaderStages[i].Stage);
     }
@@ -174,18 +174,22 @@ void VulkanPipeline::CreatePipeline()
     MultisampleState.sampleShadingEnable                  = VK_FALSE;
     MultisampleState.rasterizationSamples                 = VK_SAMPLE_COUNT_1_BIT;
     MultisampleState.minSampleShading                     = 1.0f;
-    MultisampleState.pSampleMask                          = nullptr;
     MultisampleState.alphaToCoverageEnable                = VK_FALSE;
     MultisampleState.alphaToOneEnable                     = VK_FALSE;
 
-    // TODO: Make it configurable?
-    // We are rendering to only 1 attachment, so we will just need one of them,
-    // and defaulted to “not blend” and just override. In here it’s possible
-    // to make objects that will blend with the image
+    // TODO: Make it configurable? Now by default it has alpha-blending
     VkPipelineColorBlendAttachmentState ColorBlendAttachment = {};
-    ColorBlendAttachment.blendEnable                         = VK_FALSE;
+    ColorBlendAttachment.blendEnable                         = TRUE;
     ColorBlendAttachment.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    // Color.rgb = (src.a * src.rgb) + ((1-src.a) * dst.rgb)
+    ColorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    ColorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    ColorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+    // Optional
+    ColorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    ColorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    ColorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
 
     // Controls how this pipeline blends into a given attachment.
     /*

@@ -8,12 +8,13 @@
 #include "VulkanSwapchain.h"
 #include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
-#include "VulkanRenderPass.h"
-#include "VulkanPipeline.h"
 
 #include "Eclipse/Core/Application.h"
 #include "Eclipse/Core/Window.h"
 #include "Eclipse/Renderer/Renderer2D.h"
+#include "Eclipse/Renderer/Renderer.h"
+
+#include "VulkanFramebuffer.h"
 
 namespace Eclipse
 {
@@ -50,7 +51,17 @@ VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindo
 
     CreateSyncObjects();
 
-    CreateGlobalRenderPass();
+    FramebufferSpecification FramebufferSpec = {};
+    FramebufferSpec.ClearColor               = {0.5f, 0.2f, 0.9f, 1.0f};
+    FramebufferSpec.bHasDepth                = true;
+    FramebufferSpec.LoadOp                   = ELoadOp::CLEAR;
+    FramebufferSpec.StoreOp                  = EStoreOp::STORE;
+    FramebufferSpec.Width                    = m_Swapchain->GetImageExtent().width;
+    FramebufferSpec.Height                   = m_Swapchain->GetImageExtent().height;
+
+    m_Framebuffer.reset(new VulkanFramebuffer(FramebufferSpec));
+
+    AddResizeCallback([this] { m_Framebuffer->InvalidateRenderPass(); });
 }
 
 void VulkanContext::CreateInstance()
@@ -69,13 +80,13 @@ void VulkanContext::CreateInstance()
 
 #if ELS_DEBUG
     {
-        uint32_t SupportedApiVersion;
-        const auto result = vkEnumerateInstanceVersion(&SupportedApiVersion);
+        uint32_t SupportedApiVersionFromDLL;
+        const auto result = vkEnumerateInstanceVersion(&SupportedApiVersionFromDLL);
         ELS_ASSERT(result == VK_SUCCESS, "Failed to retrieve supported vulkan version!");
 
-        LOG_INFO("Your system supports vulkan version up to: %u.%u.%u.%u", VK_API_VERSION_VARIANT(SupportedApiVersion),
-                 VK_API_VERSION_MAJOR(SupportedApiVersion), VK_API_VERSION_MINOR(SupportedApiVersion),
-                 VK_API_VERSION_PATCH(SupportedApiVersion));
+        LOG_INFO("Your system supports vulkan version up to: %u.%u.%u.%u", VK_API_VERSION_VARIANT(SupportedApiVersionFromDLL),
+                 VK_API_VERSION_MAJOR(SupportedApiVersionFromDLL), VK_API_VERSION_MINOR(SupportedApiVersionFromDLL),
+                 VK_API_VERSION_PATCH(SupportedApiVersionFromDLL));
     }
 #endif
 
@@ -272,75 +283,12 @@ void VulkanContext::CreateSyncObjects()
     }
 }
 
-void VulkanContext::CreateGlobalRenderPass()
-{
-    RenderPassSpecification RenderPassSpec = {};
-    {
-        std::vector<VkAttachmentDescription> Attachments(2);
-        Attachments[0].format         = m_Swapchain->GetImageFormat();
-        Attachments[0].samples        = VK_SAMPLE_COUNT_1_BIT;
-        Attachments[0].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        Attachments[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-        Attachments[0].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        Attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        Attachments[0].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-        Attachments[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-        Attachments[1].format         = m_Swapchain->GetDepthFormat();
-        Attachments[1].samples        = VK_SAMPLE_COUNT_1_BIT;
-        Attachments[1].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        Attachments[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-        Attachments[1].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        Attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        Attachments[1].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-        Attachments[1].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        RenderPassSpec.Attachments = Attachments;
-
-        std::vector<VkAttachmentReference> AttachmentRefs(2);
-        AttachmentRefs[0].attachment = 0;
-        AttachmentRefs[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        AttachmentRefs[1].attachment = 1;
-        AttachmentRefs[1].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        RenderPassSpec.AttachmentRefs = AttachmentRefs;
-
-        std::vector<VkSubpassDescription> Subpasses(1);
-        Subpasses[0].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        Subpasses[0].colorAttachmentCount    = 1;
-        Subpasses[0].pColorAttachments       = &AttachmentRefs[0];
-        Subpasses[0].pDepthStencilAttachment = &AttachmentRefs[1];
-        RenderPassSpec.Subpasses             = Subpasses;
-
-        /* Subpass Dependency
-         * Now we have to adjust the renderpass synchronization.
-         * Previously, it was possible that multiple frames were rendered simultaneously by the GPU.
-         * This is a problem when using depth buffers, because one frame could overwrite the depth buffer
-         * while a previous frame is still rendering to it.
-         */
-        VkSubpassDependency Dependency = {};
-        Dependency.srcSubpass          = VK_SUBPASS_EXTERNAL;
-        Dependency.dstSubpass          = 0;
-        Dependency.srcStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        Dependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        Dependency.srcAccessMask       = 0;
-        Dependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-        RenderPassSpec.Dependencies = {Dependency};
-
-        RenderPassSpec.DepthImageView = m_Swapchain->GetDepthImageView();
-        m_GlobalRenderPass.reset(new VulkanRenderPass(RenderPassSpec));
-    }
-}
-
 void VulkanContext::RecreateSwapchain()
 {
     if (m_Window->IsMinimized()) return;
     m_Device->WaitDeviceOnFinish();
 
     m_Swapchain->Invalidate();
-    m_GlobalRenderPass->Invalidate();
 
     for (auto& OneResizeCallback : m_ResizeCallbacks)
         OneResizeCallback();
@@ -350,9 +298,11 @@ void VulkanContext::RecreateSwapchain()
 
 void VulkanContext::BeginRender()
 {
+    // #if !ELS_EDITOR
     // Firstly wait for GPU to finish drawing therefore set fence to signaled.
     VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
              "Failed to wait for fences!");
+    // #endif
 
     m_CPULastWaitTime = (float)glfwGetTime();
 
@@ -362,25 +312,34 @@ void VulkanContext::BeginRender()
         RecreateSwapchain();  // Recreate and return, next cycle will be correct image extent.
         return;
     }
-    // Next set fence state to unsignaled.
+
     VK_CHECK(vkResetFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to reset fences!");
 
     auto& CommandBuffer = m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
     CommandBuffer.BeginRecording();
 
-    std::vector<VkClearValue> ClearValues(2);
-    ClearValues[0].color              = ClearColor;
-    ClearValues[1].depthStencil.depth = 1.0f;
+#if ELS_EDITOR
+    m_Swapchain->BeginRenderPass(CommandBuffer.Get());
+    m_Swapchain->EndRenderPass(CommandBuffer.Get());
 
-    m_GlobalRenderPass->Begin(CommandBuffer.Get(), ClearValues);
-    CommandBuffer.SetViewportAndScissors();
+    m_Framebuffer->SetClearColor(glm::vec4(0.1f, 0.1f, 0.1f, 1.0f));
+    m_Framebuffer->BeginRenderPass(CommandBuffer.Get());
+#else
+    m_Swapchain->SetClearColor(glm::vec4(0.5f, 0.25f, 0.65f, 1.0f));
+    m_Swapchain->BeginRenderPass(CommandBuffer.Get());
+#endif
 }
 
 void VulkanContext::EndRender()
 {
     auto& CommandBuffer = m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
-    m_GlobalRenderPass->End(CommandBuffer.Get());
+
+#if ELS_EDITOR
+    m_Framebuffer->EndRenderPass(CommandBuffer.Get());
+#else
+    m_Swapchain->EndRenderPass(CommandBuffer.Get());
+#endif
 
     CommandBuffer.EndRecording();
 
@@ -397,8 +356,8 @@ void VulkanContext::EndRender()
         &m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Signal semaphore when render finished
     SubmitInfo.pWaitDstStageMask = WaitStages.data();
 
-    const auto CurrentTime             = (float)glfwGetTime();
-    Renderer2D::GetStats().CPUWaitTime = CurrentTime - m_CPULastWaitTime;
+    const auto CurrentTime           = (float)glfwGetTime();
+    Renderer::GetStats().CPUWaitTime = CurrentTime - m_CPULastWaitTime;
 
     // Submit command buffer to the queue and execute it.
     // InFlightFence will now block until the graphic commands finish execution
@@ -426,7 +385,7 @@ void VulkanContext::Destroy()
 {
     m_Device->WaitDeviceOnFinish();
 
-    m_GlobalRenderPass->Destroy();
+    m_Framebuffer->Destroy();
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
@@ -452,6 +411,15 @@ void VulkanContext::Destroy()
 
 #if ELS_DEBUG
     LOG_INFO("Vulkan context destroyed!");
+#endif
+}
+
+const VkRenderPass& VulkanContext::GetMainRenderPass() const
+{
+#if ELS_EDITOR
+    return m_Framebuffer->GetRenderPass();
+#else
+    return m_Swapchain->GetRenderPass();
 #endif
 }
 

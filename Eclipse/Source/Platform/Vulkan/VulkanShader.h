@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Eclipse/Renderer/Shader.h"
 #include <volk/volk.h>
 
@@ -12,8 +13,6 @@ class VulkanShader final : public Shader
     ~VulkanShader() = default;
 
     FORCEINLINE const auto& GetModule() const { return m_ShaderModule; }
-    FORCEINLINE auto& GetModule() { return m_ShaderModule; }
-
     void DestroyModule();
 
   private:
