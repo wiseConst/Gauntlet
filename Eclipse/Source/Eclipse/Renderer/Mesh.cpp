@@ -1,9 +1,8 @@
 #include "EclipsePCH.h"
 #include "Mesh.h"
-#include "RendererAPI.h"
 
 #include "Texture.h"
-#include "Eclipse/Core/RenderThread.h"
+#include "RendererAPI.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -16,7 +15,6 @@ Ref<Mesh> Mesh::Create(const std::string& InFilePath)
     return Ref<Mesh>(new Mesh(InFilePath));
 }
 
-// Skybox use only
 Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices)
 {
     BufferInfo VertexBufferInfo = {};
@@ -38,6 +36,7 @@ Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& I
 
 Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
 {
+
     LoadMesh(m_Directory);
 
     BufferInfo VertexBufferInfo = {};
@@ -48,8 +47,8 @@ Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
         {EShaderDataType::Vec3, "InNormal"},    //
         {EShaderDataType::Vec4, "InColor"},     //
         {EShaderDataType::Vec2, "InTexCoord"},  //
-        {EShaderDataType::Vec3, "Tangent"},     //
-        {EShaderDataType::Vec3, "Bitangent"}    //
+        {EShaderDataType::Vec3, "InTangent"},   //
+        {EShaderDataType::Vec3, "InBitangent"}  //
     };
 
     BufferInfo IndexBufferInfo = {};
@@ -111,19 +110,24 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         Vertex.Position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
         Vertex.Normal   = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
 
+        Vertex.Color = glm::vec4(1.0f);
         if (mesh->HasVertexColors(0))
         {
             Vertex.Color = glm::vec4((float)mesh->mColors[0][i].r, (float)mesh->mColors[0][i].g, (float)mesh->mColors[0][i].b, 1.0f);
         }
-        else
-            Vertex.Color = glm::vec4(1.0f);
 
+        Vertex.TexCoord = glm::vec2(0.0f);
         if (mesh->HasTextureCoords(0))
         {
             Vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
         }
-        else
-            Vertex.TexCoord = glm::vec2(0.0f);
+
+        Vertex.Tangent = glm::vec3(0.0f);
+        if (mesh->HasTangentsAndBitangents())
+        {
+            Vertex.Tangent   = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
+            Vertex.Bitangent = glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
+        }
 
         Vertices.push_back(Vertex);
     }
@@ -141,6 +145,7 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
     // Materials
     std::vector<MeshTexture> DiffuseTextures;
     std::vector<MeshTexture> NormalMapTextures;
+    std::vector<MeshTexture> EmissiveTextures;
     if (mesh->mMaterialIndex >= 0)
     {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
@@ -150,9 +155,12 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
 
         const auto NormalMaps = LoadMaterialTextures(material, aiTextureType_NORMALS);
         NormalMapTextures.insert(NormalMapTextures.end(), NormalMaps.begin(), NormalMaps.end());
+
+        const auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
+        EmissiveTextures.insert(EmissiveTextures.end(), EmissiveMaps.begin(), EmissiveMaps.end());
     }
 
-    return MeshData(Vertices, Indices, DiffuseTextures, NormalMapTextures);
+    return MeshData(Vertices, Indices, DiffuseTextures, NormalMapTextures, EmissiveTextures);
 }
 
 std::vector<Mesh::MeshTexture> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextureType type)
@@ -214,6 +222,9 @@ Ref<Mesh> Mesh::CreateCube()
 
 void Mesh::Destroy()
 {
+    /*RenderThread::Submit(
+        [this]
+        {*/
     for (auto& VertexBuffer : m_VertexBuffers)
         VertexBuffer->Destroy();
 
@@ -222,6 +233,7 @@ void Mesh::Destroy()
 
     for (auto& NormalMapTexture : m_LoadedTextures)
         NormalMapTexture.Texture->Destroy();
+    // });
 }
 
 }  // namespace Eclipse

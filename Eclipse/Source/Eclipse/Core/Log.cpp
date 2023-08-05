@@ -8,18 +8,22 @@
 namespace Eclipse
 {
 #define OUT_MESSAGE_LENGTH 32000
+#define MAX_TIME_LENGTH 100
 
 std::mutex Log::s_LogMutex;
 
 void Log::Init() {}
 
-void Log::Shutdown() {}
+void Log::Shutdown()
+{
+    // Default console output color
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
+}
 
 void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
 {
     std::scoped_lock m_Lock(s_LogMutex);
-    constexpr char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: ", "[TRACE]: "};
-    // const bool bIsError = InLogLevel < ELogLevel::LL_WARN;
+    const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: ", "[TRACE]: "};
 
     auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
     int32_t LevelIndex = 0;
@@ -70,8 +74,19 @@ void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
     vsnprintf(FormattedMessage, OUT_MESSAGE_LENGTH, InMessage, args);
     va_end(args);
 
+    // Get global UTC time
+    std::chrono::system_clock::time_point CurrentTimeUTC = std::chrono::system_clock::now();
+
+    // Convert to local time
+    std::time_t CurrentTime   = std::chrono::system_clock::to_time_t(CurrentTimeUTC);
+    std::tm* CurrentLocalTime = std::localtime(&CurrentTime);
+
+    // Format the time with timezone
+    char FormattedTime[MAX_TIME_LENGTH] = {0};
+    std::strftime(FormattedTime, MAX_TIME_LENGTH, "[%Y-%m-%d] [%H:%M:%S]", CurrentLocalTime);
+
     char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
-    sprintf(FinalOutMessage, "%s%s\n", LevelStrings[LevelIndex], FormattedMessage);
+    sprintf(FinalOutMessage, "%s %s%s\n", FormattedTime, LevelStrings[LevelIndex], FormattedMessage);
     printf("%s", FinalOutMessage);
 
     // Default console output color

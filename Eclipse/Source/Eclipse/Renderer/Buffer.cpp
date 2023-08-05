@@ -1,7 +1,7 @@
 #include "EclipsePCH.h"
 #include "Buffer.h"
 
-#include "Platform/Vulkan/VulkanBuffer.h"
+#include "Eclipse/Platform/Vulkan/VulkanBuffer.h"
 #include "RendererAPI.h"
 
 namespace Eclipse

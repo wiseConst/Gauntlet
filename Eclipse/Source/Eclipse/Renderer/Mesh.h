@@ -29,6 +29,7 @@ class Mesh final
 
     FORCEINLINE bool HasDiffuseTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].DiffuseTextures.size() > 0; }
     FORCEINLINE bool HasNormalMapTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].NormalMapTextures.size() > 0; }
+    FORCEINLINE bool HasEmissiveTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].EmissiveTextures.size() > 0; }
 
     FORCEINLINE const auto& GetDiffuseTexture(const uint32_t MeshIndex, const uint32_t DiffuseTextureIndex = 0) const
     {
@@ -38,6 +39,11 @@ class Mesh final
     FORCEINLINE const auto& GetNormalMapTexture(const uint32_t MeshIndex, const uint32_t NormalMapTextureIndex = 0) const
     {
         return m_MeshesData[MeshIndex].NormalMapTextures[NormalMapTextureIndex].Texture;
+    }
+
+    FORCEINLINE const auto& GetEmissiveTexture(const uint32_t MeshIndex, const uint32_t EmissiveTextureIndex = 0) const
+    {
+        return m_MeshesData[MeshIndex].EmissiveTextures[EmissiveTextureIndex].Texture;
     }
 
     static Ref<Mesh> Create(const std::string& InModelPath);
@@ -53,8 +59,10 @@ class Mesh final
     struct MeshData
     {
         MeshData(const std::vector<MeshVertex>& InVertices, const std::vector<uint32_t>& InIndices,
-                 const std::vector<MeshTexture>& InDiffuseTextures, const std::vector<MeshTexture>& InNormalMapTextures)
-            : Vertices(InVertices), Indices(InIndices), DiffuseTextures(InDiffuseTextures), NormalMapTextures(InNormalMapTextures)
+                 const std::vector<MeshTexture>& InDiffuseTextures, const std::vector<MeshTexture>& InNormalMapTextures,
+                 const std::vector<MeshTexture>& InEmissiveTextures)
+            : Vertices(InVertices), Indices(InIndices), DiffuseTextures(InDiffuseTextures), NormalMapTextures(InNormalMapTextures),
+              EmissiveTextures(InEmissiveTextures)
         {
         }
 
@@ -62,6 +70,7 @@ class Mesh final
         std::vector<uint32_t> Indices;
         std::vector<MeshTexture> DiffuseTextures;
         std::vector<MeshTexture> NormalMapTextures;
+        std::vector<MeshTexture> EmissiveTextures;
     };
 
     std::string m_Directory;

@@ -2,7 +2,7 @@
 #include "Texture.h"
 
 #include "RendererAPI.h"
-#include "Platform/Vulkan/VulkanTexture.h"
+#include "Eclipse/Platform/Vulkan/VulkanTexture.h"
 
 namespace Eclipse
 {

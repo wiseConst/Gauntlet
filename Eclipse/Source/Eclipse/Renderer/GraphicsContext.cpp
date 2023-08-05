@@ -1,7 +1,7 @@
 #include "EclipsePCH.h"
 #include "GraphicsContext.h"
 
-#include "Platform/Vulkan/VulkanContext.h"
+#include "Eclipse/Platform/Vulkan/VulkanContext.h"
 
 namespace Eclipse
 {

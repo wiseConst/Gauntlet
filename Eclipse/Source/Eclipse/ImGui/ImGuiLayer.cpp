@@ -2,7 +2,7 @@
 #include "ImGuiLayer.h"
 
 #include "Eclipse/Renderer/RendererAPI.h"
-#include "Platform/Vulkan/VulkanImGuiLayer.h"
+#include "Eclipse/Platform/Vulkan/VulkanImGuiLayer.h"
 
 namespace Eclipse
 {

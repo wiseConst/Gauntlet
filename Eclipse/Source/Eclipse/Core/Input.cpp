@@ -1,7 +1,7 @@
 #include "EclipsePCH.h"
 #include "Input.h"
 
-#include "Platform/Windows/WindowsInput.h"
+#include "Eclipse/Platform/Windows/WindowsInput.h"
 //#include "Platform/Linux/LinuxInput.h"
 
 namespace Eclipse

@@ -14,9 +14,14 @@ class EditorLayer final : public Layer
     {
         m_EditorCamera = EditorCamera::Create();
 
-        m_TestMesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/cerberus.gltf");
+        m_CerberusMesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
+        m_OmenMesh     = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
     }
-    void OnDetach() final override { m_TestMesh->Destroy(); }
+    void OnDetach() final override
+    {
+        m_CerberusMesh->Destroy();
+        m_OmenMesh->Destroy();
+    }
 
     void OnUpdate(const float DeltaTime) final override
     {
@@ -25,12 +30,23 @@ class EditorLayer final : public Layer
         Renderer::BeginScene(*m_EditorCamera);
         // Renderer2D::BeginScene(*m_EditorCamera);
 
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, -5.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
-        const auto TRS         = Translation * Rotation * Scale;
+        {
+            const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, -5.0f, 0.0f));
+            const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0));
+            const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
+            const auto TRS         = Translation * Rotation * Scale;
 
-        Renderer::SubmitMesh(m_TestMesh, TRS);
+            Renderer::SubmitMesh(m_CerberusMesh, TRS);
+        }
+
+        {
+            const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-10.0f, -10.0f, 0.0f));
+            const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
+            const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
+            const auto TRS         = Translation * Rotation * Scale;
+
+            Renderer::SubmitMesh(m_OmenMesh, TRS);
+        }
         // Renderer2D::DrawQuad(glm::vec3(0.0f, 50.0f, 0.0f), glm::vec2(10.0f), glm::vec4(0.5f, 0.12f, 0.9f, 1.0f));
 
         UpdateViewportSize();
@@ -74,8 +90,9 @@ class EditorLayer final : public Layer
 
   private:
     Ref<EditorCamera> m_EditorCamera;
-    Ref<Mesh> m_TestMesh;
     const Scoped<ImGuiLayer>& m_GUILayer;
+    Ref<Mesh> m_CerberusMesh;
+    Ref<Mesh> m_OmenMesh;
 
     void BeginDockspace()
     {

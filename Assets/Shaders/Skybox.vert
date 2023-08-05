@@ -6,13 +6,13 @@ layout(location = 0) out vec3 OutUVW;
 
 layout( push_constant ) uniform PushConstants
 {
-	mat4 RenderMatrix;
+	mat4 TransformMatrix; // there's mvp * transform (we use this to prevent creating UBO)
 	vec4 Color;
 } SkyboxPushConstants;
 
 void main()
 {
-	gl_Position = (SkyboxPushConstants.RenderMatrix * vec4(InPosition, 1.0)).xyww;
+	gl_Position = SkyboxPushConstants.TransformMatrix * vec4(InPosition, 1.0);
 	OutUVW = InPosition;
-	OutUVW.xy *= -1.0; // because I always flip images whilst loading it using stbi_image
+	OutUVW.xy*=-1.0;
 }

@@ -7,15 +7,7 @@
 
 #define LOG_WARN_ENABLED 1
 #define LOG_INFO_ENABLED 1
-#define LOG_DEBUG_ENABLED 1
 #define LOG_TRACE_ENABLED 1
-
-#if ELS_RELEASE
-#define LOG_DEBUG_ENABLED 0
-#define LOG_TRACE_ENABLED 0
-#endif
-
-// TODO: Add mutexes to perfrom multithreaded logging
 
 namespace Eclipse
 {
@@ -43,8 +35,13 @@ class Log final
     static std::mutex s_LogMutex;
 };
 
+#if ELS_DEBUG
 #define LOG_FATAL(message, ...) Eclipse::Log::Output(Eclipse::ELogLevel::LL_FATAL, message, ##__VA_ARGS__)
 #define LOG_ERROR(message, ...) Eclipse::Log::Output(Eclipse::ELogLevel::LL_ERROR, message, ##__VA_ARGS__)
+#elif ELS_RELEASE
+#define LOG_FATAL(message, ...)
+#define LOG_ERROR(message, ...)
+#endif
 
 #if LOG_WARN_ENABLED
 #define LOG_WARN(message, ...) Eclipse::Log::Output(Eclipse::ELogLevel::LL_WARN, message, ##__VA_ARGS__)
@@ -56,12 +53,6 @@ class Log final
 #define LOG_INFO(message, ...) Eclipse::Log::Output(Eclipse::ELogLevel::LL_INFO, message, ##__VA_ARGS__)
 #else
 #define LOG_INFO(message, ...)
-#endif
-
-#if LOG_DEBUG_ENABLED
-#define LOG_DEBUG(message, ...) Eclipse::Log::Output(Eclipse::ELogLevel::LL_DEBUG, message, ##__VA_ARGS__)
-#else
-#define LOG_DEBUG(message, ...)
 #endif
 
 #if LOG_TRACE_ENABLED

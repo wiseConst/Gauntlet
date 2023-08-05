@@ -29,7 +29,7 @@ project "Eclipse"
     location "Eclipse"
     kind "StaticLib"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "C++latest"
     staticruntime "on"
 
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
@@ -92,7 +92,7 @@ project "Sandbox"
     location "Sandbox"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "C++latest"
     staticruntime "on"
     
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
@@ -140,7 +140,7 @@ project "EclipseEd"
     location "EclipseEd"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "C++latest"
     staticruntime "on"
     
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")

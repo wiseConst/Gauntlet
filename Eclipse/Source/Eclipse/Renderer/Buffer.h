@@ -105,8 +105,8 @@ class BufferLayout final
     const auto& begin() const { return m_Elements.begin(); }
     const auto& end() const { return m_Elements.end(); }
 
-    auto& begin() { return m_Elements.begin(); }
-    auto& end() { return m_Elements.end(); }
+    auto begin() { return m_Elements.begin(); }
+    auto end() { return m_Elements.end(); }
 
   private:
     std::vector<BufferElement> m_Elements;

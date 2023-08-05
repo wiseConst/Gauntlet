@@ -5,7 +5,7 @@
 #include "CoreRendererStructs.h"
 #include "Texture.h"
 
-#include "Platform/Vulkan/VulkanRenderer2D.h"
+#include "Eclipse/Platform/Vulkan/VulkanRenderer2D.h"
 
 namespace Eclipse
 {

@@ -2,7 +2,7 @@
 #include "Framebuffer.h"
 
 #include "RendererAPI.h"
-#include "Platform/Vulkan/VulkanFramebuffer.h"
+#include "Eclipse/Platform/Vulkan/VulkanFramebuffer.h"
 
 namespace Eclipse
 {

@@ -1,0 +1,11 @@
+Model Information:
+* title:	Nemo - cyborg has a skeleton Blender.
+* source:	https://sketchfab.com/3d-models/nemo-cyborg-has-a-skeleton-blender-a55d5eb3c9d94840a14c53d9c85b95a2
+* author:	ART_LOLL (https://sketchfab.com/evgenytvidov)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Nemo - cyborg has a skeleton Blender." (https://sketchfab.com/3d-models/nemo-cyborg-has-a-skeleton-blender-a55d5eb3c9d94840a14c53d9c85b95a2) by ART_LOLL (https://sketchfab.com/evgenytvidov) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

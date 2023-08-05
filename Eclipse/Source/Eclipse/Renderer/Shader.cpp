@@ -3,7 +3,7 @@
 
 #include "RendererAPI.h"
 
-#include "Platform/Vulkan/VulkanShader.h"
+#include "Eclipse/Platform/Vulkan/VulkanShader.h"
 
 namespace Eclipse
 {

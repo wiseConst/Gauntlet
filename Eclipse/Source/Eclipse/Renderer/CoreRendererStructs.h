@@ -31,26 +31,16 @@ struct Vertex
     glm::vec3 Position;
 };
 
-// From vkguide.dev unused currently
-struct SceneDataBuffer
-{
-    glm::vec4 FogColor;      // w is for exponent
-    glm::vec4 FogDistances;  // x for min, y for max, zw unused.
-    glm::vec4 AmbientColor;
-    glm::vec4 SunlightDirection;  // w for sun power
-    glm::vec4 SunlightColor;
-};
-
 struct CameraDataBuffer
 {
-    glm::mat4 View;
     glm::mat4 Projection;
+    glm::mat4 View;
     alignas(16) glm::vec3 Position;
 };
 
 struct alignas(16) MeshPushConstants
 {
-    glm::mat4 RenderMatrix;
+    glm::mat4 TransformMatrix;
     glm::vec4 Color;
 };
 

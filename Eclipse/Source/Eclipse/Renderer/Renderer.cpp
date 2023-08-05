@@ -1,12 +1,11 @@
 #include "EclipsePCH.h"
 #include "Renderer.h"
 
-#include "Platform/Vulkan/VulkanRenderer.h"
+#include "Eclipse/Platform/Vulkan/VulkanRenderer.h"
 
 namespace Eclipse
 {
 Renderer* Renderer::s_Renderer = nullptr;
-
 Renderer::RendererStats Renderer::s_RendererStats;
 
 void Renderer::Init()

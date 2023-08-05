@@ -14,6 +14,7 @@
 #define ELS_ENABLE_ASSERTS
 #endif
 
+// To be removed
 #define ELS_EDITOR 1
 
 #ifdef ELS_ENABLE_ASSERTS
@@ -32,6 +33,9 @@
 
 #endif
 
+namespace Eclipse
+{
+
 #define FORCEINLINE __forceinline
 #define NODISCARD [[nodiscard]]
 #define BIT(x) (1 << (x))
@@ -40,11 +44,9 @@
 // Stolen from vulkan_core.h
 #define MAKE_VERSION(major, minor, patch) ((((uint32_t)(major)) << 22) | (((uint32_t)(minor)) << 12) | ((uint32_t)(patch)))
 
-namespace Eclipse
-{
-constexpr uint32_t ApplicationVersion = MAKE_VERSION(1, 0, 0);
-constexpr uint32_t EngineVersion      = MAKE_VERSION(1, 0, 0);
-constexpr char* EngineName            = "Eclipse";
+static constexpr uint32_t ApplicationVersion = MAKE_VERSION(1, 0, 0);
+static constexpr uint32_t EngineVersion      = MAKE_VERSION(1, 0, 0);
+static const char* EngineName                = "Eclipse";
 
 template <typename T> using Scoped = std::unique_ptr<T>;
 

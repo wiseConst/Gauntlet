@@ -5,13 +5,34 @@ layout(location = 1) in vec3 InNormal;
 layout(location = 2) in vec2 InTexCoord;
 layout(location = 3) in vec3 InTangent;
 layout(location = 4) in vec3 InBitangent;
+layout(location = 5) in vec3 InReflectedVector;
 
 layout(location = 0) out vec4 OutFragColor;
 
 layout(set = 0, binding = 0) uniform sampler2D Diffuse;
 layout(set = 0, binding = 1) uniform sampler2D NormalMap;
+layout(set = 0, binding = 2) uniform sampler2D Emissive;
+layout(set = 0, binding = 3) uniform samplerCube EnvironmentMap;
 
 void main()
 {
-	OutFragColor =  texture(Diffuse, InTexCoord) * InColor;
+	vec4 NormalMapTexture = texture(NormalMap, InTexCoord) * 2.0 - 1.0;
+	vec3 UnitNormal = normalize(NormalMapTexture.rgb);
+
+	const vec4 EnvironmentMapColor = texture(EnvironmentMap, InReflectedVector);
+	
+	const vec4 DiffuseTexture = texture(Diffuse, InTexCoord);
+	const vec4 EmissiveTexture = texture(Emissive, InTexCoord);
+
+	vec4 FinalTexture;
+	if(DiffuseTexture.r == 1.0f && DiffuseTexture.g == 1.0f && DiffuseTexture.b == 1.0f && DiffuseTexture.a == 1.0f)
+	{
+		FinalTexture = vec4(EmissiveTexture.rgb, 1.0f);
+	}
+	else
+	{
+		FinalTexture = DiffuseTexture;
+	}
+	const vec4 FinalColor = mix(EnvironmentMapColor, FinalTexture, 0.85f);
+	OutFragColor = FinalColor;
 }
