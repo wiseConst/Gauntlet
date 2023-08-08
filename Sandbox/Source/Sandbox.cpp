@@ -1,15 +1,15 @@
-#include <Eclipse.h>
-#include <Eclipse/Core/Entrypoint.h>
+#include <Gauntlet.h>
+#include <Gauntlet/Core/Entrypoint.h>
 
 // #include "Pong2D/PongLayer.h"
 // #include "1HourGame/GameLayer.h"
 
 #include "Sandbox2DLayer.h"
 
-class Sandbox final : public Eclipse::Application
+class Sandbox final : public Gauntlet::Application
 {
   public:
-    Sandbox(const Eclipse::ApplicationSpecification& InApplicationSpec) : Eclipse::Application(InApplicationSpec)
+    Sandbox(const Gauntlet::ApplicationSpecification& InApplicationSpec) : Gauntlet::Application(InApplicationSpec)
     {
         // PushLayer(new PongLayer());
         // PushLayer(new GameLayer());
@@ -19,14 +19,14 @@ class Sandbox final : public Eclipse::Application
     ~Sandbox() {}
 };
 
-Eclipse::Scoped<Eclipse::Application> Eclipse::CreateApplication()
+Gauntlet::Scoped<Gauntlet::Application> Gauntlet::CreateApplication()
 {
-    Eclipse::ApplicationSpecification AppSpec = {};
-    AppSpec.AppName                           = "Eclipse";
+    Gauntlet::ApplicationSpecification AppSpec = {};
+    AppSpec.AppName                            = "Gauntlet";
 
-    const auto WindowLogoPath = std::string(ASSETS_PATH) + std::string("Logo/Eclipse.jpg");
+    const auto WindowLogoPath = std::string(ASSETS_PATH) + std::string("Logo/Gauntlet.jpg");
     AppSpec.WindowLogoPath    = WindowLogoPath.data();
-    AppSpec.GraphicsAPI       = Eclipse::RendererAPI::EAPI::Vulkan;
+    AppSpec.GraphicsAPI       = Gauntlet::RendererAPI::EAPI::Vulkan;
 
-    return Eclipse::MakeScoped<Sandbox>(AppSpec);
+    return Gauntlet::MakeScoped<Sandbox>(AppSpec);
 }

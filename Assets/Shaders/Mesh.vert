@@ -12,7 +12,7 @@ layout(location = 1) out vec3 OutNormal;
 layout(location = 2) out vec2 OutTexCoord;
 layout(location = 3) out vec3 OutTangent;
 layout(location = 4) out vec3 OutBitangent;
-layout(location = 5) out vec3 OutReflectedVector;
+layout(location = 5) out vec3 OutViewVector;
 
 layout( push_constant ) uniform PushConstants
 {	
@@ -38,14 +38,11 @@ void main()
 	OutTexCoord = InTexCoord;
 	OutTangent = InTangent;
 	OutBitangent = OutBitangent;
+	OutViewVector = normalize(VertexWorldPosition.xyz - InCameraDataBuffer.Position);
 
-	// Converting to camera space
-	const vec3 T =  normalize((CameraViewProjectionMatrix * vec4(InTangent, 0.0f)).rgb);
-	const vec3 B = normalize((CameraViewProjectionMatrix * vec4(InBitangent, 0.0f)).rgb);
-	const vec3 N = normalize((CameraViewProjectionMatrix * vec4(InNormal, 0.0f)).rgb);
-	const mat3 TBN = mat3(T, B, N);
-
-	vec3 UnitNormal = normalize(InNormal);
-	vec3 ViewVector = normalize(VertexWorldPosition.xyz - InCameraDataBuffer.Position);
-	OutReflectedVector = reflect(ViewVector, UnitNormal);
+// Converting to camera space
+//	const vec3 T =  normalize((CameraViewProjectionMatrix * vec4(InTangent, 0.0f)).rgb);
+//	const vec3 B = normalize((CameraViewProjectionMatrix * vec4(InBitangent, 0.0f)).rgb);
+//	const vec3 N = normalize((CameraViewProjectionMatrix * vec4(InNormal, 0.0f)).rgb);
+//	const mat3 TBN = mat3(T, B, N);
 }

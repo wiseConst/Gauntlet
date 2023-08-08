@@ -1,4 +1,4 @@
-workspace "Eclipse"
+workspace "Gauntlet"
 architecture "x64"
 startproject "Sandbox"
 
@@ -10,23 +10,23 @@ local CURRENT_WORKING_DIRECTORY = os.getcwd()
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 IncludeDir = {}
-IncludeDir["GLFW"] = "Eclipse/vendor/GLFW/include"
+IncludeDir["GLFW"] = "Gauntlet/vendor/GLFW/include"
 IncludeDir["VULKAN"] = "%{VULKAN_PATH}"
-IncludeDir["ImGui"] = "Eclipse/vendor/imgui"
-IncludeDir["vma"] =  "Eclipse/vendor/vma/include"
-IncludeDir["stb"] =  "Eclipse/vendor/stb"
-IncludeDir["glm"] =  "Eclipse/vendor/glm"
-IncludeDir["assimp"] = "Eclipse/vendor/assimp"
+IncludeDir["ImGui"] = "Gauntlet/vendor/imgui"
+IncludeDir["vma"] =  "Gauntlet/vendor/vma/include"
+IncludeDir["stb"] =  "Gauntlet/vendor/stb"
+IncludeDir["glm"] =  "Gauntlet/vendor/glm"
+IncludeDir["assimp"] = "Gauntlet/vendor/assimp"
 
 group "Dependencies"
-    include "Eclipse/vendor/GLFW"
-    include "Eclipse/vendor/imgui"
-    include "Eclipse/vendor/vma"
-    include "Eclipse/vendor/assimp"
+    include "Gauntlet/vendor/GLFW"
+    include "Gauntlet/vendor/imgui"
+    include "Gauntlet/vendor/vma"
+    include "Gauntlet/vendor/assimp"
 group ""
 
-project "Eclipse"
-    location "Eclipse"
+project "Gauntlet"
+    location "Gauntlet"
     kind "StaticLib"
     language "C++"
     cppdialect "C++latest"
@@ -35,8 +35,8 @@ project "Eclipse"
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
 
-    pchheader("EclipsePCH.h")
-    pchsource("Eclipse/Source/EclipsePCH.cpp")
+    pchheader("GauntletPCH.h")
+    pchsource("Gauntlet/Source/GauntletPCH.cpp")
 
     flags {"MultiProcessorCompile"}
 
@@ -81,11 +81,11 @@ project "Eclipse"
 		}
 
     filter "configurations:Debug"
-        defines "ELS_DEBUG"
+        defines "GNT_DEBUG"
         symbols "On"
 
     filter "configurations:Release"
-        defines "ELS_RELEASE"
+        defines "GNT_RELEASE"
         optimize "On"
 
 project "Sandbox"
@@ -107,13 +107,13 @@ project "Sandbox"
     {
         "Sandbox/Source",
         "%{IncludeDir.glm}",
-		"Eclipse/vendor",
-		"Eclipse/Source"
+		"Gauntlet/vendor",
+		"Gauntlet/Source"
     }
 
     links 
     {
-		"Eclipse"
+		"Gauntlet"
     }
 
 
@@ -129,15 +129,15 @@ project "Sandbox"
 		}
 
     filter "configurations:Debug"
-        defines "ELS_DEBUG"
+        defines "GNT_DEBUG"
         symbols "On"
 
     filter "configurations:Release"
-        defines "ELS_RELEASE"
+        defines "GNT_RELEASE"
         optimize "On"
         
-project "EclipseEd"
-    location "EclipseEd"
+project "Forge"
+    location "Forge"
     kind "ConsoleApp"
     language "C++"
     cppdialect "C++latest"
@@ -153,15 +153,15 @@ project "EclipseEd"
 
     includedirs
     {
-        "EclipseEd/Source",
+        "Forge/Source",
         "%{IncludeDir.glm}",
-		"Eclipse/vendor",
-		"Eclipse/Source"
+		"Gauntlet/vendor",
+		"Gauntlet/Source"
     }
 
     links 
     {
-		"Eclipse"
+		"Gauntlet"
     }
 
 
@@ -177,9 +177,9 @@ project "EclipseEd"
 		}
 
     filter "configurations:Debug"
-        defines "ELS_DEBUG"
+        defines "GNT_DEBUG"
         symbols "On"
 
     filter "configurations:Release"
-        defines "ELS_RELEASE"
+        defines "GNT_RELEASE"
         optimize "On"

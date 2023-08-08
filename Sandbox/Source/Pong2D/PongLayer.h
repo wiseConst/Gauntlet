@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Eclipse.h>
+#include <Gauntlet.h>
 
-using namespace Eclipse;
+using namespace Gauntlet;
 
 enum class EGameState : uint8_t
 {

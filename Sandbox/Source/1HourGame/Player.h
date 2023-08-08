@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Eclipse.h>
+#include <Gauntlet.h>
 
 #include "Color.h"
 #include "Random.h"
@@ -41,5 +41,5 @@ class Player
     ParticleProps m_SmokeParticle, m_EngineParticle;
     ParticleSystem m_ParticleSystem;
 
-    Eclipse::Ref<Eclipse::Texture2D> m_ShipTexture;
+    Gauntlet::Ref<Gauntlet::Texture2D> m_ShipTexture;
 };

@@ -2,7 +2,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-using namespace Eclipse;
+using namespace Gauntlet;
 
 static glm::vec4 HSVtoRGB(const glm::vec3& hsv)
 {

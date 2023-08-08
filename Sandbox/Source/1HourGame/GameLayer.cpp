@@ -4,7 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-using namespace Eclipse;
+using namespace Gauntlet;
 
 GameLayer::GameLayer() : Layer("GameLayer")
 {
@@ -117,7 +117,7 @@ void GameLayer::OnImGuiRender()
     }
 }
 
-void GameLayer::OnEvent(Eclipse::Event& e)
+void GameLayer::OnEvent(Gauntlet::Event& e)
 {
     m_Camera->OnEvent(e);
 
@@ -130,7 +130,7 @@ void GameLayer::OnEvent(Eclipse::Event& e)
     // dispatcher.Dispatch<MouseButtonPressedEvent>(HZ_BIND_EVENT_FN(GameLayer::OnMouseButtonPressed));
 }
 
-bool GameLayer::OnMouseButtonPressed(Eclipse::MouseButtonPressedEvent& e)
+bool GameLayer::OnMouseButtonPressed(Gauntlet::MouseButtonPressedEvent& e)
 {
     if (m_State == GameState::GameOver) m_Level.Reset();
 
@@ -138,7 +138,7 @@ bool GameLayer::OnMouseButtonPressed(Eclipse::MouseButtonPressedEvent& e)
     return false;
 }
 
-bool GameLayer::OnWindowResize(Eclipse::WindowResizeEvent& e)
+bool GameLayer::OnWindowResize(Gauntlet::WindowResizeEvent& e)
 {
     CreateCamera(e.GetWidth(), e.GetHeight());
     return false;

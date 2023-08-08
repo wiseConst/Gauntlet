@@ -3,7 +3,7 @@
 #include <imgui/imgui.h>
 #include <glm/gtc/matrix_transform.hpp>
 
-using namespace Eclipse;
+using namespace Gauntlet;
 
 Player::Player()
 {

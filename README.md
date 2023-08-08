@@ -1,1 +1,1 @@
-![Eclipse](./Assets/Logo/EclipseLogo.jpg)
+![Gauntlet](./Assets/Logo/Gauntlet.jpg)

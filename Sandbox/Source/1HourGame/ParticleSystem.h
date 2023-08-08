@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Eclipse.h>
+#include <Gauntlet.h>
 
 struct ParticleProps
 {

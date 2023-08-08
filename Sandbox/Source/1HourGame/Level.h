@@ -46,5 +46,5 @@ class Level
 
     std::vector<Pillar> m_Pillars;
 
-    Eclipse::Ref<Eclipse::Texture2D> m_TriangleTexture;
+    Gauntlet::Ref<Gauntlet::Texture2D> m_TriangleTexture;
 };

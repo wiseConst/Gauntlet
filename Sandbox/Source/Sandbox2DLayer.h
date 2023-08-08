@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Eclipse.h>
+#include <Gauntlet.h>
 
-using namespace Eclipse;
+using namespace Gauntlet;
 
 class Sandbox2DLayer final : public Layer
 {

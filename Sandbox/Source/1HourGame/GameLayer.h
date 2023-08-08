@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Eclipse.h"
+#include "Gauntlet.h"
 
 #include "Level.h"
 #include <imgui/imgui.h>
 
-class GameLayer final : public Eclipse::Layer
+class GameLayer final : public Gauntlet::Layer
 {
   public:
     GameLayer();
@@ -16,15 +16,15 @@ class GameLayer final : public Eclipse::Layer
 
     void OnUpdate(const float DeltaTime) override;
     virtual void OnImGuiRender() override;
-    void OnEvent(Eclipse::Event& e) override;
-    bool OnMouseButtonPressed(Eclipse::MouseButtonPressedEvent& e);
-    bool OnWindowResize(Eclipse::WindowResizeEvent& e);
+    void OnEvent(Gauntlet::Event& e) override;
+    bool OnMouseButtonPressed(Gauntlet::MouseButtonPressedEvent& e);
+    bool OnWindowResize(Gauntlet::WindowResizeEvent& e);
 
   private:
     void CreateCamera(uint32_t width, uint32_t height);
 
   private:
-    Eclipse::Ref<Eclipse::OrthographicCamera> m_Camera;
+    Gauntlet::Ref<Gauntlet::OrthographicCamera> m_Camera;
     Level m_Level;
     ImFont* m_Font = nullptr;
     float m_Time   = 0.0f;

@@ -66,6 +66,6 @@ void ParticleSystem::OnRender()
         color.a         = color.a * life;
 
         float size = glm::lerp(particle.SizeEnd, particle.SizeBegin, life);
-        Eclipse::Renderer2D::DrawRotatedQuad(particle.Position, {size, size}, glm::vec3(0, 0, particle.Rotation), color);
+        Gauntlet::Renderer2D::DrawRotatedQuad(particle.Position, {size, size}, glm::vec3(0, 0, particle.Rotation), color);
     }
 }
