@@ -1,0 +1,18 @@
+[submodule "Gauntlet/vendor/vma"]
+	path = Gauntlet/vendor/vma
+	url = https://github.com/wiseConst/VulkanMemoryAllocator
+[submodule "Gauntlet/vendor/GLFW"]
+	path = Gauntlet/vendor/GLFW
+	url = https://github.com/wiseConst/glfw.git
+[submodule "Gauntlet/vendor/glm"]
+	path = Gauntlet/vendor/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "Gauntlet/vendor/stb"]
+	path = Gauntlet/vendor/stb
+	url = https://github.com/nothings/stb.git
+[submodule "Gauntlet/vendor/imgui"]
+	path = Gauntlet/vendor/imgui
+	url = https://github.com/wiseConst/imgui.git
+[submodule "Gauntlet/vendor/volk"]
+	path = Gauntlet/vendor/volk
+	url = https://github.com/zeux/volk.git
