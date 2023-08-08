@@ -1,1 +1,1 @@
-![Gauntlet](./Assets/Logo/Gauntlet.jpg)
+![Gauntlet](./Assets/Logo/Gauntlet.png)
