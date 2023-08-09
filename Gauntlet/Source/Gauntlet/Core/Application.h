@@ -54,7 +54,7 @@ class Application : private Uncopyable, private Unmovable
     FORCEINLINE auto& GetWindow() { return m_Window; }
 
     FORCEINLINE void PushLayer(Layer* InLayer) { m_LayerQueue.Enqueue(InLayer); }
-    const float GetTimeNow() const;
+    static const float GetTimeNow();
 
   private:
     static Application* s_Instance;

@@ -25,7 +25,7 @@ void VulkanTextureCube::Create()
     // Assuming that all the images have the same width && height
     for (uint32_t i = 0; i < s_MaxCubeMapImages; ++i)
     {
-        FacesData[i] = ImageUtils::LoadImageFromFile(m_Faces[i].data(), &Width, &Height, &Channels);
+        FacesData[i] = ImageUtils::LoadImageFromFile(m_Faces[i].data(), &Width, &Height, &Channels, true);
         GNT_ASSERT(FacesData[i], "Failed to load cube map image!");
     }
     Channels = 4;

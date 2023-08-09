@@ -21,6 +21,8 @@ class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
     void Destroy();
     void ResetPools();
 
+    FORCEINLINE const uint32_t GetAllocatedDescriptorSetsCount() { return m_AllocatedDescriptorSets; }
+
   private:
     Scoped<VulkanDevice>& m_Device;
 
@@ -28,6 +30,7 @@ class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
     VkDescriptorPool m_CurrentPool       = VK_NULL_HANDLE;
     uint32_t m_CurrentPoolSizeMultiplier = 500;
     uint32_t m_BasePoolSizeMultiplier    = 500;
+    uint32_t m_AllocatedDescriptorSets   = 0;
 
     std::vector<std::pair<VkDescriptorType, float>> m_DefaultPoolSizes =  //
         {{VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},                              //

@@ -4,6 +4,8 @@
 #include "VulkanDevice.h"
 #include "VulkanUtility.h"
 
+#include "Gauntlet/Renderer/Renderer.h"
+
 namespace Gauntlet
 {
 // VulkanDescriptorAllocator
@@ -27,13 +29,18 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
         }
     }
 
-    const auto DescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
+    const auto CurrentDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
 
     // Try to allocate the descriptor set
-    auto AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &DescriptorSetAllocateInfo, InDescriptorSet);
-    if (AllocationResult == VK_SUCCESS) return true;
+    auto AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &CurrentDescriptorSetAllocateInfo, InDescriptorSet);
+    if (AllocationResult == VK_SUCCESS)
+    {
+        ++m_AllocatedDescriptorSets;
+        Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
+        return true;
+    }
 
-    // Allocation failed try to get new pool and allocate using new pool
+    // Allocation failed, try to get new pool and allocate using this new pool
     if (AllocationResult == VK_ERROR_FRAGMENTED_POOL || AllocationResult == VK_ERROR_OUT_OF_POOL_MEMORY)
     {
         m_CurrentPool = CreatePool(m_CurrentPoolSizeMultiplier, 0);
@@ -41,8 +48,14 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
         m_CurrentPoolSizeMultiplier *= 1.3;
 
         // If it still fails then we have big issues
-        AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &DescriptorSetAllocateInfo, InDescriptorSet);
-        if (AllocationResult == VK_SUCCESS) return true;
+        const auto NewDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
+        AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &NewDescriptorSetAllocateInfo, InDescriptorSet);
+        if (AllocationResult == VK_SUCCESS)
+        {
+            ++m_AllocatedDescriptorSets;
+            Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
+            return true;
+        }
     }
 
     GNT_ASSERT(false, "Failed to allocate descriptor pool!");
@@ -72,6 +85,7 @@ VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t InCount, V
 void VulkanDescriptorAllocator::ResetPools()
 {
     m_Device->WaitDeviceOnFinish();
+    m_AllocatedDescriptorSets = 0;
 
     for (auto& Pool : m_Pools)
         vkResetDescriptorPool(m_Device->GetLogicalDevice(), Pool, 0);
@@ -82,12 +96,12 @@ void VulkanDescriptorAllocator::ResetPools()
 
 void VulkanDescriptorAllocator::Destroy()
 {
+    ResetPools();
+
     for (auto& Pool : m_Pools)
         vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), Pool, nullptr);
 
     m_CurrentPool = VK_NULL_HANDLE;
 }
-
-// VulkanDescriptorBuilder
 
 }  // namespace Gauntlet

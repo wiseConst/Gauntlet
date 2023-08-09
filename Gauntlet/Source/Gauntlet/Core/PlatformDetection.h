@@ -6,7 +6,7 @@
 #ifdef _WIN64
 /* Windows x64  */
 
-#define ELS_PLATFORM_WINDOWS
+#define GNT_PLATFORM_WINDOWS
 #else
 #error "x86 Builds aren't supported!"
 #endif
@@ -20,10 +20,10 @@
 #if TARGET_IPHONE_SIMULATOR == 1
 #error "IOS simulator is not supported!"
 #elif TARGET_OS_PHONE == 1
-#define ELS_PLATFORM_IOS
+#define GNT_PLATFORM_IOS
 #error "IOS is not supported!"
 #elif TARGET_OS_MAC == 1
-#define ELS_PLATFORM_MACOS
+#define GNT_PLATFORM_MACOS
 #error "MacOS is not supported!"
 #else
 #error "Unknown Apple platform!"
@@ -33,10 +33,10 @@
  * since android is based on the linux kernel
  * it has __linux__ defined */
 #elif defined(__ANDROID__)
-#define ELS_PLATFORM_ANDROID
+#define GNT_PLATFORM_ANDROID
 #error "Android is not supported!"
 #elif defined(__linux__)
-#define ELS_PLATFORM_LINUX
+#define GNT_PLATFORM_LINUX
 #else
 #error "Unknown platform!"
 #endif

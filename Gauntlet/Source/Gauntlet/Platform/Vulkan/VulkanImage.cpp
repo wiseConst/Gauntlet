@@ -6,6 +6,8 @@
 #include "VulkanAllocator.h"
 #include "VulkanDevice.h"
 #include "VulkanCommandPool.h"
+#include "VulkanDescriptors.h"
+#include "VulkanRenderer.h"
 
 namespace Gauntlet
 {
@@ -278,7 +280,8 @@ void VulkanImage::Create()
         ImageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    const auto ImageFormat = ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format);
+    m_Specification.FlipOnLoad = true;
+    const auto ImageFormat     = ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format);
     ImageUtils::CreateImage(&m_Image, m_Specification.Width, m_Specification.Height, ImageUsageFlags, ImageFormat, VK_IMAGE_TILING_OPTIMAL,
                             m_Specification.Mips, m_Specification.Layers);
     ImageUtils::CreateImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.Image, &m_Image.ImageView, ImageFormat,
@@ -291,6 +294,8 @@ void VulkanImage::Create()
     m_DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     m_DescriptorImageInfo.imageView   = m_Image.ImageView;
     m_DescriptorImageInfo.sampler     = m_Sampler;
+
+    // VK_CHECK(Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, VulkanRenderer::GetImageDescriptorSetLayout()), "Failed to allocate texture/image descriptor set!");
 }
 
 void VulkanImage::CreateSampler()

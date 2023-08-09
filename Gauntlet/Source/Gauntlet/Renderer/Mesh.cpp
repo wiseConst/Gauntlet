@@ -8,6 +8,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include "Gauntlet/Core/JobSystem.h"
+
 namespace Gauntlet
 {
 Ref<Mesh> Mesh::Create(const std::string& InFilePath)
@@ -17,63 +19,72 @@ Ref<Mesh> Mesh::Create(const std::string& InFilePath)
 
 Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices)
 {
-    BufferInfo VertexBufferInfo = {};
-    VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
-    VertexBufferInfo.Layout     = {{EShaderDataType::Vec3, "InPosition"}};
+    JobSystem::Submit(
+        [this, InVertices, InIndices]
+        {
+            BufferInfo VertexBufferInfo = {};
+            VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
+            VertexBufferInfo.Layout     = {{EShaderDataType::Vec3, "InPosition"}};
+            VertexBufferInfo.Count      = InVertices.size();
 
-    Ref<VertexBuffer> VertexBuffer(VertexBuffer::Create(VertexBufferInfo));
-    VertexBuffer->SetData(InVertices.data(), InVertices.size() * sizeof(InVertices[0]));
-    m_VertexBuffers.emplace_back(VertexBuffer);
+            Ref<VertexBuffer> VertexBuffer(VertexBuffer::Create(VertexBufferInfo));
+            VertexBuffer->SetData(InVertices.data(), InVertices.size() * sizeof(InVertices[0]));
+            m_VertexBuffers.emplace_back(VertexBuffer);
 
-    BufferInfo IndexBufferInfo = {};
-    IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
-    IndexBufferInfo.Count      = InIndices.size();
-    IndexBufferInfo.Data       = (void*)InIndices.data();
-    IndexBufferInfo.Size       = InIndices.size() * sizeof(InIndices[0]);
+            BufferInfo IndexBufferInfo = {};
+            IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
+            IndexBufferInfo.Count      = InIndices.size();
+            IndexBufferInfo.Data       = (void*)InIndices.data();
+            IndexBufferInfo.Size       = InIndices.size() * sizeof(InIndices[0]);
 
-    m_IndexBuffers.emplace_back(IndexBuffer::Create(IndexBufferInfo));
+            m_IndexBuffers.emplace_back(IndexBuffer::Create(IndexBufferInfo));
+        });
 }
 
 Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
 {
+    JobSystem::Submit(
+        [this]
+        {
+            LoadMesh(m_Directory);
 
-    LoadMesh(m_Directory);
+            BufferInfo VertexBufferInfo = {};
+            VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
 
-    BufferInfo VertexBufferInfo = {};
-    VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
+            VertexBufferInfo.Layout = {
+                {EShaderDataType::Vec3, "InPosition"},  //
+                {EShaderDataType::Vec3, "InNormal"},    //
+                {EShaderDataType::Vec4, "InColor"},     //
+                {EShaderDataType::Vec2, "InTexCoord"},  //
+                {EShaderDataType::Vec3, "InTangent"},   //
+                {EShaderDataType::Vec3, "InBitangent"}  //
+            };
 
-    VertexBufferInfo.Layout = {
-        {EShaderDataType::Vec3, "InPosition"},  //
-        {EShaderDataType::Vec3, "InNormal"},    //
-        {EShaderDataType::Vec4, "InColor"},     //
-        {EShaderDataType::Vec2, "InTexCoord"},  //
-        {EShaderDataType::Vec3, "InTangent"},   //
-        {EShaderDataType::Vec3, "InBitangent"}  //
-    };
+            BufferInfo IndexBufferInfo = {};
+            IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
 
-    BufferInfo IndexBufferInfo = {};
-    IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
+            // MeshesData loaded, let's populate index/vertex buffers
+            for (auto& OneMeshData : m_MeshesData)
+            {
+                VertexBufferInfo.Count = OneMeshData.Vertices.size();
+                Ref<VertexBuffer> VertexBuffer(VertexBuffer::Create(VertexBufferInfo));
+                VertexBuffer->SetData(OneMeshData.Vertices.data(), OneMeshData.Vertices.size() * sizeof(OneMeshData.Vertices[0]));
+                m_VertexBuffers.emplace_back(VertexBuffer);
 
-    // MeshesData loaded, let's populate index/vertex buffers
-    for (auto& OneMeshData : m_MeshesData)
-    {
-        Ref<VertexBuffer> VertexBuffer(VertexBuffer::Create(VertexBufferInfo));
-        VertexBuffer->SetData(OneMeshData.Vertices.data(), OneMeshData.Vertices.size() * sizeof(OneMeshData.Vertices[0]));
-        m_VertexBuffers.emplace_back(VertexBuffer);
+                IndexBufferInfo.Count = OneMeshData.Indices.size();
+                IndexBufferInfo.Data  = OneMeshData.Indices.data();
+                IndexBufferInfo.Size  = OneMeshData.Indices.size() * sizeof(OneMeshData.Indices[0]);
 
-        IndexBufferInfo.Count = OneMeshData.Indices.size();
-        IndexBufferInfo.Data  = OneMeshData.Indices.data();
-        IndexBufferInfo.Size  = OneMeshData.Indices.size() * sizeof(OneMeshData.Indices[0]);
-
-        m_IndexBuffers.emplace_back(IndexBuffer::Create(IndexBufferInfo));
-    }
+                m_IndexBuffers.emplace_back(IndexBuffer::Create(IndexBufferInfo));
+            }
+        });
 }
 
 void Mesh::LoadMesh(const std::string& InMeshPath)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(InMeshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals /*|
-                                                                    aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes*/);
+    const aiScene* scene = importer.ReadFile(InMeshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
+                                                                    aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -108,7 +119,9 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
     {
         MeshVertex Vertex;
         Vertex.Position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
-        Vertex.Normal   = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+
+        Vertex.Normal = glm::vec3(0.0f);
+        if (mesh->HasNormals()) Vertex.Normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
 
         Vertex.Color = glm::vec4(1.0f);
         if (mesh->HasVertexColors(0))

@@ -15,7 +15,7 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
     int32_t Height              = 0;
     int32_t Channels            = 0;  // Unused cuz vulkan perceives only 4 channels
 
-    TextureCI.Data     = ImageUtils::LoadImageFromFile(TextureFilePath.data(), &Width, &Height, &Channels);
+    TextureCI.Data     = ImageUtils::LoadImageFromFile(TextureFilePath.data(), &Width, &Height, &Channels, true);
     TextureCI.Width    = Width;
     TextureCI.Height   = Height;
     TextureCI.DataSize = Width * Height * TextureCI.Channels;

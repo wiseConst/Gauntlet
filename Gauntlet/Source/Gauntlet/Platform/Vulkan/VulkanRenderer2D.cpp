@@ -206,12 +206,10 @@ void VulkanRenderer2D::BeginImpl()
     s_Data.QuadVertexBufferPtr          = s_Data.QuadVertexBufferBase;
     s_Data.CurrentQuadVertexBufferIndex = 0;
 
-    s_Data.QuadDescriptorSets.clear();
     s_Data.CurrentDescriptorSetIndex = 0;
     s_Data.CurrentTextureSlotIndex   = 1;
 
     s_Data.QuadIndexCount          = 0;
-    Renderer::GetStats().DrawCalls = 0;
     Renderer::GetStats().QuadCount = 0;
 
     for (auto& StagingBuffer : s_Data.StagingStorage.StagingBuffers)
@@ -458,9 +456,6 @@ void VulkanRenderer2D::FlushImpl()
 
     const auto& Swapchain = m_Context.GetSwapchain();
     auto& CommandBuffer   = m_Context.GetGraphicsCommandPool()->GetCommandBuffer(Swapchain->GetCurrentFrameIndex());
-    // CommandBuffer.BeginDebugLabel("2D", glm::vec4(0.87f, 0.43f, 0.16f, 1.0f));
-    // VulkanRenderer::GetPostProcessFramebuffer()->BeginRenderPass(CommandBuffer.Get());
-    GNT_ASSERT(false, "2D Is not implemented right now!");
 
     CommandBuffer.BindPipeline(s_Data.QuadPipeline);
 
@@ -473,9 +468,6 @@ void VulkanRenderer2D::FlushImpl()
                                     s_Data.QuadPipeline->GetPushConstantsSize(), &s_Data.PushConstants);
 
     CommandBuffer.DrawIndexed(s_Data.QuadIndexCount);
-
-    /*VulkanRenderer::GetPostProcessFramebuffer()->EndRenderPass(CommandBuffer.Get());
-    CommandBuffer.EndDebugLabel();*/
 
     ++Renderer::GetStats().DrawCalls;
     ++s_Data.CurrentDescriptorSetIndex;

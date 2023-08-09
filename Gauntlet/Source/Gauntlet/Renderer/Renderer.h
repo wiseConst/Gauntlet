@@ -45,8 +45,10 @@ class Renderer : private Uncopyable, private Unmovable
         size_t DrawCalls = 0;
         size_t QuadCount = 0;
 
-        float CPUWaitTime = 0;
-        float GPUWaitTime = 0;
+        uint32_t AllocatedDescriptorSets = 0;
+        uint32_t FPS                     = 0;
+        float CPUWaitTime                = 0;
+        float GPUWaitTime                = 0;
     } static s_RendererStats;
 
   protected:

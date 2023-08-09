@@ -6,12 +6,14 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
-    const float LoadMeshStartTime = Application::Get().GetTimeNow();
-    m_CerberusMesh                = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
-    m_OmenMesh                    = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
-    m_CyberPunkRevolverMesh       = Mesh::Create(std::string(ASSETS_PATH) + "Models/cyberpunk_revolver/scene.gltf");
-    const float LoadMeshEndTime   = Application::Get().GetTimeNow();
-    LOG_INFO("Time took to load meshes: (%f)ms", LoadMeshEndTime - LoadMeshStartTime);
+    m_CerberusMesh          = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
+    m_OmenMesh              = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
+    m_CyberPunkRevolverMesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/cyberpunk_revolver/scene.gltf");
+
+    m_VikingRoom    = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
+    m_Stormstrooper = Mesh::Create(std::string(ASSETS_PATH) + "Models/DancingStormStrooper/scene.gltf");
+
+    m_DodgeCharger = Mesh::Create(std::string(ASSETS_PATH) + "Models/dominic_torettos_1970_dodge_charger_rt_fast_x/scene.gltf");
 }
 
 void EditorLayer::OnDetach()
@@ -19,6 +21,10 @@ void EditorLayer::OnDetach()
     m_CerberusMesh->Destroy();
     m_OmenMesh->Destroy();
     m_CyberPunkRevolverMesh->Destroy();
+
+    m_VikingRoom->Destroy();
+    m_Stormstrooper->Destroy();
+    m_DodgeCharger->Destroy();
 }
 
 void EditorLayer::OnUpdate(const float DeltaTime)
@@ -26,7 +32,7 @@ void EditorLayer::OnUpdate(const float DeltaTime)
     m_EditorCamera->OnUpdate(DeltaTime);
 
     Renderer::BeginScene(*m_EditorCamera);
-    // Renderer2D::BeginScene(*m_EditorCamera);
+    Renderer2D::BeginScene(*m_EditorCamera);
 
     {
         const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, -5.0f, 0.0f));
@@ -48,7 +54,7 @@ void EditorLayer::OnUpdate(const float DeltaTime)
 
     {
         static float RotationAngle = 0.0f;
-        RotationAngle += DeltaTime * 4;
+        RotationAngle += DeltaTime * 70;
 
         const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 15.0f, 0.0f));
         const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(RotationAngle), glm::vec3(0, 0, 1));
@@ -57,7 +63,44 @@ void EditorLayer::OnUpdate(const float DeltaTime)
 
         Renderer::SubmitMesh(m_CyberPunkRevolverMesh, TRS);
     }
-    // Renderer2D::DrawQuad(glm::vec3(0.0f, -50.0f, 0.0f), glm::vec2(80), glm::vec4(1.0f, 1.0f, 0.5f, 1.0f));
+
+    {
+        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-40.0f, -40.0f, 0.0f));
+        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
+        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
+        const auto TRS         = Translation * Rotation * Scale;
+
+        Renderer::SubmitMesh(m_VikingRoom, TRS);
+    }
+
+    {
+        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-50.0f, 50.0f, 40.0f));
+        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
+        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
+        const auto TRS         = Translation * Rotation * Scale;
+
+        Renderer::SubmitMesh(m_Stormstrooper, TRS);
+    }
+
+    {
+        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-180.0f, -180.0f, 0.0f));
+        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0));
+        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f));
+        const auto TRS         = Translation * Rotation * Scale;
+
+        Renderer::SubmitMesh(m_DodgeCharger, TRS);
+    }
+
+    {
+        for (float y = -3.0f; y < 3.0f; y += 0.5f)
+        {
+            for (float x = -3.0f; x < 3.0f; x += 0.5f)
+            {
+                glm::vec4 color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
+                Renderer2D::DrawQuad({x, y, -8.0f}, glm::vec2(0.45f), color);
+            }
+        }
+    }
 }
 
 void EditorLayer::OnEvent(Event& InEvent)
@@ -80,7 +123,9 @@ void EditorLayer::OnImGuiRender()
         ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages);
         ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers);
         ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers);
-        ImGui::Text("VRAM Usage: %f MB", Stats.GPUMemoryAllocated / 1024.0f / 1024.0f);
+        ImGui::Text("VRAM Usage: (%f) MB", Stats.GPUMemoryAllocated / 1024.0f / 1024.0f);
+        ImGui::Text("FPS: (%u)", Stats.FPS);
+        ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets);
         ImGui::Text("CPU Wait Time: %f(ms)", Stats.CPUWaitTime);
         ImGui::Text("GPU Wait Time: %f(ms)", Stats.GPUWaitTime);
         ImGui::Text("VMA Allocations: %llu", Stats.Allocations);

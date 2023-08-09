@@ -5,7 +5,7 @@
 
 #include <memory>
 
-#ifdef ELS_PLATFORM_WINDOWS
+#ifdef GNT_PLATFORM_WINDOWS
 #define NOMINMAX
 #include <Windows.h>
 #endif
@@ -32,6 +32,7 @@
 
 namespace Gauntlet
 {
+#define MAX_WORKER_THREADS 8
 
 #define FORCEINLINE __forceinline
 #define NODISCARD [[nodiscard]]

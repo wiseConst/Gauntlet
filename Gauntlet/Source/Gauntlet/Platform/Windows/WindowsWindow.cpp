@@ -187,7 +187,7 @@ void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
     int32_t Width    = 0;
     int32_t Height   = 0;
     int32_t Channels = 0;
-    stbi_uc* Pixels  = ImageUtils::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels);
+    stbi_uc* Pixels  = ImageUtils::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels, false);
 
     GLFWimage IconImage = {};
     IconImage.pixels    = Pixels;

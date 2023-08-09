@@ -119,7 +119,7 @@ void VulkanRenderer::Create()
     PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
     PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
     PipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
+    PipelineSpec.CullMode              = ECullMode::CULL_MODE_NONE;  // BACK?
     PipelineSpec.bDepthTest            = VK_TRUE;
     PipelineSpec.bDepthWrite           = VK_TRUE;
     PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -144,6 +144,7 @@ void VulkanRenderer::Create()
 
     PipelineSpec.DescriptorSetLayouts = {s_Data.MeshDescriptorSetLayout};
     s_Data.MeshPipeline.reset(new VulkanPipeline(PipelineSpec));
+    m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshPipeline->Invalidate(); });
 
     SetupSkybox();
 
@@ -181,20 +182,19 @@ void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
 
 void VulkanRenderer::BeginImpl()
 {
-    // s_Data.MeshDescriptorSets.clear();
+    Renderer::GetStats().DrawCalls   = 0;
     s_Data.CurrentDescriptorSetIndex = 0;
 
-    // m_Context.GetDescriptorAllocator()->ResetPools();
+    s_Data.CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
+    GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
 
-    auto& CommandBuffer = m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
-    CommandBuffer.BeginDebugLabel("3D", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-    s_Data.PostProcessFramebuffer->BeginRenderPass(CommandBuffer.Get());
+    s_Data.CurrentCommandBuffer->BeginDebugLabel("3D", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+    s_Data.PostProcessFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
 }
 
 void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix)
 {
-    const auto& Swapchain       = m_Context.GetSwapchain();
-    s_Data.CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(Swapchain->GetCurrentFrameIndex());
+    const auto& Swapchain = m_Context.GetSwapchain();
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
 
     s_Data.CurrentCommandBuffer->BindPipeline(s_Data.MeshPipeline);
@@ -218,7 +218,6 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
 
         if (!InMesh->IsRendered())
         {
-
             std::vector<VkWriteDescriptorSet> Writes;
             if (InMesh->HasDiffuseTexture(i))
             {
@@ -327,6 +326,7 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
         s_Data.CurrentCommandBuffer->BindIndexBuffer(std::static_pointer_cast<VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i])->Get(), 0,
                                                      VK_INDEX_TYPE_UINT32);
         s_Data.CurrentCommandBuffer->DrawIndexed(std::static_pointer_cast<VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i])->GetCount());
+        ++Renderer::GetStats().DrawCalls;
     }
     InMesh->SetIsRendered(true);
 }
@@ -390,6 +390,7 @@ void VulkanRenderer::SetupSkybox()
 
     PipelineSpec.DescriptorSetLayouts = {s_Data.SkyboxDescriptorSetLayout};
     s_Data.SkyboxPipeline.reset(new VulkanPipeline(PipelineSpec));
+    m_Context.AddSwapchainResizeCallback([this] { s_Data.SkyboxPipeline->Invalidate(); });
 
     GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(&s_Data.SkyboxDescriptorSet, s_Data.SkyboxDescriptorSetLayout),
                "Failed to allocate descriptor sets!");
@@ -401,7 +402,6 @@ void VulkanRenderer::SetupSkybox()
     auto CubeMapTextureImageInfo = CubeMapTexture->GetImage()->GetDescriptorInfo();
     SkyboxWriteDescriptorSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.SkyboxDescriptorSet, 1,
                                                               &CubeMapTextureImageInfo);
-
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &SkyboxWriteDescriptorSet, 0, VK_NULL_HANDLE);
 }
 

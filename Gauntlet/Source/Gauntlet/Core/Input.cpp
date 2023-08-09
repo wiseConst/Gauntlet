@@ -12,9 +12,9 @@ void Input::Init()
 {
     GNT_ASSERT(!s_Instance, "Input already initalized!");
 
-#ifdef ELS_PLATFORM_WINDOWS
+#ifdef GNT_PLATFORM_WINDOWS
     s_Instance = new WindowsInput();
-#elif defined(ELS_PLATFORM_LINUX)
+#elif defined(GNT_PLATFORM_LINUX)
     s_Instance = new LinuxInput();
 #endif
 }

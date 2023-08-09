@@ -33,7 +33,7 @@ void Player::OnUpdate(const float DeltaTime)
 {
     m_Time += DeltaTime;
 
-    if (Input::IsKeyPressed(ELS_KEY_SPACE))
+    if (Input::IsKeyPressed(GNT_KEY_SPACE))
     {
         m_Velocity.y += m_EnginePower;
         if (m_Velocity.y < 0.0f) m_Velocity.y += m_EnginePower * 2.0f;

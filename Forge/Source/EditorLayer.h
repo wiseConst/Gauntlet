@@ -28,6 +28,11 @@ class EditorLayer final : public Layer
     Ref<Mesh> m_OmenMesh;
     Ref<Mesh> m_CyberPunkRevolverMesh;
 
+    Ref<Mesh> m_VikingRoom;
+    Ref<Mesh> m_Stormstrooper;
+
+    Ref<Mesh> m_DodgeCharger;
+
     void BeginDockspace();
 
     void EndDockspace();

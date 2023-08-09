@@ -78,6 +78,7 @@ class VulkanContext final : public GraphicsContext
     // Sync objects CPU-GPU
     std::vector<VkFence> m_InFlightFences;
     float m_CPULastWaitTime = 0.0f;
+    float m_GPULastWaitTime = 0.0f;
 
     void CreateInstance();
     void CreateDebugMessenger();

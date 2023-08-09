@@ -77,6 +77,7 @@ struct ImageSpecification
 
     bool Copyable   = false;
     bool Comparable = false;
+    bool FlipOnLoad = false;
 };
 
 class Image
@@ -110,7 +111,7 @@ FORCEINLINE bool IsDepthFormat(EImageFormat InImageFormat)
 }
 
 stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
-                           ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
+                           const bool InbFlipOnLoad = false, ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
 
 FORCEINLINE void UnloadImage(stbi_uc* InPixels)
 {

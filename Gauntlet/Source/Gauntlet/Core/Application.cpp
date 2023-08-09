@@ -31,6 +31,12 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
     m_Window->SetWindowCallback(BIND_EVENT_FN(Application::OnEvent));
     m_Window->SetWindowLogo(InApplicationSpec.WindowLogoPath);
 
+    const auto ConfigurationString = GNT_DEBUG ? "Debug" : "Release";
+    const auto RHIString           = RendererAPI::Get() == RendererAPI::EAPI::Vulkan ? "Vulkan" : "None";
+    const auto WindowTitle =
+        std::string(m_Window->GetTitle()) + std::string(" - ") + ConfigurationString + std::string(" <") + RHIString + std::string(">");
+    m_Window->SetWindowTitle(WindowTitle);
+
     Input::Init();
     m_Context.reset(GraphicsContext::Create(m_Window));
 
@@ -45,21 +51,28 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
 
 void Application::Run()
 {
+    const float LoadMeshStartTime = GetTimeNow();
+    JobSystem::Update();
+    const float LoadMeshEndTime = GetTimeNow();
+    LOG_INFO("Time took to prepare application: (%f)ms", LoadMeshEndTime - LoadMeshStartTime);
+
     uint32_t FrameCount = 0;
     float LastTime      = 0.0f;
     float LastFrameTime = 0.0f;
     while (m_Window->IsRunning())
     {
+        JobSystem::Update();
+
         if (!m_Window->IsMinimized())
         {
             m_Context->BeginRender();
 
             Renderer::Begin();
-            // Renderer2D::Begin();
+            Renderer2D::Begin();
 
             m_LayerQueue.OnUpdate(m_MainThreadDelta);
 
-            // Renderer2D::Flush();
+            Renderer2D::Flush();
             Renderer::Flush();
 
             m_Context->EndRender();
@@ -78,16 +91,14 @@ void Application::Run()
         m_MainThreadDelta       = CurrentTime - LastFrameTime;
         LastFrameTime           = CurrentTime;
 
-        // FrameTime
+        // FPS
         const float DeltaTime = CurrentTime - LastTime;
         ++FrameCount;
         if (DeltaTime >= 1.0f)
         {
-            const uint32_t FPS     = FrameCount / DeltaTime;
-            const auto WindowTitle = std::string(m_AppInfo.AppName) + " " + std::to_string(FPS) + " FPS";
-            m_Window->SetWindowTitle(WindowTitle.data());
-            FrameCount = 0;
-            LastTime   = CurrentTime;
+            Renderer::GetStats().FPS = FrameCount / DeltaTime;
+            FrameCount               = 0;
+            LastTime                 = CurrentTime;
         }
     }
 }
@@ -95,7 +106,7 @@ void Application::Run()
 void Application::OnEvent(Event& e)
 {
     if (m_Window->IsMinimized()) return;
-    if (Input::IsKeyPressed(ELS_KEY_ESCAPE)) OnWindowClosed((WindowCloseEvent&)e);
+    if (Input::IsKeyPressed(GNT_KEY_ESCAPE)) OnWindowClosed((WindowCloseEvent&)e);
 
     EventDispatcher dispatcher(e);
     dispatcher.Dispatch<WindowCloseEvent>(BIND_EVENT_FN(Application::OnWindowClosed));
@@ -108,7 +119,7 @@ void Application::OnEvent(Event& e)
     m_ImGuiLayer->OnEvent(e);
 }
 
-const float Application::GetTimeNow() const
+const float Application::GetTimeNow()
 {
     return static_cast<float>(glfwGetTime());
 }

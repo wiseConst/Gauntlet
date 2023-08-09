@@ -144,6 +144,31 @@ void VulkanFramebuffer::Invalidate()
         }
         SubpassDesc.pColorAttachments = &AttachmentRefs[0];
 
+        /* Some explanatio about subpass dependency
+         * srcSubpass:
+         * Index of subpass we depend on(current subpass won't start until srcSubpass has finished execution)
+         * If we wanted to depend on a subpass that's part of a previous RenderPass, we could just pass in VK_SUBPASS_EXTERNAL here
+         * instead. In this case, that would mean "wait for all of the subpasses within all of the render passes before this one".
+         *
+         * dstSubpass: Index to the current subpass, i.e. the one this dependency exists for. (Current subpass that starts)
+         *
+         * srcStageMask: Finish executing srcSubpass on this stage before we move onto current(dstSubpass).
+         * dstStageMask: Is a bitmask of all of the Vulkan stages in dstSubpass that we're not allowed to execute until after the stages in
+         * srcStageMask have completed within srcSubpass. IMO. This is the stage that your dstSubpass gonna execute only when srcSubpass
+         * completed his srcStageMask.
+         *
+         * Okay, so, now we've specified the execution dependencies (the order in which these subpasses must execute) between our two
+         * subpasses. But GPUs are complicated beasts that do a lot of caching of images and such, so just specifying the order we need
+         * these rendering commands to occur in actually isn't enough. We also need to tell Vulkan the memory access types we need and when
+         * we need them, so it can update caches and such accordingly.
+         *
+         * srcAccessMask: Is a bitmask of all the Vulkan memory access types used by srcSubpass
+         * dstAccessMask: Is a bitmask of all the Vulkan memory access types we're going to use in dstSubpass.
+         *
+         * Think of it like we're saying: "after you've finished writing to the color attachment in srcSubpass, 'flush' the results as
+         * needed for us to be able to read it in our shaders."
+         * 
+         */
         std::vector<VkSubpassDependency> Dependencies(1);
         // Color dependency
         Dependencies[0].srcSubpass    = VK_SUBPASS_EXTERNAL;

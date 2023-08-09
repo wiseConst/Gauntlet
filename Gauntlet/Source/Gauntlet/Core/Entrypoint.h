@@ -1,7 +1,7 @@
 #pragma once
 #include <Gauntlet/Core/PlatformDetection.h>
 
-#ifdef ELS_PLATFORM_WINDOWS
+#ifdef GNT_PLATFORM_WINDOWS
 
 extern Gauntlet::Scoped<Gauntlet::Application> Gauntlet::CreateApplication();
 

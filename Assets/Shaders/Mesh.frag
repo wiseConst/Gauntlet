@@ -40,6 +40,6 @@ void main()
 		FinalTexture = DiffuseTexture;
 	}
 
-	const vec4 FinalColor = mix(EnvironmentMapTexture, FinalTexture, 0.85f);
+	const vec4 FinalColor = mix(EnvironmentMapTexture, FinalTexture, 0.95f);
 	OutFragColor = FinalColor;
 }
