@@ -31,7 +31,9 @@ class EditorLayer final : public Layer
     Ref<Mesh> m_VikingRoom;
     Ref<Mesh> m_Stormstrooper;
 
-    Ref<Mesh> m_DodgeCharger;
+    ImVec2 m_ViewportSize     = ImVec2(0.0f, 0.0f);
+    bool m_bIsViewportFocused = false;
+    bool m_bIsViewportHovered = false;
 
     void BeginDockspace();
 

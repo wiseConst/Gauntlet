@@ -109,14 +109,6 @@ void VulkanImGuiLayer::OnAttach()
     }
 
     CreateSyncObjects();
-
-    for (uint32_t i = 0; i < ImageCount; ++i)
-    {
-        const auto& ColorAttachment =
-            VulkanRenderer::GetPostProcessFramebuffer()->GetColorAttachments()[i] /*MainFramebuffer->GetColorAttachments()[i]*/;
-        m_TextureIDs.push_back(ImGui_ImplVulkan_AddTexture(ColorAttachment->GetSampler(), ColorAttachment->GetView(),
-                                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-    }
 }
 
 void VulkanImGuiLayer::OnDetach()
@@ -161,40 +153,6 @@ void VulkanImGuiLayer::BeginRender()
 
 void VulkanImGuiLayer::EndRender()
 {
-    // To be removed
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
-
-    ImGui::Begin("Viewport");
-    m_ViewportSize       = ImGui::GetContentRegionAvail();
-    auto MainFramebuffer = VulkanRenderer::GetPostProcessFramebuffer();
-
-    if (m_ViewportSize.x != MainFramebuffer->GetColorAttachments()[0]->GetWidth() ||
-        m_ViewportSize.y != MainFramebuffer->GetColorAttachments()[0]->GetHeight())
-    {
-        m_Context.GetDevice()->WaitDeviceOnFinish();
-
-        MainFramebuffer->GetSpec().Width  = m_ViewportSize.x;
-        MainFramebuffer->GetSpec().Height = m_ViewportSize.y;
-        MainFramebuffer->Invalidate();
-
-        for (uint32_t i = 0; i < m_Context.GetSwapchain()->GetImageCount(); ++i)
-        {
-            const auto& ColorAttachment = MainFramebuffer->GetColorAttachments()[i];
-            m_TextureIDs[i]             = ImGui_ImplVulkan_AddTexture(ColorAttachment->GetSampler(), ColorAttachment->GetView(),
-                                                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        }
-    }
-    else
-    {
-        ImGui::Image(m_TextureIDs[m_Context.GetSwapchain()->GetCurrentImageIndex()], m_ViewportSize);
-    }
-    ImGui::End();
-
-    ImGui::PopStyleVar();
-
-    /*static bool ShowDemoWindow = true;
-    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
-
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CurrentCommandBuffer->Get());
 

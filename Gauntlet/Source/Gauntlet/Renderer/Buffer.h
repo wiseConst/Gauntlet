@@ -27,19 +27,23 @@ static uint32_t ShaderDataTypeSize(EShaderDataType InType)
 {
     switch (InType)
     {
+        case EShaderDataType::Bool: return 1;
+        case EShaderDataType::Int: return 4;
         case EShaderDataType::FLOAT: return 4;
+        case EShaderDataType::Double: return 8;
+
+        case EShaderDataType::Ivec2:
         case EShaderDataType::Vec2: return 4 * 2;
+
+        case EShaderDataType::Ivec3:
         case EShaderDataType::Vec3: return 4 * 3;
+
+        case EShaderDataType::Ivec4:
+        case EShaderDataType::Uvec4:
         case EShaderDataType::Vec4: return 4 * 4;
+
         case EShaderDataType::Mat3: return 4 * 3 * 3;
         case EShaderDataType::Mat4: return 4 * 4 * 4;
-        case EShaderDataType::Int: return 4;
-        case EShaderDataType::Ivec2: return 4 * 2;
-        case EShaderDataType::Ivec3: return 4 * 3;
-        case EShaderDataType::Ivec4: return 4 * 4;
-        case EShaderDataType::Uvec4: return 4 * 4;
-        case EShaderDataType::Double: return 8;
-        case EShaderDataType::Bool: return 1;
     }
 
     GNT_ASSERT(false, "Unknown shader data type!");
@@ -62,19 +66,23 @@ struct BufferElement
     {
         switch (Type)
         {
-            case EShaderDataType::FLOAT: return 1;
-            case EShaderDataType::Vec2: return 2;
-            case EShaderDataType::Vec3: return 3;
-            case EShaderDataType::Vec4: return 4;
-            case EShaderDataType::Mat3: return 3 * 3;
-            case EShaderDataType::Mat4: return 4 * 4;
-            case EShaderDataType::Int: return 1;
-            case EShaderDataType::Ivec2: return 2;
-            case EShaderDataType::Ivec3: return 3;
-            case EShaderDataType::Ivec4: return 4;
-            case EShaderDataType::Uvec4: return 4;
             case EShaderDataType::Double: return 1;
             case EShaderDataType::Bool: return 1;
+            case EShaderDataType::FLOAT: return 1;
+            case EShaderDataType::Int: return 1;
+
+            case EShaderDataType::Ivec2:
+            case EShaderDataType::Vec2: return 2;
+
+            case EShaderDataType::Ivec3:
+            case EShaderDataType::Vec3: return 3;
+
+            case EShaderDataType::Uvec4:
+            case EShaderDataType::Ivec4:
+            case EShaderDataType::Vec4: return 4;
+
+            case EShaderDataType::Mat3: return 3 * 3;
+            case EShaderDataType::Mat4: return 4 * 4;
         }
 
         GNT_ASSERT(false, "Unknown ShaderDataType!");
@@ -83,15 +91,15 @@ struct BufferElement
 
   public:
     std::string_view Name;
-    EShaderDataType Type;
-    uint32_t Size;
-    size_t Offset;
+    EShaderDataType Type = EShaderDataType::None;
+    uint32_t Size        = 0;
+    size_t Offset        = 0;
 };
 
 class BufferLayout final
 {
   public:
-    BufferLayout() : m_Stride(0) {}
+    BufferLayout()  = default;
     ~BufferLayout() = default;
 
     BufferLayout(const std::initializer_list<BufferElement>& InElements) : m_Elements(InElements), m_Stride(0)
@@ -99,8 +107,8 @@ class BufferLayout final
         CalculateOffsetsAndStride();
     }
 
-    FORCEINLINE uint32_t GetStride() const { return m_Stride; }
-    FORCEINLINE const std::vector<BufferElement>& GetElements() const { return m_Elements; }
+    FORCEINLINE auto GetStride() const { return m_Stride; }
+    FORCEINLINE const auto& GetElements() const { return m_Elements; }
 
     const auto& begin() const { return m_Elements.begin(); }
     const auto& end() const { return m_Elements.end(); }
@@ -110,7 +118,7 @@ class BufferLayout final
 
   private:
     std::vector<BufferElement> m_Elements;
-    uint32_t m_Stride;
+    uint32_t m_Stride = 0;
 
     void CalculateOffsetsAndStride()
     {
@@ -134,28 +142,22 @@ enum EBufferUsageFlags
 
 typedef uint32_t EBufferUsage;
 
-struct BufferInfo
+struct BufferInfo final
 {
   public:
-    BufferInfo()
-    {
-        Usage = EBufferUsageFlags::NONE;
-        Size  = 0;
-        Count = 0;
-        Data  = nullptr;
-    }
+    BufferInfo() = default;
 
     BufferInfo(EBufferUsage InBufferUsage, const uint64_t InSize, const uint64_t InCount, void* InData)
         : Usage(InBufferUsage), Size(InSize), Count(InCount), Data(InData)
     {
     }
 
-    virtual ~BufferInfo() = default;
+    ~BufferInfo() = default;
 
     BufferLayout Layout;
-    EBufferUsage Usage;
-    size_t Size;  // Size in bytes
-    size_t Count;
+    EBufferUsage Usage = EBufferUsageFlags::NONE;
+    size_t Size        = 0;  // Size in bytes
+    size_t Count       = 0;
 
     void* Data = nullptr;
 };

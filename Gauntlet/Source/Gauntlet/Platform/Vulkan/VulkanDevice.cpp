@@ -142,6 +142,7 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
 
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
     PhysicalDeviceFeatures.samplerAnisotropy        = VK_TRUE;
+    PhysicalDeviceFeatures.fillModeNonSolid         = VK_TRUE;
 
     // Features for texture batching (vulkan descriptors)
     VkPhysicalDeviceDescriptorIndexingFeatures PhysicalDeviceDescriptorIndexingFeatures = {};

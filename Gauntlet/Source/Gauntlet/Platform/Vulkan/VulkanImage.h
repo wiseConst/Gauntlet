@@ -83,6 +83,7 @@ class VulkanImage final : public Image
     }
 
     FORCEINLINE const auto& GetDescriptorInfo() const { return m_DescriptorImageInfo; }
+    FORCEINLINE virtual void* GetTextureID() const final override { return m_DescriptorSet; }
 
   private:
     ImageSpecification m_Specification;

@@ -4,11 +4,11 @@
 #include "Texture.h"
 #include "RendererAPI.h"
 
+#include "Gauntlet/Core/JobSystem.h"
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
-#include "Gauntlet/Core/JobSystem.h"
 
 namespace Gauntlet
 {
@@ -125,15 +125,11 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
 
         Vertex.Color = glm::vec4(1.0f);
         if (mesh->HasVertexColors(0))
-        {
-            Vertex.Color = glm::vec4((float)mesh->mColors[0][i].r, (float)mesh->mColors[0][i].g, (float)mesh->mColors[0][i].b, 1.0f);
-        }
+            Vertex.Color = glm::vec4((float)mesh->mColors[0][i].r, (float)mesh->mColors[0][i].g, (float)mesh->mColors[0][i].b,
+                                     (float)mesh->mColors[0][i].a);
 
         Vertex.TexCoord = glm::vec2(0.0f);
-        if (mesh->HasTextureCoords(0))
-        {
-            Vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
-        }
+        if (mesh->HasTextureCoords(0)) Vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
 
         Vertex.Tangent = glm::vec3(0.0f);
         if (mesh->HasTangentsAndBitangents())
@@ -163,13 +159,17 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
     {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-        const auto DiffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE);
+        auto DiffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE);
+        if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_BASE_COLOR);
+
         DiffuseTextures.insert(DiffuseTextures.end(), DiffuseMaps.begin(), DiffuseMaps.end());
 
         const auto NormalMaps = LoadMaterialTextures(material, aiTextureType_NORMALS);
         NormalMapTextures.insert(NormalMapTextures.end(), NormalMaps.begin(), NormalMaps.end());
 
-        const auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
+        auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
+        if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
+        if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
         EmissiveTextures.insert(EmissiveTextures.end(), EmissiveMaps.begin(), EmissiveMaps.end());
     }
 
@@ -200,7 +200,7 @@ std::vector<Mesh::MeshTexture> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTex
         // Hasn't loaded, so lets load it.
         if (!bIsLoaded)
         {
-            const auto LocalTexturePath(std::string(str.C_Str()));
+            const std::string LocalTexturePath(str.C_Str());
             const auto TexturePath = m_Directory + LocalTexturePath;
             MeshTexture texture    = {};
             texture.Texture        = Ref<Texture2D>(Texture2D::Create(TexturePath));
@@ -235,9 +235,6 @@ Ref<Mesh> Mesh::CreateCube()
 
 void Mesh::Destroy()
 {
-    /*RenderThread::Submit(
-        [this]
-        {*/
     for (auto& VertexBuffer : m_VertexBuffers)
         VertexBuffer->Destroy();
 
@@ -246,7 +243,6 @@ void Mesh::Destroy()
 
     for (auto& NormalMapTexture : m_LoadedTextures)
         NormalMapTexture.Texture->Destroy();
-    // });
 }
 
 }  // namespace Gauntlet

@@ -3,7 +3,7 @@
 
 namespace Gauntlet
 {
-uint32_t JobSystem::s_ThreadCount;
+uint32_t JobSystem::s_ThreadCount = 0;
 std::array<Thread, MAX_WORKER_THREADS> JobSystem::s_Threads;
 
 static bool s_bIsInitialized = false;
@@ -21,15 +21,20 @@ void JobSystem::Init()
         s_ThreadCount = MAX_WORKER_THREADS;
     }
     LOG_INFO("JobSystem using %u threads.", s_ThreadCount);
-
-    for (uint32_t i = 0; i < s_ThreadCount; ++i)
-    {
-        s_Threads[i].Start();
-    }
 }
 
 void JobSystem::Update()
 {
+    static bool bThreadsStarted = false;
+    if (!bThreadsStarted)
+    {
+        for (uint32_t i = 0; i < s_ThreadCount; ++i)
+        {
+            s_Threads[i].Start();
+        }
+        bThreadsStarted = true;
+    }
+
     using namespace std::chrono;
 
     bool bAreJobsDone{false};
@@ -53,7 +58,7 @@ void JobSystem::Update()
 
         bAreJobsDone = true;
     }
-}   
+}
 
 void JobSystem::Shutdown()
 {

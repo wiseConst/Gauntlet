@@ -124,6 +124,11 @@ const float Application::GetTimeNow()
     return static_cast<float>(glfwGetTime());
 }
 
+void Application::Close()
+{
+    m_Window->SetIsRunning(false);
+}
+
 void Application::OnWindowClosed(WindowCloseEvent& InEvent)
 {
     m_Window->SetIsRunning(false);

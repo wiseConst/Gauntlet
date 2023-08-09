@@ -24,9 +24,6 @@ class VulkanImGuiLayer final : public ImGuiLayer
     void EndRender() final override;
 
     void OnImGuiRender() final override {}
-
-    FORCEINLINE const glm::vec2 GetViewportSize() const final override { return glm::vec2(m_ViewportSize.x, m_ViewportSize.y); }
-
   private:
     VulkanContext& m_Context;
     VulkanCommandBuffer* m_CurrentCommandBuffer;
@@ -35,10 +32,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
     VkDescriptorPool m_ImGuiDescriptorPool = VK_NULL_HANDLE;
     Ref<VulkanCommandPool> m_ImGuiCommandPool;
 
-    std::vector<VkDescriptorSet> m_TextureIDs;
     ImFont* m_DefaultFont = nullptr;
-
-    ImVec2 m_ViewportSize = ImVec2(0.0f, 0.0f);
 
     void CreateSyncObjects();
 };

@@ -27,9 +27,6 @@ class ImGuiLayer : public Layer
     virtual void BeginRender() = 0;
     virtual void EndRender()   = 0;
 
-    // To be removed
-    FORCEINLINE virtual const glm::vec2 GetViewportSize() const = 0;
-
     static ImGuiLayer* Create();
 };
 

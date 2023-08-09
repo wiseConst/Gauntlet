@@ -290,12 +290,22 @@ void VulkanImage::Create()
 
     CreateSampler();
 
-    // Temporary hardcoding layout
     m_DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     m_DescriptorImageInfo.imageView   = m_Image.ImageView;
     m_DescriptorImageInfo.sampler     = m_Sampler;
 
-    // VK_CHECK(Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, VulkanRenderer::GetImageDescriptorSetLayout()), "Failed to allocate texture/image descriptor set!");
+    if (m_Specification.CreateTextureID)
+    {
+        if (!m_DescriptorSet)  // Preventing allocating on image resizing, just simply update descriptor set
+        {
+            VK_CHECK(Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, VulkanRenderer::GetImageDescriptorSetLayout()),
+                     "Failed to allocate texture/image descriptor set!");
+        }
+
+        auto TextureWriteDescriptorSet =
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet, 1, &m_DescriptorImageInfo);
+        vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteDescriptorSet, 0, nullptr);
+    }
 }
 
 void VulkanImage::CreateSampler()

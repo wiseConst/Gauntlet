@@ -12,8 +12,6 @@ void EditorLayer::OnAttach()
 
     m_VikingRoom    = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
     m_Stormstrooper = Mesh::Create(std::string(ASSETS_PATH) + "Models/DancingStormStrooper/scene.gltf");
-
-    m_DodgeCharger = Mesh::Create(std::string(ASSETS_PATH) + "Models/dominic_torettos_1970_dodge_charger_rt_fast_x/scene.gltf");
 }
 
 void EditorLayer::OnDetach()
@@ -24,19 +22,21 @@ void EditorLayer::OnDetach()
 
     m_VikingRoom->Destroy();
     m_Stormstrooper->Destroy();
-    m_DodgeCharger->Destroy();
 }
 
 void EditorLayer::OnUpdate(const float DeltaTime)
 {
-    m_EditorCamera->OnUpdate(DeltaTime);
+    if (m_bIsViewportFocused || m_bIsViewportHovered)
+    {
+        m_EditorCamera->OnUpdate(DeltaTime);
+    }
 
     Renderer::BeginScene(*m_EditorCamera);
     Renderer2D::BeginScene(*m_EditorCamera);
 
     {
         const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, -5.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0));
+        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
         const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
         const auto TRS         = Translation * Rotation * Scale;
 
@@ -58,7 +58,7 @@ void EditorLayer::OnUpdate(const float DeltaTime)
 
         const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 15.0f, 0.0f));
         const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(RotationAngle), glm::vec3(0, 0, 1));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f, 0.1f, 0.1f));
+        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.15f));
         const auto TRS         = Translation * Rotation * Scale;
 
         Renderer::SubmitMesh(m_CyberPunkRevolverMesh, TRS);
@@ -83,21 +83,12 @@ void EditorLayer::OnUpdate(const float DeltaTime)
     }
 
     {
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-180.0f, -180.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f));
-        const auto TRS         = Translation * Rotation * Scale;
-
-        Renderer::SubmitMesh(m_DodgeCharger, TRS);
-    }
-
-    {
         for (float y = -3.0f; y < 3.0f; y += 0.5f)
         {
             for (float x = -3.0f; x < 3.0f; x += 0.5f)
             {
-                glm::vec4 color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
-                Renderer2D::DrawQuad({x, y, -8.0f}, glm::vec2(0.45f), color);
+                const glm::vec4 Color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
+                Renderer2D::DrawQuad({x + 18.0f, y, -8.0f}, glm::vec2(0.45f), Color);
             }
         }
     }
@@ -105,7 +96,10 @@ void EditorLayer::OnUpdate(const float DeltaTime)
 
 void EditorLayer::OnEvent(Event& InEvent)
 {
-    m_EditorCamera->OnEvent(InEvent);
+    if (m_bIsViewportFocused || m_bIsViewportHovered)
+    {
+        m_EditorCamera->OnEvent(InEvent);
+    }
 }
 
 void EditorLayer::OnImGuiRender()
@@ -113,6 +107,25 @@ void EditorLayer::OnImGuiRender()
     UpdateViewportSize();
 
     BeginDockspace();
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
+
+    ImGui::Begin("Viewport");
+    m_ViewportSize = ImGui::GetContentRegionAvail();
+
+    m_bIsViewportFocused = ImGui::IsWindowFocused();
+    m_bIsViewportHovered = ImGui::IsWindowHovered();
+
+    // LOG_INFO("Focused: %d", m_bIsViewportFocused);
+    // LOG_INFO("Hovered: %d", m_bIsViewportHovered);
+
+    ImGui::Image(Renderer::GetFinalImage()->GetTextureID(), m_ViewportSize);
+    ImGui::End();
+
+    ImGui::PopStyleVar();
+
+    /*static bool ShowDemoWindow = true;
+    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
 
     static bool bShowAppStats = true;
     if (bShowAppStats)
@@ -134,6 +147,10 @@ void EditorLayer::OnImGuiRender()
 
         ImGui::End();
     }
+
+    ImGui::Begin("Renderer Settings");
+    ImGui::Checkbox("Render Wireframe", &Renderer::GetSettings().ShowWireframes);
+    ImGui::End();
 
     ImGui::Begin("Hierarchy Panel");
     ImGui::Text("Entities");
@@ -199,6 +216,8 @@ void EditorLayer::BeginDockspace()
             // Disabling fullscreen would allow the window to be moved to the front of other windows,
             // which we can't undo at the moment without finer window depth/z control.
             ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen);
+
+            if (ImGui::MenuItem("Close Editor", NULL)) Application::Get().Close();
             ImGui::EndMenu();
         }
 
@@ -213,10 +232,9 @@ void EditorLayer::EndDockspace()
 
 void EditorLayer::UpdateViewportSize()
 {
-    const auto ViewportSize = m_GUILayer->GetViewportSize();
     const auto bNeedViewportResize =
-        m_EditorCamera->GetViewportWidth() != ViewportSize.x || m_EditorCamera->GetViewportHeight() != ViewportSize.y;
-    const auto bIsViewportValid = ViewportSize.x > 0.0f && ViewportSize.y > 0.0f;
+        m_EditorCamera->GetViewportWidth() != m_ViewportSize.x || m_EditorCamera->GetViewportHeight() != m_ViewportSize.y;
+    const auto bIsViewportValid = m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f;
 
-    if (bNeedViewportResize && bIsViewportValid) m_EditorCamera->Resize(ViewportSize.x, ViewportSize.y);
+    if (bNeedViewportResize && bIsViewportValid) m_EditorCamera->Resize(m_ViewportSize.x, m_ViewportSize.y);
 }

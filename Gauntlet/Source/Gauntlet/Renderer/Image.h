@@ -75,9 +75,10 @@ struct ImageSpecification
     EImageTiling Tiling              = EImageTiling::OPTIMAL;
     EAnisotropyLevel AnisotropyLevel = EAnisotropyLevel::X4;
 
-    bool Copyable   = false;
-    bool Comparable = false;
-    bool FlipOnLoad = false;
+    bool Copyable        = false;
+    bool Comparable      = false;
+    bool FlipOnLoad      = false;
+    bool CreateTextureID = false;
 };
 
 class Image
@@ -91,6 +92,7 @@ class Image
     FORCEINLINE virtual float GetAspectRatio() const = 0;
 
     FORCEINLINE virtual const ImageSpecification& GetSpecification() = 0;
+    FORCEINLINE virtual void* GetTextureID() const                   = 0;
 
     static Ref<Image> Create(const ImageSpecification& InImageSpecification);
 

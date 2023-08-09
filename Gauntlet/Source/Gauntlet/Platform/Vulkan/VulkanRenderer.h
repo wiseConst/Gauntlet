@@ -28,6 +28,8 @@ class VulkanRenderer final : public Renderer
     static const Ref<VulkanFramebuffer>& GetPostProcessFramebuffer();
     static const VkDescriptorSetLayout& GetImageDescriptorSetLayout();
 
+    const Ref<Image>& GetFinalImageImpl() final override;
+
   private:
     VulkanContext& m_Context;
 

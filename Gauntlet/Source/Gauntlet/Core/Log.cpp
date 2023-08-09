@@ -23,7 +23,7 @@ void Log::Shutdown()
 void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
 {
     std::scoped_lock m_Lock(s_LogMutex);
-    const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: ", "[TRACE]: "};
+    const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: "};
 
     auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
     int32_t LevelIndex = 0;
@@ -51,12 +51,6 @@ void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
         {
             LevelIndex = 3;
             SetConsoleTextAttribute(hConsole, 9);
-            break;
-        }
-        case ELogLevel::LL_DEBUG:
-        {
-            LevelIndex = 4;
-            SetConsoleTextAttribute(hConsole, 11);
             break;
         }
         case ELogLevel::LL_TRACE:

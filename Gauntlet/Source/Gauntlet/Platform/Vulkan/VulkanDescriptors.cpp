@@ -14,6 +14,7 @@ VulkanDescriptorAllocator::VulkanDescriptorAllocator(Scoped<VulkanDevice>& InDev
 
 bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout)
 {
+    std::unique_lock<std::mutex> Lock(m_AllocateMutex);  // TODO: Make graphics context mutex
     // Initialize the currentPool handle if it's null
     if (m_CurrentPool == VK_NULL_HANDLE)
     {
@@ -84,6 +85,8 @@ VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t InCount, V
 
 void VulkanDescriptorAllocator::ResetPools()
 {
+    std::unique_lock<std::mutex> Lock(m_AllocateMutex);
+
     m_Device->WaitDeviceOnFinish();
     m_AllocatedDescriptorSets = 0;
 

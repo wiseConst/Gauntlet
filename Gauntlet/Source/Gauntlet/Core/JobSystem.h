@@ -13,11 +13,12 @@ class JobSystem final : private Uncopyable, private Unmovable
 
     static void Update();
 
-    template <typename Func, typename... Args> static void Submit(Func&& InFunc, Args&&... InArgs)
+    template <typename Func, typename... Args> 
+    static void Submit(Func&& InFunc, Args&&... InArgs)
     {
         Job Command = std::bind(std::forward<Func>(InFunc), std::forward<Args>(InArgs)...);
         // Check if our application runs in singlethreaded mode with no worker threads at all.
-        if (MAX_WORKER_THREADS == 0)
+        if (s_ThreadCount == 0)
         {
             Command();
             return;

@@ -32,7 +32,7 @@
 
 namespace Gauntlet
 {
-#define MAX_WORKER_THREADS 8
+#define MAX_WORKER_THREADS 6
 
 #define FORCEINLINE __forceinline
 #define NODISCARD [[nodiscard]]

@@ -56,6 +56,8 @@ class Application : private Uncopyable, private Unmovable
     FORCEINLINE void PushLayer(Layer* InLayer) { m_LayerQueue.Enqueue(InLayer); }
     static const float GetTimeNow();
 
+    void Close();
+
   private:
     static Application* s_Instance;
     ApplicationSpecification m_AppInfo;

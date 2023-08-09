@@ -67,6 +67,7 @@ void VulkanFramebuffer::Invalidate()
             ImageSpec.Height             = ImageExtent.height;
             ImageSpec.Format             = EImageFormat::RGBA;
             ImageSpec.Usage              = EImageUsage::Attachment;
+            ImageSpec.CreateTextureID    = true;
 
             m_ColorAttachments.emplace_back(new VulkanImage(ImageSpec));
         }
@@ -78,6 +79,7 @@ void VulkanFramebuffer::Invalidate()
             DepthImageSpec.Height             = ImageExtent.height;
             DepthImageSpec.Format             = EImageFormat::DEPTH32F;
             DepthImageSpec.Usage              = EImageUsage::Attachment;
+            DepthImageSpec.CreateTextureID    = false;  // TODO: Should I also craete texture id for depth image to display it sooner?
 
             m_DepthAttachment.reset(new VulkanImage(DepthImageSpec));
         }
@@ -167,7 +169,7 @@ void VulkanFramebuffer::Invalidate()
          *
          * Think of it like we're saying: "after you've finished writing to the color attachment in srcSubpass, 'flush' the results as
          * needed for us to be able to read it in our shaders."
-         * 
+         *
          */
         std::vector<VkSubpassDependency> Dependencies(1);
         // Color dependency

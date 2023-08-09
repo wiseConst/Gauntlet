@@ -7,6 +7,7 @@ namespace Gauntlet
 {
 Renderer* Renderer::s_Renderer = nullptr;
 Renderer::RendererStats Renderer::s_RendererStats;
+Renderer::RendererSettings Renderer::s_RendererSettings;
 
 void Renderer::Init()
 {

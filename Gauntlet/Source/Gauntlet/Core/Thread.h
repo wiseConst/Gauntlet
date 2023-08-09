@@ -42,7 +42,7 @@ class Thread final : private Uncopyable, private Unmovable
     FORCEINLINE const size_t GetJobsCount() const { return m_Jobs.size(); }
     FORCEINLINE const bool IsIdle() const { return m_ThreadState == EThreadState::IDLE; }
 
-private:
+  private:
     std::thread m_Handle;
     std::queue<Job> m_Jobs;
     std::mutex m_QueueMutex;

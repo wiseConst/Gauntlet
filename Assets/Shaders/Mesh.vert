@@ -16,7 +16,7 @@ layout(location = 5) out vec3 OutViewVector;
 
 layout( push_constant ) uniform PushConstants
 {	
-	mat4 RenderMatrix;
+	mat4 TransformMatrix;
 	vec4 Color;
 } MeshPushConstants;
 
@@ -29,7 +29,7 @@ layout(set = 0, binding = 4) uniform CameraDataBuffer
 
 void main()
 {
-	const vec4 VertexWorldPosition = MeshPushConstants.RenderMatrix * vec4(InPosition, 1.0f);
+	const vec4 VertexWorldPosition = MeshPushConstants.TransformMatrix * vec4(InPosition, 1.0f);
 	const mat4 CameraViewProjectionMatrix = InCameraDataBuffer.Projection * InCameraDataBuffer.View;
 	gl_Position = CameraViewProjectionMatrix * VertexWorldPosition;
 

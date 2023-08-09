@@ -62,6 +62,7 @@ struct VulkanRendererStorage
 
     // Misc
     VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
+    Ref<VulkanPipeline> MeshWireframePipeline = nullptr;
 };
 
 static VulkanRendererStorage s_Data;
@@ -84,6 +85,14 @@ void VulkanRenderer::Create()
 
     s_Data.MeshVertexShader.reset(new VulkanShader(std::string(ASSETS_PATH) + "Shaders/Mesh.vert.spv"));
     s_Data.MeshFragmentShader.reset(new VulkanShader(std::string(ASSETS_PATH) + "Shaders/Mesh.frag.spv"));
+
+    const auto TextureDescriptorSetLayoutBinding =
+        Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+    VkDescriptorSetLayoutCreateInfo ImageDescriptorSetLayoutCreateInfo =
+        Utility::GetDescriptorSetLayoutCreateInfo(1, &TextureDescriptorSetLayoutBinding);
+    VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &ImageDescriptorSetLayoutCreateInfo, nullptr,
+                                         &s_Data.ImageDescriptorSetLayout),
+             "Failed to create texture(UI) descriptor set layout!");
 
     uint32_t WhiteTexutreData = 0xffffffff;
     s_Data.MeshWhiteTexture.reset(new VulkanTexture2D(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1));
@@ -145,6 +154,17 @@ void VulkanRenderer::Create()
     PipelineSpec.DescriptorSetLayouts = {s_Data.MeshDescriptorSetLayout};
     s_Data.MeshPipeline.reset(new VulkanPipeline(PipelineSpec));
     m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshPipeline->Invalidate(); });
+    m_Context.AddSwapchainResizeCallback(
+        [this]
+        {
+            s_Data.PostProcessFramebuffer->GetSpec().Width  = m_Context.GetSwapchain()->GetImageExtent().width;
+            s_Data.PostProcessFramebuffer->GetSpec().Height = m_Context.GetSwapchain()->GetImageExtent().height;
+            s_Data.PostProcessFramebuffer->Invalidate();
+        });
+
+    PipelineSpec.PolygonMode = EPolygonMode::POLYGON_MODE_LINE;
+    s_Data.MeshWireframePipeline.reset(new VulkanPipeline(PipelineSpec));
+    m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshWireframePipeline->Invalidate(); });
 
     SetupSkybox();
 
@@ -159,14 +179,6 @@ void VulkanRenderer::Create()
 
         s_Data.MappedUniformCameraDataBuffers[i] = m_Context.GetAllocator()->Map(s_Data.UniformCameraDataBuffers[i].Allocation);
     }
-
-    const auto TextureDescriptorSetLayoutBinding =
-        Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-    VkDescriptorSetLayoutCreateInfo ImageDescriptorSetLayoutCreateInfo =
-        Utility::GetDescriptorSetLayoutCreateInfo(1, &TextureDescriptorSetLayoutBinding);
-    VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &ImageDescriptorSetLayoutCreateInfo, nullptr,
-                                         &s_Data.ImageDescriptorSetLayout),
-             "Failed to create texture(UI) descriptor set layout!");
 }
 
 void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
@@ -197,7 +209,7 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
     const auto& Swapchain = m_Context.GetSwapchain();
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
 
-    s_Data.CurrentCommandBuffer->BindPipeline(s_Data.MeshPipeline);
+    s_Data.CurrentCommandBuffer->BindPipeline(Renderer::GetSettings().ShowWireframes ? s_Data.MeshWireframePipeline : s_Data.MeshPipeline);
 
     MeshPushConstants PushConstants = {};
     PushConstants.TransformMatrix   = InTransformMatrix;
@@ -463,6 +475,11 @@ const VkDescriptorSetLayout& VulkanRenderer::GetImageDescriptorSetLayout()
     return s_Data.ImageDescriptorSetLayout;
 }
 
+const Ref<Image>& VulkanRenderer::GetFinalImageImpl()
+{
+    return GetPostProcessFramebuffer()->GetColorAttachments()[m_Context.GetSwapchain()->GetCurrentImageIndex()];
+}
+
 void VulkanRenderer::Destroy()
 {
     m_Context.GetDevice()->WaitDeviceOnFinish();
@@ -477,6 +494,7 @@ void VulkanRenderer::Destroy()
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.MeshDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);
 
+    s_Data.MeshWireframePipeline->Destroy();
     s_Data.MeshPipeline->Destroy();
     s_Data.MeshVertexShader->DestroyModule();
     s_Data.MeshFragmentShader->DestroyModule();

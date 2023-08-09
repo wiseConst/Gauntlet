@@ -26,12 +26,12 @@ void main()
 	const vec4 DiffuseTexture = texture(Diffuse, InTexCoord);
 	const vec4 EmissiveTexture = texture(Emissive, InTexCoord);
 
-	vec4 FinalTexture;
+	vec4 FinalTexture = vec4(vec3(0.0f), 1.0f);
 	if(DiffuseTexture.r != 1.0f && DiffuseTexture.g != 1.0f && DiffuseTexture.b != 1.0f && EmissiveTexture.r != 1.0f && EmissiveTexture.g != 1.0f && EmissiveTexture.b != 1.0f)
 	{
-		FinalTexture = vec4(EmissiveTexture.rgb + DiffuseTexture.rgb, DiffuseTexture.a);
+		FinalTexture = vec4(EmissiveTexture.rgb + DiffuseTexture.rgb , 1.0f);
 	}
-	else if(DiffuseTexture.r == 1.0f && DiffuseTexture.g == 1.0f && DiffuseTexture.b == 1.0f && DiffuseTexture.a == 1.0f)
+	else if(DiffuseTexture.r == 1.0f && DiffuseTexture.g == 1.0f && DiffuseTexture.b == 1.0f)
 	{
 		FinalTexture = vec4(EmissiveTexture.rgb, 1.0f);
 	}

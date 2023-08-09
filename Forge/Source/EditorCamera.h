@@ -22,13 +22,11 @@ class EditorCamera final : public Gauntlet::PerspectiveCamera
     }
 
     // void OnUpdate(const float DeltaTime) final override {}
-
+    
     // void OnEvent(Gauntlet::Event& InEvent) final override {}
 
     void Resize(uint32_t InWidth, uint32_t InHeight)
     {
-        LOG_INFO("Editor Camera Viewport Resize!");
-
         GNT_ASSERT(InHeight != 0, "Zero division!");
         m_ViewportWidth  = static_cast<float>(InWidth);
         m_ViewportHeight = static_cast<float>(InHeight);

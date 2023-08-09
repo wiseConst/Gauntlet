@@ -11,6 +11,10 @@ for %%a in (%filesToRemove%) do (
 	del %%a
 )
 
+cd Assets/Shaders
+ClearShaders.bat
+cd ../../
+
 cd Sandbox
 for %%a in (%dirsToRemove%) do (
 	rmdir /S /Q %%a

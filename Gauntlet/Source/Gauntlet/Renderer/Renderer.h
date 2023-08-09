@@ -9,6 +9,7 @@ namespace Gauntlet
 
 class Mesh;
 class PerspectiveCamera;
+class Image;
 
 class Renderer : private Uncopyable, private Unmovable
 {
@@ -29,9 +30,17 @@ class Renderer : private Uncopyable, private Unmovable
     }
 
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
+    FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
+
+    FORCEINLINE static const auto& GetFinalImage() { return s_Renderer->GetFinalImageImpl(); }
 
   private:
     static Renderer* s_Renderer;
+
+    struct RendererSettings
+    {
+        bool ShowWireframes = false;
+    } static s_RendererSettings;
 
     struct RendererStats
     {
@@ -60,6 +69,8 @@ class Renderer : private Uncopyable, private Unmovable
 
     virtual void BeginImpl() = 0;
     virtual void FlushImpl() = 0;
+
+    virtual const Ref<Image>& GetFinalImageImpl() = 0;
 };
 
 }  // namespace Gauntlet
