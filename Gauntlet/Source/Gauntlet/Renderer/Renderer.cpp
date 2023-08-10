@@ -6,6 +6,8 @@
 namespace Gauntlet
 {
 Renderer* Renderer::s_Renderer = nullptr;
+std::mutex Renderer::s_ResourceAccessMutex;
+
 Renderer::RendererStats Renderer::s_RendererStats;
 Renderer::RendererSettings Renderer::s_RendererSettings;
 

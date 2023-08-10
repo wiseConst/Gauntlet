@@ -21,7 +21,7 @@ VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<Vulk
     AllocatorCreateInfo.instance               = InInstance;
     AllocatorCreateInfo.device                 = InDevice->GetLogicalDevice();
     AllocatorCreateInfo.physicalDevice         = InDevice->GetPhysicalDevice();
-    AllocatorCreateInfo.vulkanApiVersion       = ELS_VK_API_VERSION;
+    AllocatorCreateInfo.vulkanApiVersion       = GNT_VK_API_VERSION;
     AllocatorCreateInfo.pVulkanFunctions       = &vmaVulkanFunctions;
 
     const auto result = vmaCreateAllocator(&AllocatorCreateInfo, &m_Allocator);

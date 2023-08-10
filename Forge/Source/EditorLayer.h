@@ -2,6 +2,7 @@
 
 #include <Gauntlet.h>
 #include "EditorCamera.h"
+
 using namespace Gauntlet;
 
 class EditorLayer final : public Layer
@@ -30,6 +31,7 @@ class EditorLayer final : public Layer
 
     Ref<Mesh> m_VikingRoom;
     Ref<Mesh> m_Stormstrooper;
+    Ref<Mesh> m_Cube;
 
     ImVec2 m_ViewportSize     = ImVec2(0.0f, 0.0f);
     bool m_bIsViewportFocused = false;

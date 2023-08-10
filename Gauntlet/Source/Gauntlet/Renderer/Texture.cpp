@@ -2,6 +2,7 @@
 #include "Texture.h"
 
 #include "RendererAPI.h"
+#include "Gauntlet/Renderer/Renderer.h"
 #include "Gauntlet/Platform/Vulkan/VulkanTexture.h"
 
 namespace Gauntlet

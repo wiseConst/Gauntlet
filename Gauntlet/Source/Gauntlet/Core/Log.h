@@ -54,4 +54,5 @@ class Log final
 #else
 #define LOG_TRACE(message, ...)
 #endif
+
 }  // namespace Gauntlet

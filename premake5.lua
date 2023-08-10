@@ -2,7 +2,7 @@ workspace "Gauntlet" -- Solution
 architecture "x64"
 startproject "Forge"
 flags { "MultiProcessorCompile" }
-configurations { "Debug", "Release"}
+configurations { "Debug", "Release", "RelWithDebInfo"}
 
 VULKAN_PATH = os.getenv("VULKAN_SDK")
 local CURRENT_WORKING_DIRECTORY = os.getcwd()
@@ -19,12 +19,14 @@ IncludeDir["glm"] =      "Gauntlet/vendor/glm"
 IncludeDir["assimp"] =   "Gauntlet/vendor/assimp"
 
 Binaries = {}
-Binaries["Assimp_Debug"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
-Binaries["Assimp_Release"] = "%{wks.location}/Gauntlet/assimp/Binaries/Release/assimp-vc143-mt.dll"
+Binaries["Assimp_Debug"] =   "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
+Binaries["Assimp_Release"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.dll"
+Binaries["Assimp_RelWithDebInfo"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.dll"
 
 Libraries = {}
-Libraries["Assimp_Debug"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.lib"
+Libraries["Assimp_Debug"] =   "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.lib"
 Libraries["Assimp_Release"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
+Libraries["Assimp_RelWithDebInfo"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
 
 group "Dependencies"
     include "Gauntlet/vendor/GLFW"
@@ -37,7 +39,7 @@ project "Gauntlet"
     kind "StaticLib"
     language "C++"
     cppdialect "C++latest"
-    staticruntime "on"
+    staticruntime "off"
 
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
@@ -88,10 +90,17 @@ project "Gauntlet"
     filter "configurations:Debug"
         defines "GNT_DEBUG"
         symbols "On"
+        optimize "Off"
         
     filter "configurations:Release"
         defines "GNT_RELEASE"
-        optimize "On"
+        symbols "Off"
+        optimize "Full"
+
+    filter "configurations:RelWithDebInfo"
+        defines "GNT_RELEASE"
+        symbols "On"
+        optimize "Debug"
         
               
 project "Forge"
@@ -99,7 +108,7 @@ project "Forge"
     kind "ConsoleApp"
     language "C++"
     cppdialect "C++latest"
-    staticruntime "on"
+    staticruntime "off"
     
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
@@ -136,7 +145,8 @@ project "Forge"
     filter "configurations:Debug"
         defines "GNT_DEBUG"
         symbols "On"
-
+        optimize "Off"
+        
         links
         {
             "%{Libraries.Assimp_Debug}"
@@ -149,8 +159,10 @@ project "Forge"
 
 
     filter "configurations:Release"
+       -- kind "WindowedApp"
         defines "GNT_RELEASE"
-        optimize "On"
+        symbols "Off"
+        optimize "Full"
         
         links
         {
@@ -162,12 +174,28 @@ project "Forge"
          	' {COPY} "%{Binaries.Assimp_Release}" "%{cfg.targetdir}" '
         }
         
+    filter "configurations:RelWithDebInfo"
+        defines "GNT_RELEASE"
+        symbols "On"
+        optimize "Debug"
+
+        links
+        {
+            "%{Libraries.Assimp_RelWithDebInfo}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_RelWithDebInfo}" "%{cfg.targetdir}" '
+        }
+
+
 project "Sandbox"
     location "Sandbox"
     kind "ConsoleApp"
     language "C++"
     cppdialect "C++latest"
-    staticruntime "on"
+    staticruntime "off"
     
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
     objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
@@ -205,7 +233,8 @@ project "Sandbox"
     filter "configurations:Debug"
         defines "GNT_DEBUG"
         symbols "On"
-
+        optimize "Off"
+        
         links
         {
             "%{Libraries.Assimp_Debug}"
@@ -219,7 +248,8 @@ project "Sandbox"
 
     filter "configurations:Release"
         defines "GNT_RELEASE"
-        optimize "On"
+        symbols "Off"
+        optimize "Full"    
         
         links
         {
@@ -229,4 +259,19 @@ project "Sandbox"
         postbuildcommands 
         {
          	' {COPY} "%{Binaries.Assimp_Release}" "%{cfg.targetdir}" '
+        }
+
+    filter "configurations:RelWithDebInfo"
+        defines "GNT_RELEASE"
+        symbols "On"
+        optimize "Debug"
+
+        links
+        {
+            "%{Libraries.Assimp_RelWithDebInfo}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_RelWithDebInfo}" "%{cfg.targetdir}" '
         }

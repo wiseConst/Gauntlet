@@ -7,6 +7,8 @@
 namespace Gauntlet
 {
 
+#define GRAPHICS_GUARD_LOCK std::unique_lock<std::mutex> Lock(Renderer::GetResourceAccessMutex())
+
 class Mesh;
 class PerspectiveCamera;
 class Image;
@@ -32,10 +34,13 @@ class Renderer : private Uncopyable, private Unmovable
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
     FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
 
-    FORCEINLINE static const auto& GetFinalImage() { return s_Renderer->GetFinalImageImpl(); }
+    FORCEINLINE static const Ref<Image> GetFinalImage() { return s_Renderer->GetFinalImageImpl(); }
+
+    FORCEINLINE static std::mutex& GetResourceAccessMutex() { return s_ResourceAccessMutex; }
 
   private:
     static Renderer* s_Renderer;
+    static std::mutex s_ResourceAccessMutex;
 
     struct RendererSettings
     {
@@ -56,8 +61,9 @@ class Renderer : private Uncopyable, private Unmovable
 
         uint32_t AllocatedDescriptorSets = 0;
         uint32_t FPS                     = 0;
-        float CPUWaitTime                = 0;
-        float GPUWaitTime                = 0;
+
+        float CPUWaitTime = 0.0f;
+        float GPUWaitTime = 0.0f;
     } static s_RendererStats;
 
   protected:
@@ -70,7 +76,7 @@ class Renderer : private Uncopyable, private Unmovable
     virtual void BeginImpl() = 0;
     virtual void FlushImpl() = 0;
 
-    virtual const Ref<Image>& GetFinalImageImpl() = 0;
+    virtual const Ref<Image> GetFinalImageImpl() = 0;
 };
 
 }  // namespace Gauntlet

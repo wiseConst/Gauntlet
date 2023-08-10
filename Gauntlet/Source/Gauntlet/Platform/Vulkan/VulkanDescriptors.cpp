@@ -8,13 +8,13 @@
 
 namespace Gauntlet
 {
-// VulkanDescriptorAllocator
 
 VulkanDescriptorAllocator::VulkanDescriptorAllocator(Scoped<VulkanDevice>& InDevice) : m_Device(InDevice) {}
 
 bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout)
 {
-    std::unique_lock<std::mutex> Lock(m_AllocateMutex);  // TODO: Make graphics context mutex
+    GRAPHICS_GUARD_LOCK;
+
     // Initialize the currentPool handle if it's null
     if (m_CurrentPool == VK_NULL_HANDLE)
     {
@@ -26,7 +26,7 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
         {
             m_CurrentPool = CreatePool(m_CurrentPoolSizeMultiplier, 0);
             m_Pools.push_back(m_CurrentPool);
-            m_CurrentPoolSizeMultiplier *= 1.3;  // TODO: Use dynamically calculated multiplier depending on m_Pools.size()
+            m_CurrentPoolSizeMultiplier *= 1.3f;  // TODO: Use dynamically calculated multiplier depending on m_Pools.size()
         }
     }
 
@@ -46,7 +46,7 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
     {
         m_CurrentPool = CreatePool(m_CurrentPoolSizeMultiplier, 0);
         m_Pools.push_back(m_CurrentPool);
-        m_CurrentPoolSizeMultiplier *= 1.3;
+        m_CurrentPoolSizeMultiplier *= 1.3f;
 
         // If it still fails then we have big issues
         const auto NewDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
@@ -85,7 +85,7 @@ VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t InCount, V
 
 void VulkanDescriptorAllocator::ResetPools()
 {
-    std::unique_lock<std::mutex> Lock(m_AllocateMutex);
+    GRAPHICS_GUARD_LOCK;
 
     m_Device->WaitDeviceOnFinish();
     m_AllocatedDescriptorSets = 0;

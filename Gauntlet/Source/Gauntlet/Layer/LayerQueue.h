@@ -14,6 +14,19 @@ class LayerQueue final : private Uncopyable, private Unmovable
     LayerQueue()  = default;
     ~LayerQueue() = default;
 
+    FORCEINLINE void Init()
+    {
+        static bool s_bIsInitialized{false};
+        GNT_ASSERT(!s_bIsInitialized, "Layer queue is already initialized!");
+
+        for (auto* Layer : m_Queue)
+        {
+            GNT_ASSERT(Layer, "Seems like you've enqueued layer later, but now it's not valid!");
+
+            Layer->OnAttach();
+        }
+    }
+
     FORCEINLINE void OnUpdate(const float DeltaTime)
     {
         for (auto* Layer : m_Queue)
@@ -38,7 +51,6 @@ class LayerQueue final : private Uncopyable, private Unmovable
     {
         GNT_ASSERT(InLayer, "Layer you want to enqueue is null!");
 
-        InLayer->OnAttach();
         m_Queue.emplace_back(InLayer);
     }
 

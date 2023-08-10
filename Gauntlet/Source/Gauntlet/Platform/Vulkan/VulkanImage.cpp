@@ -91,7 +91,6 @@ VkFormat ChooseSupportedImageFormat(const VkPhysicalDevice& InDevice, const std:
 void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
                      VkImageAspectFlags InAspectFlags, VkImageViewType InImageViewType)
 {
-
     VkImageViewCreateInfo ImageViewCreateInfo = {};
     ImageViewCreateInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     ImageViewCreateInfo.viewType              = InImageViewType;

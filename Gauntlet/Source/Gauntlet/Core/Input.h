@@ -5,40 +5,28 @@
 
 namespace Gauntlet
 {
-class Input : private Uncopyable, private Unmovable
+
+class Input final : private Uncopyable, private Unmovable
 {
   public:
     virtual ~Input() = default;
 
     static void Init();
-    static FORCEINLINE void Destroy() { s_Instance->DestroyImpl(); }
+    static void Destroy();
 
-    static FORCEINLINE bool IsKeyPressed(int KeyCode) { return s_Instance->IsKeyPressedImpl(KeyCode); }
-    static FORCEINLINE bool IsMouseButtonPressed(int Button) { return s_Instance->IsMouseButtonPressedImpl(Button); }
+    static bool IsKeyPressed(int32_t KeyCode);
+    static bool IsMouseButtonPressed(int32_t Button);
 
-    static FORCEINLINE bool IsKeyReleased(int KeyCode) { return s_Instance->IsKeyReleasedImpl(KeyCode); }
-    static FORCEINLINE bool IsMouseButtonReleased(int Button) { return s_Instance->IsMouseButtonReleasedImpl(Button); }
+    static bool IsKeyReleased(int32_t KeyCode);
+    static bool IsMouseButtonReleased(int32_t Button);
 
-    static FORCEINLINE std::pair<int, int> GetMousePosition() { return s_Instance->GetMousePositionImpl(); }
-    static FORCEINLINE int GetMouseX() { return s_Instance->GetMouseXImpl(); }
-    static FORCEINLINE int GetMouseY() { return s_Instance->GetMouseYImpl(); }
+    static std::pair<int32_t, int32_t> GetMousePosition();
+    static int32_t GetMouseX();
+    static int32_t GetMouseY();
 
-  protected:
-    Input() = default;
-
-  protected:
+  private:
     static Input* s_Instance;
 
-    virtual bool IsKeyPressedImpl(int KeyCode) const        = 0;
-    virtual bool IsMouseButtonPressedImpl(int Button) const = 0;
-
-    virtual bool IsKeyReleasedImpl(int KeyCode) const        = 0;
-    virtual bool IsMouseButtonReleasedImpl(int Button) const = 0;
-
-    virtual std::pair<int, int> GetMousePositionImpl() const = 0;
-    virtual int GetMouseXImpl() const                        = 0;
-    virtual int GetMouseYImpl() const                        = 0;
-
-    virtual void DestroyImpl() = 0;
+    Input() = default;
 };
 }  // namespace Gauntlet

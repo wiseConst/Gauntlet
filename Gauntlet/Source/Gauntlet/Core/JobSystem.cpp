@@ -35,8 +35,6 @@ void JobSystem::Update()
         bThreadsStarted = true;
     }
 
-    using namespace std::chrono;
-
     bool bAreJobsDone{false};
     while (!bAreJobsDone)
     {
@@ -52,6 +50,8 @@ void JobSystem::Update()
 
         if (!bAreThreadsIdling)
         {
+            using namespace std::chrono;
+
             std::this_thread::sleep_for(1ms);
             continue;
         }

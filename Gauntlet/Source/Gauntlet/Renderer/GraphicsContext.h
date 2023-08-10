@@ -29,7 +29,6 @@ class GraphicsContext : private Uncopyable, private Unmovable
   protected:
     Scoped<Window>& m_Window;
 
-    // TODO: Multithreading: resource access mutex
     static GraphicsContext* s_Context;
 };
 

@@ -4,6 +4,7 @@
 #include "Texture.h"
 #include "RendererAPI.h"
 
+#include "Gauntlet/Renderer/Renderer.h"
 #include "Gauntlet/Core/JobSystem.h"
 
 #include <assimp/Importer.hpp>
@@ -19,6 +20,7 @@ Ref<Mesh> Mesh::Create(const std::string& InFilePath)
 
 Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices)
 {
+    LOG_INFO("Creating cube!");
     JobSystem::Submit(
         [this, InVertices, InIndices]
         {
@@ -43,6 +45,7 @@ Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& I
 
 Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
 {
+    LOG_INFO("Creating mesh!");
     JobSystem::Submit(
         [this]
         {

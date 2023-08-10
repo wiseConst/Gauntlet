@@ -12,6 +12,7 @@ void EditorLayer::OnAttach()
 
     m_VikingRoom    = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
     m_Stormstrooper = Mesh::Create(std::string(ASSETS_PATH) + "Models/DancingStormStrooper/scene.gltf");
+    m_Cube          = Mesh::Create(std::string(ASSETS_PATH) + "Models/cube/scene.gltf");
 }
 
 void EditorLayer::OnDetach()
@@ -22,6 +23,7 @@ void EditorLayer::OnDetach()
 
     m_VikingRoom->Destroy();
     m_Stormstrooper->Destroy();
+    m_Cube->Destroy();
 }
 
 void EditorLayer::OnUpdate(const float DeltaTime)
@@ -33,6 +35,15 @@ void EditorLayer::OnUpdate(const float DeltaTime)
 
     Renderer::BeginScene(*m_EditorCamera);
     Renderer2D::BeginScene(*m_EditorCamera);
+
+    {
+        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, 5.0f, 0.0f));
+        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
+        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(5.0f));
+        const auto TRS         = Translation * Rotation * Scale;
+
+        Renderer::SubmitMesh(m_Cube, TRS);
+    }
 
     {
         const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, -5.0f, 0.0f));
@@ -82,14 +93,12 @@ void EditorLayer::OnUpdate(const float DeltaTime)
         Renderer::SubmitMesh(m_Stormstrooper, TRS);
     }
 
+    for (float y = -3.0f; y < 3.0f; y += 0.5f)
     {
-        for (float y = -3.0f; y < 3.0f; y += 0.5f)
+        for (float x = -3.0f; x < 3.0f; x += 0.5f)
         {
-            for (float x = -3.0f; x < 3.0f; x += 0.5f)
-            {
-                const glm::vec4 Color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
-                Renderer2D::DrawQuad({x + 18.0f, y, -8.0f}, glm::vec2(0.45f), Color);
-            }
+            const glm::vec4 Color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
+            Renderer2D::DrawQuad({x + 18.0f, y, -8.0f}, glm::vec2(0.45f), Color);
         }
     }
 }

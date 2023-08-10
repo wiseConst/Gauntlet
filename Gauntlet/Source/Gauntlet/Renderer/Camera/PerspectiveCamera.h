@@ -99,8 +99,8 @@ class PerspectiveCamera : public Camera
     {
         if (m_FirstMouse)
         {
-            m_LastMouseX = InEvent.GetOffsetX();
-            m_LastMouseY = InEvent.GetOffsetY();
+            m_LastMouseX = (float)InEvent.GetOffsetX();
+            m_LastMouseY = (float)InEvent.GetOffsetY();
             m_FirstMouse = false;
         }
 

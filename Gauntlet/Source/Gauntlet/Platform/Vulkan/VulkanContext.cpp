@@ -80,7 +80,7 @@ void VulkanContext::CreateInstance()
     const auto& app                    = Application::Get();
     VkApplicationInfo ApplicationInfo  = {};
     ApplicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    ApplicationInfo.apiVersion         = ELS_VK_API_VERSION;
+    ApplicationInfo.apiVersion         = GNT_VK_API_VERSION;
     ApplicationInfo.applicationVersion = ApplicationVersion;
     ApplicationInfo.engineVersion      = EngineVersion;
     ApplicationInfo.pApplicationName   = app.GetInfo().AppName.data();

@@ -31,7 +31,6 @@ class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
     uint32_t m_CurrentPoolSizeMultiplier = 500;
     uint32_t m_BasePoolSizeMultiplier    = 500;
     uint32_t m_AllocatedDescriptorSets   = 0;
-    std::mutex m_AllocateMutex;
 
     std::vector<std::pair<VkDescriptorType, float>> m_DefaultPoolSizes =  //
         {{VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},                              //

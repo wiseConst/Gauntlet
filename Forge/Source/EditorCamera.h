@@ -22,7 +22,7 @@ class EditorCamera final : public Gauntlet::PerspectiveCamera
     }
 
     // void OnUpdate(const float DeltaTime) final override {}
-    
+
     // void OnEvent(Gauntlet::Event& InEvent) final override {}
 
     void Resize(uint32_t InWidth, uint32_t InHeight)

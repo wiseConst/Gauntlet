@@ -24,6 +24,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
     void EndRender() final override;
 
     void OnImGuiRender() final override {}
+
   private:
     VulkanContext& m_Context;
     VulkanCommandBuffer* m_CurrentCommandBuffer;

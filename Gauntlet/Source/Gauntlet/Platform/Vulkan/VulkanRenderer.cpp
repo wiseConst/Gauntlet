@@ -475,7 +475,7 @@ const VkDescriptorSetLayout& VulkanRenderer::GetImageDescriptorSetLayout()
     return s_Data.ImageDescriptorSetLayout;
 }
 
-const Ref<Image>& VulkanRenderer::GetFinalImageImpl()
+const Ref<Image> VulkanRenderer::GetFinalImageImpl()
 {
     return GetPostProcessFramebuffer()->GetColorAttachments()[m_Context.GetSwapchain()->GetCurrentImageIndex()];
 }

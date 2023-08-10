@@ -31,8 +31,14 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
     m_Window->SetWindowCallback(BIND_EVENT_FN(Application::OnEvent));
     m_Window->SetWindowLogo(InApplicationSpec.WindowLogoPath);
 
-    const auto ConfigurationString = GNT_DEBUG ? "Debug" : "Release";
-    const auto RHIString           = RendererAPI::Get() == RendererAPI::EAPI::Vulkan ? "Vulkan" : "None";
+    std::string ConfigurationString;
+#if GNT_DEBUG
+    ConfigurationString = "Debug";
+#else
+    ConfigurationString = "Release";
+#endif
+
+    const auto RHIString = RendererAPI::Get() == RendererAPI::EAPI::Vulkan ? "Vulkan" : "None";
     const auto WindowTitle =
         std::string(m_Window->GetTitle()) + std::string(" - ") + ConfigurationString + std::string(" <") + RHIString + std::string(">");
     m_Window->SetWindowTitle(WindowTitle);
@@ -51,6 +57,8 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
 
 void Application::Run()
 {
+    m_LayerQueue.Init();
+
     const float LoadMeshStartTime = GetTimeNow();
     JobSystem::Update();
     const float LoadMeshEndTime = GetTimeNow();
@@ -96,7 +104,7 @@ void Application::Run()
         ++FrameCount;
         if (DeltaTime >= 1.0f)
         {
-            Renderer::GetStats().FPS = FrameCount / DeltaTime;
+            Renderer::GetStats().FPS = (float)FrameCount / DeltaTime;
             FrameCount               = 0;
             LastTime                 = CurrentTime;
         }

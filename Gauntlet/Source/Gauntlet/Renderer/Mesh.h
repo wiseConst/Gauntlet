@@ -27,9 +27,20 @@ class Mesh final
     FORCEINLINE const auto& GetVertexBuffers() const { return m_VertexBuffers; }
     FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
 
-    FORCEINLINE bool HasDiffuseTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].DiffuseTextures.size() > 0; }
-    FORCEINLINE bool HasNormalMapTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].NormalMapTextures.size() > 0; }
-    FORCEINLINE bool HasEmissiveTexture(const uint32_t MeshIndex) const { return m_MeshesData[MeshIndex].EmissiveTextures.size() > 0; }
+    FORCEINLINE bool HasDiffuseTexture(const uint32_t MeshIndex) const
+    {
+        return !m_MeshesData.empty() && !m_MeshesData[MeshIndex].DiffuseTextures.empty();
+    }
+
+    FORCEINLINE bool HasNormalMapTexture(const uint32_t MeshIndex) const
+    {
+        return !m_MeshesData.empty() && !m_MeshesData[MeshIndex].NormalMapTextures.empty();
+    }
+
+    FORCEINLINE bool HasEmissiveTexture(const uint32_t MeshIndex) const
+    {
+        return !m_MeshesData.empty() && !m_MeshesData[MeshIndex].EmissiveTextures.empty();
+    }
 
     FORCEINLINE const auto& GetDiffuseTexture(const uint32_t MeshIndex, const uint32_t DiffuseTextureIndex = 0) const
     {
