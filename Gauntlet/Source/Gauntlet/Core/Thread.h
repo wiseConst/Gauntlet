@@ -10,7 +10,6 @@ using Job = std::function<void()>;
 enum class EThreadState : uint8_t
 {
     IDLE = 0,
-    HAS_WORK,
     WORKING
 };
 
@@ -36,7 +35,6 @@ class Thread final : private Uncopyable, private Unmovable
         }
 
         m_CondVar.notify_one();
-        m_ThreadState = EThreadState::HAS_WORK;
     }
 
     FORCEINLINE const size_t GetJobsCount() const { return m_Jobs.size(); }
@@ -50,5 +48,10 @@ class Thread final : private Uncopyable, private Unmovable
 
     EThreadState m_ThreadState  = EThreadState::IDLE;
     bool m_bIsShutdownRequested = false;
+
+    friend class JobSystem;
+
+    // Should be called only once on init
+    void SetThreadAffinity(const uint32_t InThreadID);
 };
 }  // namespace Gauntlet

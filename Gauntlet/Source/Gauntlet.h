@@ -25,13 +25,21 @@
 #include <Gauntlet/Renderer/Framebuffer.h>
 #include <Gauntlet/Renderer/Texture.h>
 #include <Gauntlet/Renderer/TextureCube.h>
+#include <Gauntlet/Renderer/Material.h>
 #include <Gauntlet/Renderer/Camera/Camera.h>
 #include <Gauntlet/Renderer/Camera/OrthographicCamera.h>
 #include <Gauntlet/Renderer/Camera/PerspectiveCamera.h>
 #include <Gauntlet/Renderer/Mesh.h>
 
+// ECS Stuff
+#include <Gauntlet/Scene/Scene.h>
+#include <Gauntlet/Scene/Entity.h>
+
 // UI
 // #include <Gauntlet/ImGui/ImGuiLayer.h>
 #include <imgui/imgui.h>
+
+// MULTITHREADING
+#include <Gauntlet/Core/JobSystem.h>
 
 // Don't forget to #include <Legion/Core/Entrypoint.h> after this include.

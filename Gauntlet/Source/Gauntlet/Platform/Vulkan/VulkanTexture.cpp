@@ -8,7 +8,7 @@
 namespace Gauntlet
 {
 
-VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
+VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath, const bool InbCreateTextureID)
 {
     TextureCreateInfo TextureCI = {};
     int32_t Width               = 0;
@@ -19,6 +19,7 @@ VulkanTexture2D::VulkanTexture2D(const std::string_view& TextureFilePath)
     TextureCI.Width    = Width;
     TextureCI.Height   = Height;
     TextureCI.DataSize = Width * Height * TextureCI.Channels;
+    TextureCI.CreateTextureID = InbCreateTextureID;
 
     Create(TextureCI);
 }
@@ -59,16 +60,14 @@ void VulkanTexture2D::Create(const TextureCreateInfo& InTextureCreateInfo)
     ImageSpec.Width              = InTextureCreateInfo.Width;
     ImageSpec.Height             = InTextureCreateInfo.Height;
     ImageSpec.Layers             = 1;
+    ImageSpec.CreateTextureID    = InTextureCreateInfo.CreateTextureID;
     m_Image.reset(new VulkanImage(ImageSpec));
 
-    {
-        GRAPHICS_GUARD_LOCK;
-        // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make
-        // it readable from fragment shader.
-        ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        ImageUtils::CopyBufferDataToImage(StagingBuffer.Buffer, m_Image->Get(), {m_Image->GetWidth(), m_Image->GetHeight(), 1});
-        ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    }
+    // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make
+    // it readable from fragment shader.
+    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    ImageUtils::CopyBufferDataToImage(StagingBuffer.Buffer, m_Image->Get(), {m_Image->GetWidth(), m_Image->GetHeight(), 1});
+    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // All data sent from staging buffer, we can delete it.
     BufferUtils::DestroyBuffer(StagingBuffer);

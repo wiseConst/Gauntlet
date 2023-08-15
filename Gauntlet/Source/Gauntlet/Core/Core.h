@@ -32,12 +32,12 @@
 
 namespace Gauntlet
 {
-#define MAX_WORKER_THREADS 6
+#define MAX_WORKER_THREADS 8
 
 #define FORCEINLINE __forceinline
 #define NODISCARD [[nodiscard]]
 #define BIT(x) (1 << (x))
-#define BIND_EVENT_FN(fn) std::bind(&fn, this, std::placeholders::_1)
+#define BIND_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 
 // Stolen from vulkan_core.h
 #define MAKE_VERSION(major, minor, patch) ((((uint32_t)(major)) << 22) | (((uint32_t)(minor)) << 12) | ((uint32_t)(patch)))

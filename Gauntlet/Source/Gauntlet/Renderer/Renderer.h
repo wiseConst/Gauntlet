@@ -12,6 +12,7 @@ namespace Gauntlet
 class Mesh;
 class PerspectiveCamera;
 class Image;
+class Texture2D;
 
 class Renderer : private Uncopyable, private Unmovable
 {
@@ -31,6 +32,9 @@ class Renderer : private Uncopyable, private Unmovable
         s_Renderer->SubmitMeshImpl(InMesh, InTransformMatrix);
     }
 
+    // TODO:
+    // FORCEINLINE static void SubmitSpotlight(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix = glm::mat4(1.0f), color?)
+
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
     FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
 
@@ -45,6 +49,7 @@ class Renderer : private Uncopyable, private Unmovable
     struct RendererSettings
     {
         bool ShowWireframes = false;
+        bool VSync          = false;
     } static s_RendererSettings;
 
     struct RendererStats
@@ -76,7 +81,7 @@ class Renderer : private Uncopyable, private Unmovable
     virtual void BeginImpl() = 0;
     virtual void FlushImpl() = 0;
 
-    virtual const Ref<Image> GetFinalImageImpl() = 0;
+    virtual const Ref<Image> GetFinalImageImpl()               = 0;
 };
 
 }  // namespace Gauntlet

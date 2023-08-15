@@ -11,6 +11,7 @@
 #error "x86 Builds aren't supported!"
 #endif
 
+/* Apple platforms */
 #elif defined(__APPLE__) || defined(__MACH__)
 #include <TargetConditionals.h>
 /* TARGET_OS_MAC exists on all the platforms

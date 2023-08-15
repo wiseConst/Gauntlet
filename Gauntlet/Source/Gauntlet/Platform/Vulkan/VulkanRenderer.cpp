@@ -12,60 +12,19 @@
 #include "VulkanDescriptors.h"
 #include "VulkanFramebuffer.h"
 
+#include "VulkanRenderer2D.h"
 #include "VulkanUtility.h"
 #include "VulkanShader.h"
 #include "VulkanTexture.h"
 #include "VulkanTextureCube.h"
 #include "VulkanBuffer.h"
+#include "VulkanMaterial.h"
 
 #include "Gauntlet/Renderer/Skybox.h"
 #include "Gauntlet/Renderer/Mesh.h"
 
 namespace Gauntlet
 {
-
-struct VulkanRendererStorage
-{
-    // Framebuffers && RenderPasses
-    Ref<VulkanFramebuffer> PostProcessFramebuffer = nullptr;
-
-    // Mesh
-    Ref<VulkanPipeline> MeshPipeline      = nullptr;
-    Ref<VulkanShader> MeshVertexShader    = nullptr;
-    Ref<VulkanShader> MeshFragmentShader  = nullptr;
-    Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
-
-    BufferLayout MeshVertexBufferLayout;
-
-    VkDescriptorSetLayout MeshDescriptorSetLayout = VK_NULL_HANDLE;
-    std::vector<VkDescriptorSet> MeshDescriptorSets;
-    uint32_t CurrentDescriptorSetIndex = 0;
-
-    // Camera UBO
-    std::vector<AllocatedBuffer> UniformCameraDataBuffers;
-    std::vector<void*> MappedUniformCameraDataBuffers;
-    CameraDataBuffer MeshCameraDataBuffer;
-
-    // Skybox
-    Ref<Skybox> DefaultSkybox              = nullptr;
-    Ref<VulkanPipeline> SkyboxPipeline     = nullptr;
-    Ref<VulkanShader> SkyboxVertexShader   = nullptr;
-    Ref<VulkanShader> SkyboxFragmentShader = nullptr;
-
-    BufferLayout SkyboxVertexBufferLayout;
-    VkDescriptorSetLayout SkyboxDescriptorSetLayout = VK_NULL_HANDLE;
-    VkDescriptorSet SkyboxDescriptorSet             = VK_NULL_HANDLE;
-    MeshPushConstants SkyboxPushConstants;
-
-    // UI
-    VkDescriptorSetLayout ImageDescriptorSetLayout = VK_NULL_HANDLE;
-
-    // Misc
-    VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
-    Ref<VulkanPipeline> MeshWireframePipeline = nullptr;
-};
-
-static VulkanRendererStorage s_Data;
 
 VulkanRenderer::VulkanRenderer() : m_Context((VulkanContext&)VulkanContext::Get())
 {
@@ -187,6 +146,7 @@ void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
     s_Data.MeshCameraDataBuffer.View       = InCamera.GetViewMatrix();
     s_Data.MeshCameraDataBuffer.Position   = InCamera.GetPosition();
 
+    VulkanRenderer2D::GetStorageData().CameraProjectionMatrix = InCamera.GetViewProjectionMatrix();
     s_Data.SkyboxPushConstants.TransformMatrix =
         InCamera.GetProjectionMatrix() *
         glm::mat4(glm::mat3(InCamera.GetViewMatrix()));  // Removing 4th column of view martix which contains translation;
@@ -218,118 +178,17 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
                                                    s_Data.MeshPipeline->GetPushConstantsShaderStageFlags(), 0,
                                                    s_Data.MeshPipeline->GetPushConstantsSize(), &PushConstants);
 
-    for (uint32_t i = 0; i < InMesh->GetVertexBuffers().size(); ++i)
+    for (uint32_t i = 0; i < InMesh->GetSubmeshCount(); ++i)
     {
-        if (s_Data.CurrentDescriptorSetIndex >= s_Data.MeshDescriptorSets.size())
-        {
-            VkDescriptorSet MeshDescriptorSet = VK_NULL_HANDLE;
-            GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(&MeshDescriptorSet, s_Data.MeshDescriptorSetLayout),
-                       "Failed to allocate descriptor sets!");
-            s_Data.MeshDescriptorSets.push_back(MeshDescriptorSet);
-        }
+        const auto VulkanMaterial = static_pointer_cast<Gauntlet::VulkanMaterial>(InMesh->GetMaterial(i));
+        GNT_ASSERT(VulkanMaterial, "Failed to retrieve mesh material!");
+        auto MaterialDescriptorSet = VulkanMaterial->GetDescriptorSet();
 
-        if (!InMesh->IsRendered())
-        {
-            std::vector<VkWriteDescriptorSet> Writes;
-            if (InMesh->HasDiffuseTexture(i))
-            {
-                auto DiffuseImageInfo = std::static_pointer_cast<VulkanTexture2D>(InMesh->GetDiffuseTexture(i))->GetImageDescriptorInfo();
-                const auto DiffuseTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &DiffuseImageInfo);
-
-                Writes.push_back(DiffuseTextureWriteSet);
-            }
-            else
-            {
-                auto WhiteImageInfo = s_Data.MeshWhiteTexture->GetImageDescriptorInfo();
-                const auto WhiteTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &WhiteImageInfo);
-
-                Writes.push_back(WhiteTextureWriteSet);
-            }
-
-            if (InMesh->HasNormalMapTexture(i))
-            {
-                auto NormalMapImageInfo =
-                    std::static_pointer_cast<VulkanTexture2D>(InMesh->GetNormalMapTexture(i))->GetImageDescriptorInfo();
-                const auto NormalTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &NormalMapImageInfo);
-
-                Writes.push_back(NormalTextureWriteSet);
-            }
-            else
-            {
-                auto WhiteImageInfo = s_Data.MeshWhiteTexture->GetImageDescriptorInfo();
-                const auto WhiteTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &WhiteImageInfo);
-
-                Writes.push_back(WhiteTextureWriteSet);
-            }
-
-            if (InMesh->HasEmissiveTexture(i))
-            {
-                auto EmissiveImageInfo = std::static_pointer_cast<VulkanTexture2D>(InMesh->GetEmissiveTexture(i))->GetImageDescriptorInfo();
-                const auto EmissiveTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &EmissiveImageInfo);
-
-                Writes.push_back(EmissiveTextureWriteSet);
-            }
-            else
-            {
-                auto WhiteImageInfo = s_Data.MeshWhiteTexture->GetImageDescriptorInfo();
-                const auto WhiteTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &WhiteImageInfo);
-
-                Writes.push_back(WhiteTextureWriteSet);
-            }
-
-            // Environment Map Texture
-            if (auto CubeMapTexture = std::static_pointer_cast<VulkanTextureCube>(s_Data.DefaultSkybox->GetCubeMapTexture()))
-            {
-                auto CubeMapTextureImageInfo      = CubeMapTexture->GetImage()->GetDescriptorInfo();
-                const auto CubeMapTextureWriteSet = Utility::GetWriteDescriptorSet(
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3, s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1,
-                    &CubeMapTextureImageInfo);
-
-                Writes.push_back(CubeMapTextureWriteSet);
-            }
-            else
-            {
-                auto WhiteImageInfo = s_Data.MeshWhiteTexture->GetImageDescriptorInfo();
-                const auto WhiteTextureWriteSet =
-                    Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
-                                                   s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &WhiteImageInfo);
-
-                Writes.push_back(WhiteTextureWriteSet);
-            }
-
-            VkDescriptorBufferInfo CameraDataBufferInfo = {};
-            CameraDataBufferInfo.buffer                 = s_Data.UniformCameraDataBuffers[Swapchain->GetCurrentFrameIndex()].Buffer;
-            CameraDataBufferInfo.range                  = sizeof(CameraDataBuffer);
-            CameraDataBufferInfo.offset                 = 0;
-
-            // CameraWrite
-            auto CameraDataBufferWriteSet =
-                Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4,
-                                               s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex], 1, &CameraDataBufferInfo);
-
-            Writes.push_back(CameraDataBufferWriteSet);
-
-            vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
-                                   VK_NULL_HANDLE);
-        }
         memcpy(s_Data.MappedUniformCameraDataBuffers[Swapchain->GetCurrentFrameIndex()], &s_Data.MeshCameraDataBuffer,
                sizeof(CameraDataBuffer));
 
-        s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.MeshPipeline->GetLayout(), 0, 1,
-                                                        &s_Data.MeshDescriptorSets[s_Data.CurrentDescriptorSetIndex]);
-        ++s_Data.CurrentDescriptorSetIndex;
+        s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.MeshPipeline->GetLayout(), 0, 1, &MaterialDescriptorSet);
+        // ++s_Data.CurrentDescriptorSetIndex;
 
         VkDeviceSize Offset = 0;
         s_Data.CurrentCommandBuffer->BindVertexBuffers(
@@ -340,12 +199,11 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
         s_Data.CurrentCommandBuffer->DrawIndexed(std::static_pointer_cast<VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i])->GetCount());
         ++Renderer::GetStats().DrawCalls;
     }
-    InMesh->SetIsRendered(true);
 }
 
 void VulkanRenderer::SetupSkybox()
 {
-    const auto SkyboxPath                = std::string(ASSETS_PATH) + "Textures/Skybox/Yokohama3/";
+    const auto SkyboxPath                = std::string(ASSETS_PATH) + "Textures/Skybox/Yokohama2/";
     const std::vector<std::string> Faces = {
         SkyboxPath + "right.jpg",   //
         SkyboxPath + "left.jpg",    //
@@ -425,7 +283,7 @@ void VulkanRenderer::DrawSkybox()
 
     s_Data.CurrentCommandBuffer->BindPipeline(s_Data.SkyboxPipeline);
 
-    static constexpr uint32_t s_MaxSkyboxSize = 460.0f;
+    static constexpr uint32_t s_MaxSkyboxSize = 460;
     s_Data.SkyboxPushConstants.TransformMatrix *= glm::scale(glm::mat4(1.0f), glm::vec3(s_MaxSkyboxSize));
 
     s_Data.CurrentCommandBuffer->BindPushConstants(s_Data.SkyboxPipeline->GetLayout(),
@@ -465,19 +323,9 @@ void VulkanRenderer::FlushImpl()
     s_Data.CurrentCommandBuffer->EndDebugLabel();
 }
 
-const Ref<VulkanFramebuffer>& VulkanRenderer::GetPostProcessFramebuffer()
-{
-    return s_Data.PostProcessFramebuffer;
-}
-
-const VkDescriptorSetLayout& VulkanRenderer::GetImageDescriptorSetLayout()
-{
-    return s_Data.ImageDescriptorSetLayout;
-}
-
 const Ref<Image> VulkanRenderer::GetFinalImageImpl()
 {
-    return GetPostProcessFramebuffer()->GetColorAttachments()[m_Context.GetSwapchain()->GetCurrentImageIndex()];
+    return s_Data.PostProcessFramebuffer->GetColorAttachments()[m_Context.GetSwapchain()->GetCurrentImageIndex()];
 }
 
 void VulkanRenderer::Destroy()

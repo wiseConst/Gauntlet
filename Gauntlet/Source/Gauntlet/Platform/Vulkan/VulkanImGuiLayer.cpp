@@ -56,9 +56,7 @@ void VulkanImGuiLayer::OnAttach()
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports;
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    // ImGui::StyleColorsLight();
+    SetCustomUIStyle();
 
     const auto& App = Application::Get();
     ImGui_ImplVulkan_LoadFunctions([](const char* FunctionName, void* VulkanInstance)
@@ -92,13 +90,14 @@ void VulkanImGuiLayer::OnAttach()
     InitInfo.ImageCount                = ImageCount;
     InitInfo.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;
     InitInfo.Allocator                 = VK_NULL_HANDLE;
-    ImGui_ImplVulkan_Init(&InitInfo, m_Context.GetSwapchain()->GetRenderPass() /* m_Framebuffer->GetRenderPass()*/);
+    ImGui_ImplVulkan_Init(&InitInfo, m_Context.GetSwapchain()->GetRenderPass());
 
     // Load default font
     {
-        const auto FontPath = std::string(ASSETS_PATH) + std::string("Fonts/Rubik-Regular.ttf");
-        m_DefaultFont       = io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
-        io.FontDefault      = m_DefaultFont;
+        auto FontPath  = std::string(ASSETS_PATH) + std::string("Fonts/Tektur/Tektur-Regular.ttf");
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
+        FontPath       = std::string(ASSETS_PATH) + std::string("Fonts/Tektur/Tektur-Bold.ttf");
+        io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
 
         auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Device->GetLogicalDevice());
         ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
@@ -191,6 +190,43 @@ void VulkanImGuiLayer::CreateSyncObjects()
     {
         vkCreateFence(m_Context.GetDevice()->GetLogicalDevice(), &FenceCreateInfo, nullptr, &m_InFlightFences[i]);
     }
+}
+
+void VulkanImGuiLayer::SetCustomUIStyle()
+{
+    // Setup Dear ImGui style
+    // ImGui::StyleColorsDark();
+    // ImGui::StyleColorsLight();
+
+    auto& colors              = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4{0.1f, 0.105f, 0.11f, 1.0f};
+
+    // Headers
+    colors[ImGuiCol_Header]        = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_HeaderHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_HeaderActive]  = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    // Buttons
+    colors[ImGuiCol_Button]        = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_ButtonHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_ButtonActive]  = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    // Frame BG
+    colors[ImGuiCol_FrameBg]        = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_FrameBgHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_FrameBgActive]  = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    // Tabs
+    colors[ImGuiCol_Tab]                = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabHovered]         = ImVec4{0.38f, 0.3805f, 0.381f, 1.0f};
+    colors[ImGuiCol_TabActive]          = ImVec4{0.28f, 0.2805f, 0.281f, 1.0f};
+    colors[ImGuiCol_TabUnfocused]       = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+
+    // Title
+    colors[ImGuiCol_TitleBg]          = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgActive]    = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
 }
 
 }  // namespace Gauntlet

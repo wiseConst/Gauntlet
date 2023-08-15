@@ -83,7 +83,7 @@ void VulkanContext::CreateInstance()
     ApplicationInfo.apiVersion         = GNT_VK_API_VERSION;
     ApplicationInfo.applicationVersion = ApplicationVersion;
     ApplicationInfo.engineVersion      = EngineVersion;
-    ApplicationInfo.pApplicationName   = app.GetInfo().AppName.data();
+    ApplicationInfo.pApplicationName   = app.GetSpecification().AppName.data();
     ApplicationInfo.pEngineName        = EngineName;
 
     const auto RequiredExtensions              = GetRequiredExtensions();
@@ -329,7 +329,10 @@ void VulkanContext::SetVSync(bool IsVSync)
 {
     m_Device->WaitDeviceOnFinish();
 
+    float SwapchainRecreationStartTime = Application::Get().GetTimeNow();
     m_Swapchain->Invalidate();
+    float SwapchainRecreationEndTime = Application::Get().GetTimeNow();
+    LOG_INFO("Time took to set vsync(invalidate swapchain): (%f)ms", SwapchainRecreationEndTime - SwapchainRecreationStartTime);
 }
 
 void VulkanContext::Destroy()

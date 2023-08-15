@@ -13,12 +13,13 @@ struct TextureCreateInfo
     uint32_t Width    = 0;
     uint32_t Height   = 0;
     uint16_t Channels = 4;
+    bool CreateTextureID = false;
 };
 
 class VulkanTexture2D final : public Texture2D
 {
   public:
-    VulkanTexture2D(const std::string_view& TextureFilePath);
+    VulkanTexture2D(const std::string_view& TextureFilePath, const bool InbCreateTextureID = false);
     VulkanTexture2D(const void* InData, const size_t InDataSize, const uint32_t InImageWidth, const uint32_t InImageHeight);
     VulkanTexture2D() = default;
 
@@ -26,6 +27,8 @@ class VulkanTexture2D final : public Texture2D
 
     FORCEINLINE const uint32_t GetWidth() const final override { return m_Image->GetSpecification().Width; }
     FORCEINLINE const uint32_t GetHeight() const final override { return m_Image->GetSpecification().Height; }
+
+    FORCEINLINE void* GetTextureID() const final override { return m_Image->GetTextureID(); }
 
     FORCEINLINE const auto& GetImage() const { return m_Image; }
     FORCEINLINE const auto& GetImage() { return m_Image; }

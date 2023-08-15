@@ -24,11 +24,12 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
     GNT_ASSERT(!s_Instance, "You can't have 2 instances of application!");
     s_Instance = this;
 
+    JobSystem::Init();
     RendererAPI::Init(m_AppInfo.GraphicsAPI);
 
     WindowSpecification WindowSpec(InApplicationSpec.AppName, InApplicationSpec.Width, InApplicationSpec.Height);
     m_Window.reset(Window::Create(WindowSpec));
-    m_Window->SetWindowCallback(BIND_EVENT_FN(Application::OnEvent));
+    m_Window->SetWindowCallback(BIND_FN(Application::OnEvent));
     m_Window->SetWindowLogo(InApplicationSpec.WindowLogoPath);
 
     std::string ConfigurationString;
@@ -51,8 +52,6 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
 
     m_ImGuiLayer.reset(ImGuiLayer::Create());
     m_ImGuiLayer->OnAttach();
-
-    JobSystem::Init();
 }
 
 void Application::Run()
@@ -60,7 +59,7 @@ void Application::Run()
     m_LayerQueue.Init();
 
     const float LoadMeshStartTime = GetTimeNow();
-    JobSystem::Update();
+    JobSystem::Wait();  // JobSystem::Update();
     const float LoadMeshEndTime = GetTimeNow();
     LOG_INFO("Time took to prepare application: (%f)ms", LoadMeshEndTime - LoadMeshStartTime);
 
@@ -104,7 +103,7 @@ void Application::Run()
         ++FrameCount;
         if (DeltaTime >= 1.0f)
         {
-            Renderer::GetStats().FPS = (float)FrameCount / DeltaTime;
+            Renderer::GetStats().FPS = FrameCount / DeltaTime;
             FrameCount               = 0;
             LastTime                 = CurrentTime;
         }
@@ -117,7 +116,7 @@ void Application::OnEvent(Event& e)
     if (Input::IsKeyPressed(GNT_KEY_ESCAPE)) OnWindowClosed((WindowCloseEvent&)e);
 
     EventDispatcher dispatcher(e);
-    dispatcher.Dispatch<WindowCloseEvent>(BIND_EVENT_FN(Application::OnWindowClosed));
+    dispatcher.Dispatch<WindowCloseEvent>(BIND_FN(Application::OnWindowClosed));
 
     for (auto& OneLayer : m_LayerQueue)
     {

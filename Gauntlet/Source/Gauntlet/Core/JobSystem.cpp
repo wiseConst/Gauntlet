@@ -3,9 +3,6 @@
 
 namespace Gauntlet
 {
-uint32_t JobSystem::s_ThreadCount = 0;
-std::array<Thread, MAX_WORKER_THREADS> JobSystem::s_Threads;
-
 static bool s_bIsInitialized = false;
 
 void JobSystem::Init()
@@ -17,24 +14,20 @@ void JobSystem::Init()
     s_ThreadCount = std::thread::hardware_concurrency() - 1;
     if (s_ThreadCount > MAX_WORKER_THREADS)
     {
-        LOG_INFO("You got: %u threads, capping at: %u.", s_ThreadCount, MAX_WORKER_THREADS);
+        LOG_INFO("You have: %u threads, capping at: %u.", s_ThreadCount, MAX_WORKER_THREADS);
         s_ThreadCount = MAX_WORKER_THREADS;
     }
     LOG_INFO("JobSystem using %u threads.", s_ThreadCount);
+
+    for (uint32_t i = 0; i < s_ThreadCount; ++i)
+    {
+        s_Threads[i].Start();
+        s_Threads[i].SetThreadAffinity(i);
+    }
 }
 
 void JobSystem::Update()
 {
-    static bool bThreadsStarted = false;
-    if (!bThreadsStarted)
-    {
-        for (uint32_t i = 0; i < s_ThreadCount; ++i)
-        {
-            s_Threads[i].Start();
-        }
-        bThreadsStarted = true;
-    }
-
     bool bAreJobsDone{false};
     while (!bAreJobsDone)
     {
@@ -58,14 +51,32 @@ void JobSystem::Update()
 
         bAreJobsDone = true;
     }
+
+    std::scoped_lock<std::mutex> Lock(s_QueueMutex);
+    for (uint32_t i = 0; i < s_ThreadCount; ++i)
+    {
+        if (s_PendingJobs.empty()) return;
+
+        if (s_Threads[i].IsIdle())  // IDK SAFETY CHECK
+        {
+            s_Threads[i].Submit(s_PendingJobs.front());
+            s_PendingJobs.pop();
+        }
+    }
+}
+
+void JobSystem::Wait()
+{
+    do
+    {
+        Update();
+    } while (!s_PendingJobs.empty());
 }
 
 void JobSystem::Shutdown()
 {
     for (auto& Thread : s_Threads)
-    {
         Thread.Shutdown();
-    }
 }
 
 }  // namespace Gauntlet

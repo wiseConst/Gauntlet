@@ -77,7 +77,7 @@ static const char* GetStringVulkanResult(VkResult InResult)
     do                                                                                                                                     \
     {                                                                                                                                      \
         VkResult result          = x;                                                                                                      \
-        std::string FinalMessage = std::string(message) + " The result is: " + std::string(GetStringVulkanResult(result));                 \
+        std::string FinalMessage = std::string(message) + std::string(" The result is: ") + std::string(GetStringVulkanResult(result));    \
         if (result != VK_SUCCESS)                                                                                                          \
         {                                                                                                                                  \
             GNT_ASSERT(false, FinalMessage.data(), GetStringVulkanResult(result), __LINE__);                                               \

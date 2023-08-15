@@ -58,6 +58,7 @@ class Window : private Unmovable, private Uncopyable
 
   protected:
     WindowSpecification m_WindowSpec;
+
     bool m_IsRunning{false};
     bool m_IsVSync{false};
 };

@@ -12,9 +12,12 @@ class JobSystem final : private Uncopyable, private Unmovable
     static void Shutdown();
 
     static void Update();
+    static void Wait();  // Temporary function until I handle meshes descriptor sets
 
     template <typename Func, typename... Args> static void Submit(Func&& InFunc, Args&&... InArgs)
     {
+        std::scoped_lock<std::mutex> Lock(s_QueueMutex);
+
         Job Command = std::bind(std::forward<Func>(InFunc), std::forward<Args>(InArgs)...);
         // Check if our application runs in singlethreaded mode with no worker threads at all.
         if (s_ThreadCount == 0)
@@ -23,23 +26,24 @@ class JobSystem final : private Uncopyable, private Unmovable
             return;
         }
 
-        uint32_t IdlingThread = 0;
-        size_t MinJobs        = UINT64_MAX;
-        for (uint32_t i = 0; i < MAX_WORKER_THREADS; ++i)
+        for (uint32_t i = 0; i < s_ThreadCount; ++i)
         {
-            const auto JobsCount = s_Threads[i].GetJobsCount();
-            if (JobsCount < MinJobs)
+            if (s_Threads[i].IsIdle())
             {
-                MinJobs      = JobsCount;
-                IdlingThread = i;
+                s_Threads[i].Submit(Command);
+                return;
             }
         }
-        s_Threads[IdlingThread].Submit(Command);
+
+        s_PendingJobs.emplace(Command);
     }
 
   private:
-    static uint32_t s_ThreadCount;
-    static std::array<Thread, MAX_WORKER_THREADS> s_Threads;
+    inline static uint32_t s_ThreadCount = 0;
+    inline static std::array<Thread, MAX_WORKER_THREADS> s_Threads;
+
+    inline static std::mutex s_QueueMutex;
+    inline static std::queue<Job> s_PendingJobs;
 };
 
 }  // namespace Gauntlet

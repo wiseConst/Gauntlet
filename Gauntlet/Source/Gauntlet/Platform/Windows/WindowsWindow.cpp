@@ -7,6 +7,7 @@
 #include "Gauntlet/Event/WindowEvent.h"
 
 #include "Gauntlet/Renderer/RendererAPI.h"
+#include "Gauntlet/Renderer/Renderer.h"
 #include "Gauntlet/Renderer/GraphicsContext.h"
 #include "Gauntlet/Renderer/Image.h"
 #include "Gauntlet/Core/Input.h"
@@ -61,6 +62,8 @@ void WindowsWindow::Init()
 
     glfwSetWindowUserPointer(m_Window, this);
     SetCallbacks();
+
+    SetPositionCentered();
 }
 
 void WindowsWindow::SetCallbacks()
@@ -87,7 +90,6 @@ void WindowsWindow::SetCallbacks()
                                [](GLFWwindow* window, int button, int action, int mods)
                                {
                                    auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
-
                                    switch (action)
                                    {
                                        case GLFW_PRESS:
@@ -160,6 +162,21 @@ void WindowsWindow::SetCallbacks()
                                });
 }
 
+void WindowsWindow::SetPositionCentered()
+{
+    int32_t MonitorXpos = 0;
+    int32_t MonitorYpos = 0;
+
+    GLFWmonitor* PrimaryMonitor = glfwGetPrimaryMonitor();
+    glfwGetMonitorPos(PrimaryMonitor, &MonitorXpos, &MonitorYpos);
+
+    const GLFWvidmode* videoMode = glfwGetVideoMode(PrimaryMonitor);
+
+    const int32_t NewXPos = MonitorXpos + (videoMode->width - m_WindowSpec.Width) / 2;
+    const int32_t NewYPos = MonitorYpos + (videoMode->height - m_WindowSpec.Height) / 2;
+    glfwSetWindowPos(m_Window, NewXPos, NewYPos);
+}
+
 void WindowsWindow::OnUpdate()
 {
     glfwPollEvents();
@@ -169,6 +186,8 @@ void WindowsWindow::OnUpdate()
         auto& Context = GraphicsContext::Get();
         Context.SwapBuffers();
     }
+
+    SetVSync(Renderer::GetSettings().VSync);
 }
 
 void WindowsWindow::HandleMinimized()

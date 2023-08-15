@@ -33,8 +33,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
     VkDescriptorPool m_ImGuiDescriptorPool = VK_NULL_HANDLE;
     Ref<VulkanCommandPool> m_ImGuiCommandPool;
 
-    ImFont* m_DefaultFont = nullptr;
-
     void CreateSyncObjects();
+    void SetCustomUIStyle();
 };
 }  // namespace Gauntlet

@@ -6,101 +6,110 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
-    m_CerberusMesh          = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
-    m_OmenMesh              = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
-    m_CyberPunkRevolverMesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/cyberpunk_revolver/scene.gltf");
+    m_ActiveScene = MakeRef<Scene>();
+    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 
-    m_VikingRoom    = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
-    m_Stormstrooper = Mesh::Create(std::string(ASSETS_PATH) + "Models/DancingStormStrooper/scene.gltf");
-    m_Cube          = Mesh::Create(std::string(ASSETS_PATH) + "Models/cube/scene.gltf");
+    // TEST ECS
+    {
+        auto Square                                          = m_ActiveScene->CreateEntity("Square");
+        Square.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
+        auto& tc                                             = Square.AddComponent<TransformComponent>();
+        tc.Translation                                       = glm::vec3(50.0f, 50.0f, 0.0f);
+        tc.Scale                                             = glm::vec3(1.0f);
+    }
+
+    {
+        auto Cerberus                               = m_ActiveScene->CreateEntity("Cerberus");
+        Cerberus.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
+        auto& tc                                    = Cerberus.AddComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(0, -5.0f, 10.0f);
+        tc.Scale       = glm::vec3(0.1f);
+    }
+
+    /*
+    {
+        auto Omen                               = m_ActiveScene->CreateEntity("Omen");
+        Omen.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
+        auto& tc                                = Omen.AddComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(-10.0f, -10.0f, 0.0f);
+        tc.Scale       = glm::vec3(10.0f);
+    }
+    */
+
+    /* {
+         auto CyberPunkRevolver = m_ActiveScene->CreateEntity("CyberPunkRevolver");
+         CyberPunkRevolver.AddComponent<MeshComponent>().Mesh =
+             Mesh::Create(std::string(ASSETS_PATH) + "Models/cyberpunk_revolver/scene.gltf");
+         auto& tc = CyberPunkRevolver.AddComponent<TransformComponent>();
+
+         tc.Translation = glm::vec3(55.0f, 55.0f, 0.0f);
+         tc.Scale       = glm::vec3(0.05f);
+     }*/
+
+    /*
+    {
+        auto VikingRoom                               = m_ActiveScene->CreateEntity("VikingRoom");
+        VikingRoom.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
+        auto& tc                                      = VikingRoom.AddComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(-20.0f, -20.0f, 0.0f);
+        tc.Scale       = glm::vec3(10.0f);
+    }
+    */
+
+    {
+        auto Cube                               = m_ActiveScene->CreateEntity("Cube");
+        Cube.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Cube.gltf");
+        auto& tc                                = Cube.AddComponent<TransformComponent>();
+
+        tc.Scale = glm::vec3(150.0f);
+    }
+
+    
+    {
+        auto Sponza                               = m_ActiveScene->CreateEntity("Sponza");
+        Sponza.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Sponza/sponza.gltf");
+        auto& tc                                  = Sponza.AddComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(60.0, 60.0f, -60.0f);
+        tc.Scale       = glm::vec3(0.5f);
+    }
+
+    /*
+    {
+        auto Car                               = m_ActiveScene->CreateEntity("old_rusty_car");
+        Car.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/old_rusty_car/scene.gltf");
+        auto& tc                               = Car.AddComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(-90.0f, -90.0f, 90.0f);
+        tc.Scale       = glm::vec3(0.15f);
+    }
+    */
 }
 
-void EditorLayer::OnDetach()
-{
-    m_CerberusMesh->Destroy();
-    m_OmenMesh->Destroy();
-    m_CyberPunkRevolverMesh->Destroy();
-
-    m_VikingRoom->Destroy();
-    m_Stormstrooper->Destroy();
-    m_Cube->Destroy();
-}
+void EditorLayer::OnDetach() {}
 
 void EditorLayer::OnUpdate(const float DeltaTime)
 {
-    if (m_bIsViewportFocused || m_bIsViewportHovered)
+    if (m_bIsViewportFocused && m_bIsViewportHovered)
     {
         m_EditorCamera->OnUpdate(DeltaTime);
     }
 
     Renderer::BeginScene(*m_EditorCamera);
-    Renderer2D::BeginScene(*m_EditorCamera);
 
-    {
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, 5.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(5.0f));
-        const auto TRS         = Translation * Rotation * Scale;
+    m_ActiveScene->OnUpdate(DeltaTime);
 
-        Renderer::SubmitMesh(m_Cube, TRS);
-    }
-
-    {
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(0, -5.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
-        const auto TRS         = Translation * Rotation * Scale;
-
-        Renderer::SubmitMesh(m_CerberusMesh, TRS);
-    }
-
-    {
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-10.0f, -10.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
-        const auto TRS         = Translation * Rotation * Scale;
-
-        Renderer::SubmitMesh(m_OmenMesh, TRS);
-    }
-
-    {
-        static float RotationAngle = 0.0f;
-        RotationAngle += DeltaTime * 70;
-
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 15.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(RotationAngle), glm::vec3(0, 0, 1));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(0.15f));
-        const auto TRS         = Translation * Rotation * Scale;
-
-        Renderer::SubmitMesh(m_CyberPunkRevolverMesh, TRS);
-    }
-
-    {
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-40.0f, -40.0f, 0.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
-        const auto TRS         = Translation * Rotation * Scale;
-
-        Renderer::SubmitMesh(m_VikingRoom, TRS);
-    }
-
-    {
-        const auto Translation = glm::translate(glm::mat4(1.0f), glm::vec3(-50.0f, 50.0f, 40.0f));
-        const auto Rotation    = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1, 0, 0));
-        const auto Scale       = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
-        const auto TRS         = Translation * Rotation * Scale;
-
-        Renderer::SubmitMesh(m_Stormstrooper, TRS);
-    }
-
-    for (float y = -3.0f; y < 3.0f; y += 0.5f)
+    /*for (float y = -3.0f; y < 3.0f; y += 0.5f)
     {
         for (float x = -3.0f; x < 3.0f; x += 0.5f)
         {
             const glm::vec4 Color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
             Renderer2D::DrawQuad({x + 18.0f, y, -8.0f}, glm::vec2(0.45f), Color);
         }
-    }
+    }*/
 }
 
 void EditorLayer::OnEvent(Event& InEvent)
@@ -125,8 +134,8 @@ void EditorLayer::OnImGuiRender()
     m_bIsViewportFocused = ImGui::IsWindowFocused();
     m_bIsViewportHovered = ImGui::IsWindowHovered();
 
-    // LOG_INFO("Focused: %d", m_bIsViewportFocused);
-    // LOG_INFO("Hovered: %d", m_bIsViewportHovered);
+    // LOG_TRACE("Focused: %d", m_bIsViewportFocused ? 1 : 0);
+    // LOG_TRACE("Hovered: %d", m_bIsViewportHovered ? 1 : 0);
 
     ImGui::Image(Renderer::GetFinalImage()->GetTextureID(), m_ViewportSize);
     ImGui::End();
@@ -159,11 +168,10 @@ void EditorLayer::OnImGuiRender()
 
     ImGui::Begin("Renderer Settings");
     ImGui::Checkbox("Render Wireframe", &Renderer::GetSettings().ShowWireframes);
+    ImGui::Checkbox("VSync", &Renderer::GetSettings().VSync);
     ImGui::End();
 
-    ImGui::Begin("Hierarchy Panel");
-    ImGui::Text("Entities");
-    ImGui::End();
+    m_SceneHierarchyPanel.OnImGuiRender();
 
     ImGui::Begin("Content Browser");
     ImGui::Text("Files");
@@ -211,12 +219,16 @@ void EditorLayer::BeginDockspace()
     if (opt_fullscreen) ImGui::PopStyleVar(2);
 
     // Submit the DockSpace
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO& io                   = ImGui::GetIO();
+    ImGuiStyle& style             = ImGui::GetStyle();
+    const float PrevWindowMinSize = style.WindowMinSize.x;
+    style.WindowMinSize.x         = 350.0f;
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
     {
         ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
+    style.WindowMinSize.x = PrevWindowMinSize;
 
     if (ImGui::BeginMenuBar())
     {
@@ -245,5 +257,5 @@ void EditorLayer::UpdateViewportSize()
         m_EditorCamera->GetViewportWidth() != m_ViewportSize.x || m_EditorCamera->GetViewportHeight() != m_ViewportSize.y;
     const auto bIsViewportValid = m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f;
 
-    if (bNeedViewportResize && bIsViewportValid) m_EditorCamera->Resize(m_ViewportSize.x, m_ViewportSize.y);
+    if (bNeedViewportResize && bIsViewportValid) m_EditorCamera->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 }

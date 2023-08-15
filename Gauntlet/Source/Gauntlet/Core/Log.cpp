@@ -55,7 +55,7 @@ void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
         }
         case ELogLevel::LL_TRACE:
         {
-            LevelIndex = 5;
+            LevelIndex = 4;
             SetConsoleTextAttribute(hConsole, 15);
             break;
         }

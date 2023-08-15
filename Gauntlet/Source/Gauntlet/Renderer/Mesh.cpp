@@ -2,6 +2,7 @@
 #include "Mesh.h"
 
 #include "Texture.h"
+#include "Material.h"
 #include "RendererAPI.h"
 
 #include "Gauntlet/Renderer/Renderer.h"
@@ -20,7 +21,6 @@ Ref<Mesh> Mesh::Create(const std::string& InFilePath)
 
 Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices)
 {
-    LOG_INFO("Creating cube!");
     JobSystem::Submit(
         [this, InVertices, InIndices]
         {
@@ -29,7 +29,7 @@ Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& I
             VertexBufferInfo.Layout     = {{EShaderDataType::Vec3, "InPosition"}};
             VertexBufferInfo.Count      = InVertices.size();
 
-            Ref<VertexBuffer> VertexBuffer(VertexBuffer::Create(VertexBufferInfo));
+            Ref<Gauntlet::VertexBuffer> VertexBuffer(Gauntlet::VertexBuffer::Create(VertexBufferInfo));
             VertexBuffer->SetData(InVertices.data(), InVertices.size() * sizeof(InVertices[0]));
             m_VertexBuffers.emplace_back(VertexBuffer);
 
@@ -39,16 +39,17 @@ Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& I
             IndexBufferInfo.Data       = (void*)InIndices.data();
             IndexBufferInfo.Size       = InIndices.size() * sizeof(InIndices[0]);
 
-            m_IndexBuffers.emplace_back(IndexBuffer::Create(IndexBufferInfo));
+            m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(IndexBufferInfo));
         });
 }
 
 Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
 {
-    LOG_INFO("Creating mesh!");
     JobSystem::Submit(
         [this]
         {
+            LOG_TRACE("Loaded mesh: %s", m_Directory.data());
+
             LoadMesh(m_Directory);
 
             BufferInfo VertexBufferInfo = {};
@@ -70,7 +71,7 @@ Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
             for (auto& OneMeshData : m_MeshesData)
             {
                 VertexBufferInfo.Count = OneMeshData.Vertices.size();
-                Ref<VertexBuffer> VertexBuffer(VertexBuffer::Create(VertexBufferInfo));
+                Ref<Gauntlet::VertexBuffer> VertexBuffer(Gauntlet::VertexBuffer::Create(VertexBufferInfo));
                 VertexBuffer->SetData(OneMeshData.Vertices.data(), OneMeshData.Vertices.size() * sizeof(OneMeshData.Vertices[0]));
                 m_VertexBuffers.emplace_back(VertexBuffer);
 
@@ -78,7 +79,7 @@ Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
                 IndexBufferInfo.Data  = OneMeshData.Indices.data();
                 IndexBufferInfo.Size  = OneMeshData.Indices.size() * sizeof(OneMeshData.Indices[0]);
 
-                m_IndexBuffers.emplace_back(IndexBuffer::Create(IndexBufferInfo));
+                m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(IndexBufferInfo));
             }
         });
 }
@@ -155,9 +156,9 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
     }
 
     // Materials
-    std::vector<MeshTexture> DiffuseTextures;
-    std::vector<MeshTexture> NormalMapTextures;
-    std::vector<MeshTexture> EmissiveTextures;
+    std::vector<Ref<Texture2D>> DiffuseTextures;
+    std::vector<Ref<Texture2D>> NormalMapTextures;
+    std::vector<Ref<Texture2D>> EmissiveTextures;
     if (mesh->mMaterialIndex >= 0)
     {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
@@ -176,42 +177,41 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         EmissiveTextures.insert(EmissiveTextures.end(), EmissiveMaps.begin(), EmissiveMaps.end());
     }
 
-    return MeshData(Vertices, Indices, DiffuseTextures, NormalMapTextures, EmissiveTextures);
+    Ref<Gauntlet::Material> Material = Material::Create();
+    Material->SetDiffuseTextures(DiffuseTextures);
+    Material->SetNormalMapTextures(NormalMapTextures);
+    Material->SetEmissiveTextures(EmissiveTextures);
+
+    Material->Invalidate();
+
+    return MeshData(Vertices, Indices, Material);
 }
 
-std::vector<Mesh::MeshTexture> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextureType type)
+std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextureType type)
 {
-    std::vector<MeshTexture> Textures;
+    std::vector<Ref<Texture2D>> Textures;
     const uint32_t TextureCount = mat->GetTextureCount(type);
     for (uint32_t i = 0; i < TextureCount; ++i)
     {
         aiString str;
         mat->GetTexture(type, i, &str);
 
-        bool bIsLoaded{false};
-        for (uint32_t j = 0; j < m_LoadedTextures.size(); ++j)
+        bool bIsLoaded = m_LoadedTextures.contains(str.C_Str());
+        if (bIsLoaded)
         {
-            // Already loaded, let's get it.
-            if (std::strcmp(m_LoadedTextures[j].FilePath.data(), str.C_Str()) == 0)
-            {
-                Textures.push_back(m_LoadedTextures[j]);
-                bIsLoaded = true;
-                break;
-            }
+            Textures.push_back(m_LoadedTextures[str.C_Str()]);
+            continue;
         }
 
         // Hasn't loaded, so lets load it.
-        if (!bIsLoaded)
-        {
-            const std::string LocalTexturePath(str.C_Str());
-            const auto TexturePath = m_Directory + LocalTexturePath;
-            MeshTexture texture    = {};
-            texture.Texture        = Ref<Texture2D>(Texture2D::Create(TexturePath));
-            texture.FilePath       = LocalTexturePath;
+        const std::string LocalTexturePath(str.C_Str());
+        const auto TexturePath = m_Directory + LocalTexturePath;
+        Ref<Texture2D> texture = Ref<Texture2D>(Texture2D::Create(TexturePath, true));  // Temporary create TextureID's for Mesh Textures
 
-            Textures.emplace_back(texture);
-            m_LoadedTextures.push_back(texture);
-        }
+        LOG_TRACE("Loaded texture: %s", TexturePath.data());
+
+        Textures.emplace_back(texture);
+        m_LoadedTextures[LocalTexturePath] = texture;
     }
 
     return Textures;
@@ -244,8 +244,8 @@ void Mesh::Destroy()
     for (auto& IndexBuffer : m_IndexBuffers)
         IndexBuffer->Destroy();
 
-    for (auto& NormalMapTexture : m_LoadedTextures)
-        NormalMapTexture.Texture->Destroy();
+    for (auto& LoadedTexture : m_LoadedTextures)
+        LoadedTexture.second->Destroy();
 }
 
 }  // namespace Gauntlet

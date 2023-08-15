@@ -8,11 +8,6 @@
 #include "VulkanUtility.h"
 
 /*
- * In the very beginning all our data is stored in RAM,
- * to move it to CPU memory we have to:
- * 1) Map CPU memory(get pointer to the CPU memory - HOST_VISIBLE).
- * 2) Copy data to the mapped memory.
- *
  * Mapping and then unmapping the pointer lets the driver know that
  * the write is finished, and will be safer.
  *
@@ -56,6 +51,8 @@ void CreateBuffer(const EBufferUsage InBufferUsage, const VkDeviceSize InSize, A
 
 void CopyBuffer(const VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize)
 {
+    GRAPHICS_GUARD_LOCK;
+
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
@@ -73,6 +70,7 @@ void CopyBuffer(const VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const Vk
 
 void DestroyBuffer(AllocatedBuffer& InBuffer)
 {
+    GRAPHICS_GUARD_LOCK;
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
@@ -86,8 +84,8 @@ void DestroyBuffer(AllocatedBuffer& InBuffer)
 void CopyDataToBuffer(AllocatedBuffer& InBuffer, const VkDeviceSize InDataSize, const void* InData)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
-
     GNT_ASSERT(InData, "Data you want to copy is not valid!");
+
     void* Mapped = Context.GetAllocator()->Map(InBuffer.Allocation);
     memcpy(Mapped, InData, InDataSize);
     Context.GetAllocator()->Unmap(InBuffer.Allocation);
@@ -97,7 +95,10 @@ void CopyDataToBuffer(AllocatedBuffer& InBuffer, const VkDeviceSize InDataSize, 
 
 // VERTEX
 
-VulkanVertexBuffer::VulkanVertexBuffer(BufferInfo& InBufferInfo) : VertexBuffer(InBufferInfo), m_VertexCount(InBufferInfo.Count) {}
+VulkanVertexBuffer::VulkanVertexBuffer(BufferInfo& InBufferInfo) : VertexBuffer(InBufferInfo), m_VertexCount(InBufferInfo.Count)
+{
+    // TODO: SetData() ?
+}
 
 void VulkanVertexBuffer::SetData(const void* InData, const size_t InDataSize)
 {

@@ -58,9 +58,9 @@ class PerspectiveCamera : public Camera
     void OnEvent(Event& InEvent) override
     {
         EventDispatcher dispatcher(InEvent);
-        dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(PerspectiveCamera::OnWindowResized));
-        dispatcher.Dispatch<MouseScrolledEvent>(BIND_EVENT_FN(PerspectiveCamera::OnMouseScrolled));
-        dispatcher.Dispatch<MouseMovedEvent>(BIND_EVENT_FN(PerspectiveCamera::OnMouseMoved));
+        dispatcher.Dispatch<WindowResizeEvent>(BIND_FN(PerspectiveCamera::OnWindowResized));
+        dispatcher.Dispatch<MouseScrolledEvent>(BIND_FN(PerspectiveCamera::OnMouseScrolled));
+        dispatcher.Dispatch<MouseMovedEvent>(BIND_FN(PerspectiveCamera::OnMouseMoved));
     }
 
     FORCEINLINE void SetSensitivity(const float InSensitivity = 0.1f) { m_Sensitivity = InSensitivity; }

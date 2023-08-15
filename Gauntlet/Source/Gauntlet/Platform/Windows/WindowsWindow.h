@@ -33,6 +33,7 @@ class WindowsWindow final : public Window
     void Shutdown();
 
     void SetCallbacks();
+    void SetPositionCentered();
 };
 
 }  // namespace Gauntlet

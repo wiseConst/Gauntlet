@@ -13,6 +13,8 @@ layout(location = 2) out vec2 OutTexCoord;
 layout(location = 3) out vec3 OutTangent;
 layout(location = 4) out vec3 OutBitangent;
 layout(location = 5) out vec3 OutViewVector;
+layout(location = 6) out vec3 OutFragmentPosition;
+layout(location = 7) out vec3 OutLightPosition;
 
 layout( push_constant ) uniform PushConstants
 {	
@@ -27,6 +29,8 @@ layout(set = 0, binding = 4) uniform CameraDataBuffer
 	vec3 Position;
 } InCameraDataBuffer;
 
+const vec3 g_LightPosition = vec3(10.0f, 10.0f, -10.0f);
+
 void main()
 {
 	const vec4 VertexWorldPosition = MeshPushConstants.TransformMatrix * vec4(InPosition, 1.0f);
@@ -34,11 +38,14 @@ void main()
 	gl_Position = CameraViewProjectionMatrix * VertexWorldPosition;
 
 	OutColor = InColor;
-	OutNormal = InNormal;
+	// We also have to take in consideration that normals can change in case we did some rotation, but they aren't affected by model translation
+	OutNormal = vec3(mat3(transpose(inverse(MeshPushConstants.TransformMatrix))) * InNormal);
 	OutTexCoord = InTexCoord;
 	OutTangent = InTangent;
 	OutBitangent = OutBitangent;
 	OutViewVector = normalize(VertexWorldPosition.xyz - InCameraDataBuffer.Position);
+	OutFragmentPosition = VertexWorldPosition.xyz;
+	OutLightPosition = vec3(MeshPushConstants.TransformMatrix * vec4(g_LightPosition, 1.0f));
 
 // Converting to camera space
 //	const vec3 T =  normalize((CameraViewProjectionMatrix * vec4(InTangent, 0.0f)).rgb);

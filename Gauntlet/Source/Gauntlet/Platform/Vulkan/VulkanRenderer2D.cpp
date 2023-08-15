@@ -8,7 +8,6 @@
 #include "VulkanShader.h"
 #include "VulkanPipeline.h"
 
-#include "VulkanBuffer.h"
 #include "VulkanTexture.h"
 #include "VulkanCommandPool.h"
 #include "VulkanDescriptors.h"
@@ -17,69 +16,6 @@
 
 namespace Gauntlet
 {
-// The way it works now: create staging buffer && vertex buffer every frame and destroy
-
-// The way it should  work: Allocate one big staging buffer and copy it's data to vertex buffer, that's it.
-struct VulkanStagingStorage
-{
-    struct StagingBuffer
-    {
-        AllocatedBuffer Buffer;
-        size_t Capacity = 0;
-        size_t Size     = 0;
-    };
-
-    std::vector<Scoped<StagingBuffer>> StagingBuffers;
-    uint32_t CurrentStagingBufferIndex = 0;
-};
-
-struct VulkanRenderer2DStorage
-{
-    static constexpr uint32_t MaxQuads          = 2500;
-    static constexpr uint32_t MaxVertices       = MaxQuads * 4;
-    static constexpr uint32_t MaxIndices        = MaxQuads * 6;
-    static constexpr uint32_t MaxTextureSlots   = 32;
-    static constexpr glm::vec2 TextureCoords[4] = {glm::vec2(0.0f, 0.0f),  //
-                                                   glm::vec2(1.0f, 0.0f),  //
-                                                   glm::vec2(1.0f, 1.0f),  //
-                                                   glm::vec2(0.0f, 1.0f)};
-
-    static constexpr glm::vec4 QuadVertexPositions[4] = {{-0.5f, -0.5f, 0.0f, 1.0f},  //
-                                                         {0.5f, -0.5f, 0.0f, 1.0f},   //
-                                                         {0.5f, 0.5f, 0.0f, 1.0f},    //
-                                                         {-0.5f, 0.5f, 0.0f, 1.0f}};
-
-    static constexpr size_t DefaultVertexBufferSize = MaxVertices * sizeof(QuadVertex);
-
-    VulkanStagingStorage StagingStorage;
-    std::vector<Ref<VulkanVertexBuffer>> QuadVertexBuffers;
-    uint32_t CurrentQuadVertexBufferIndex = 0;
-
-    BufferLayout VertexBufferLayout;
-    QuadVertex* QuadVertexBufferBase = nullptr;
-    QuadVertex* QuadVertexBufferPtr  = nullptr;
-
-    Ref<VulkanIndexBuffer> QuadIndexBuffer;
-    uint32_t QuadIndexCount = 0;
-
-    Ref<VulkanPipeline> QuadPipeline;
-    Ref<VulkanShader> VertexShader;
-    Ref<VulkanShader> FragmentShader;
-
-    VkDescriptorSetLayout QuadDescriptorSetLayout;
-    std::vector<VkDescriptorSet> QuadDescriptorSets;
-    uint32_t CurrentDescriptorSetIndex = 0;
-
-    std::array<Ref<VulkanTexture2D>, MaxTextureSlots> TextureSlots;
-    Ref<VulkanTexture2D> QuadWhiteTexture;  // Texture Slot 0 = white tex
-    uint32_t CurrentTextureSlotIndex = 1;   // 0 slot already tied with white texture
-
-    glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);
-    MeshPushConstants PushConstants;
-};
-
-static VulkanRenderer2DStorage s_Data2D;
-
 VulkanRenderer2D::VulkanRenderer2D() : m_Context((VulkanContext&)VulkanContext::Get())
 {
     Create();
@@ -104,6 +40,7 @@ void VulkanRenderer2D::Create()
     {
         uint32_t* QuadIndices = new uint32_t[s_Data2D.MaxIndices];
 
+        // Clockwise order
         uint32_t Offset = 0;
         for (uint32_t i = 0; i < s_Data2D.MaxIndices; i += 6)
         {
@@ -154,7 +91,7 @@ void VulkanRenderer2D::Create()
     // Default 2D graphics pipeline creation
     {
         PipelineSpecification PipelineSpec = {};
-        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetPostProcessFramebuffer() /*m_Context.GetMainRenderPass()*/;
+        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetStorageData().PostProcessFramebuffer;
         PipelineSpec.bDepthTest            = true;
         PipelineSpec.bDepthWrite           = true;
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -219,11 +156,6 @@ void VulkanRenderer2D::BeginImpl()
     s_Data2D.StagingStorage.CurrentStagingBufferIndex = 0;
 }
 
-void VulkanRenderer2D::BeginSceneImpl(const Camera& InCamera)
-{
-    s_Data2D.CameraProjectionMatrix = InCamera.GetViewProjectionMatrix();
-}
-
 void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec4& InColor)
 {
     DrawRotatedQuadImpl(InPosition, InSize, glm::vec3(0.0f), InColor);
@@ -284,6 +216,15 @@ void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2
 void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
                                            const glm::vec4& InColor)
 {
+    const auto Transform = glm::translate(glm::mat4(1.0f), InPosition) *
+                           glm::rotate(glm::mat4(1.0f), glm::radians(InRotation.z), glm::vec3(0, 0, 1)) *
+                           glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
+
+    DrawQuadImpl(Transform, InColor);
+}
+
+void VulkanRenderer2D::DrawQuadImpl(const glm::mat4& InTransform, const glm::vec4& InColor)
+{
     if (s_Data2D.QuadIndexCount >= s_Data2D.MaxIndices)
     {
         FlushAndReset();
@@ -291,13 +232,9 @@ void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const gl
 
     const float TextureId = 0.0f;  // White by default
 
-    const auto TransformMatrix = glm::translate(glm::mat4(1.0f), InPosition) *
-                                 glm::rotate(glm::mat4(1.0f), glm::radians(InRotation.z), glm::vec3(0, 0, 1)) *
-                                 glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
-
     for (uint32_t i = 0; i < 4; ++i)
     {
-        s_Data2D.QuadVertexBufferPtr->Position  = TransformMatrix * s_Data2D.QuadVertexPositions[i];
+        s_Data2D.QuadVertexBufferPtr->Position  = InTransform * s_Data2D.QuadVertexPositions[i];
         s_Data2D.QuadVertexBufferPtr->Color     = InColor;
         s_Data2D.QuadVertexBufferPtr->TexCoord  = VulkanRenderer2DStorage::TextureCoords[i];
         s_Data2D.QuadVertexBufferPtr->TextureId = TextureId;

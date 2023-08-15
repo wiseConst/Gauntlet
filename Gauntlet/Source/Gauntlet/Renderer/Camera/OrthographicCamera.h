@@ -44,8 +44,8 @@ class OrthographicCamera final : public Camera
     void OnEvent(Event& InEvent) final override
     {
         EventDispatcher dispatcher(InEvent);
-        dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(OrthographicCamera::OnWindowResized));
-        dispatcher.Dispatch<MouseScrolledEvent>(BIND_EVENT_FN(OrthographicCamera::OnMouseScrolled));
+        dispatcher.Dispatch<WindowResizeEvent>(BIND_FN(OrthographicCamera::OnWindowResized));
+        dispatcher.Dispatch<MouseScrolledEvent>(BIND_FN(OrthographicCamera::OnMouseScrolled));
     }
 
     FORCEINLINE void SetProjection(const float left, const float right, const float bottom, const float top, const float zNear,

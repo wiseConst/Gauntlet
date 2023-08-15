@@ -146,6 +146,8 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat InImageFormat)
 
 void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout, const bool InIsCubeMap)
 {
+    GRAPHICS_GUARD_LOCK;
+
     auto& Context = (VulkanContext&)VulkanContext::Get();
 
     VkImageSubresourceRange SubresourceRange = {};
@@ -211,6 +213,7 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
 void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent,
                            const bool InIsCubeMap)
 {
+    GRAPHICS_GUARD_LOCK;
     auto& Context      = (VulkanContext&)VulkanContext::Get();
     auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
 
@@ -297,8 +300,9 @@ void VulkanImage::Create()
     {
         if (!m_DescriptorSet)  // Preventing allocating on image resizing, just simply update descriptor set
         {
-            VK_CHECK(Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, VulkanRenderer::GetImageDescriptorSetLayout()),
-                     "Failed to allocate texture/image descriptor set!");
+            VK_CHECK(
+                Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, VulkanRenderer::GetStorageData().ImageDescriptorSetLayout),
+                "Failed to allocate texture/image descriptor set!");
         }
 
         auto TextureWriteDescriptorSet =

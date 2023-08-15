@@ -63,6 +63,11 @@ void Renderer2D::DrawQuad(const glm::vec3& InPosition, const glm::vec2& InSize, 
     s_Renderer->DrawQuadImpl(InPosition, InSize, InRotation, InTexture, InColor);
 }
 
+void Renderer2D::DrawQuad(const glm::mat4& InTransform, const glm::vec4& InColor)
+{
+    s_Renderer->DrawQuadImpl(InTransform, InColor);
+}
+
 void Renderer2D::DrawTexturedQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
                                   const glm::vec4& InBlendColor)
 {
