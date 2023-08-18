@@ -8,7 +8,7 @@
 namespace Gauntlet
 {
 
-Scene::Scene() {}
+Scene::Scene(const std::string& Name) : m_Name(Name) {}
 
 Scene::~Scene()
 {
@@ -31,6 +31,9 @@ Entity Scene::CreateEntity(const std::string& Name)
 
     GNT_ASSERT(Name.data(), "Invalid entity name!");
     strcpy(tag.Tag.data(), Name.data());
+
+    auto& transform = ent.AddComponent<TransformComponent>();
+    transform.Scale = glm::vec3(1.0f);
 
     return ent;
 }
@@ -68,6 +71,14 @@ void Scene::OnUpdate(const float DeltaTime)
                 auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
 
                 Renderer::SubmitMesh(Mesh, Transform);
+            }
+
+            if (entity.HasComponent<LightComponent>())
+            {
+                auto& lc = entity.GetComponent<LightComponent>();
+
+                const glm::vec4 Position = glm::vec4(Transform.Translation, 1.0f);
+                Renderer::ApplyPhongModel(Position, lc.LightColor, lc.AmbientSpecularShininess);
             }
         }
     }

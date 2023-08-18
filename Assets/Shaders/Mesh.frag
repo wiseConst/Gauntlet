@@ -7,7 +7,6 @@ layout(location = 3) in vec3 InTangent;
 layout(location = 4) in vec3 InBitangent;
 layout(location = 5) in vec3 InViewVector;
 layout(location = 6) in vec3 InFragmentPosition;
-layout(location = 7) in vec3 InLightPosition;
 
 layout(location = 0) out vec4 OutFragColor;
 
@@ -16,11 +15,17 @@ layout(set = 0, binding = 1) uniform sampler2D NormalMap;
 layout(set = 0, binding = 2) uniform sampler2D Emissive;
 layout(set = 0, binding = 3) uniform samplerCube EnvironmentMap;
 
-const float g_AmbientStrength = 0.1f;
-const vec3 g_LightColor = vec3(1.0f);
-const vec3 g_AmbientColor = g_LightColor * g_AmbientStrength;
+layout(set = 0, binding = 5) uniform PhongModelBuffer
+{
+	vec4 LightPosition;
+	vec4 LightColor;
+	vec4 AmbientSpecularShininessGamma;
 
-const float g_SpecularStrength = 0.5f;
+	// Attenuation part https://learnopengl.com/Lighting/Light-casters
+	float Constant;
+	float Linear;
+	float Quadratic;
+} InPhongModelBuffer;
 
 void main()
 {
@@ -50,19 +55,23 @@ void main()
 		FinalTexture = DiffuseTexture;
 	}
 
+	const float Distance = length(vec3(InPhongModelBuffer.LightPosition) - InFragmentPosition);
+	const float Attenutaion = 1.0f / (InPhongModelBuffer.Constant + InPhongModelBuffer.Linear * Distance + InPhongModelBuffer.Quadratic *(Distance * Distance));
+
 	const vec3 InUnitNormal = normalize(InNormal);
-	const vec3 NormalizedLightDirection = normalize(InLightPosition - InFragmentPosition);
+	const vec3 NormalizedLightDirection = normalize(vec3(InPhongModelBuffer.LightPosition) - InFragmentPosition);
 	
 	const float DiffuseFactor = max(dot(InUnitNormal, NormalizedLightDirection), 0.0);
-	const vec3 DiffuseColor = DiffuseFactor * g_LightColor;
+	const vec3 DiffuseColor = DiffuseFactor * vec3(InPhongModelBuffer.LightColor);
 
 	const vec3 ReflectDir = reflect(-NormalizedLightDirection, InUnitNormal);
-	const float SpecularFactor = pow(max(dot(-InViewVector, ReflectDir), 0.0), 64);
-	const vec3 SpecularColor = g_SpecularStrength * SpecularFactor * g_LightColor;  
 
-	vec4 FinalColor =  FinalTexture * vec4(g_AmbientColor + DiffuseColor + SpecularColor, 1.0f); // mix(EnvironmentMapTexture, FinalTexture , 0.95f);
+	const float SpecularFactor = pow(max(dot(-InViewVector, ReflectDir), 0.0), InPhongModelBuffer.AmbientSpecularShininessGamma.z);
+	const vec3 SpecularColor = InPhongModelBuffer.AmbientSpecularShininessGamma.y * SpecularFactor * vec3(InPhongModelBuffer.LightColor);  
+
+	const vec3 AmbientColor = vec3(InPhongModelBuffer.AmbientSpecularShininessGamma.x * vec3(InPhongModelBuffer.LightColor));
+	vec4 FinalColor = Attenutaion * FinalTexture * vec4(AmbientColor + DiffuseColor + SpecularColor, 1.0f); // mix(EnvironmentMapTexture, FinalTexture , 0.95f);
 	
-	const float gamma = 2.2f;
-	FinalColor.rgb = pow(FinalColor.rgb, vec3(1./gamma));
+	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0f/InPhongModelBuffer.AmbientSpecularShininessGamma.w));
 	OutFragColor = FinalColor;
 }

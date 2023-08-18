@@ -6,13 +6,13 @@
 
 namespace Gauntlet
 {
-ImGuiLayer* ImGuiLayer::Create()
+Scoped<ImGuiLayer> ImGuiLayer::Create()
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            return new VulkanImGuiLayer();
+            return MakeScoped<VulkanImGuiLayer>();
         }
         case RendererAPI::EAPI::None:
         {

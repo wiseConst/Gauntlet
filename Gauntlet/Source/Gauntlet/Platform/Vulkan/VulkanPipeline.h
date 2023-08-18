@@ -91,8 +91,9 @@ struct PipelineSpecification
     };
     std::vector<ShaderStage> ShaderStages;
 
-    std::vector<VkVertexInputAttributeDescription> ShaderAttributeDescriptions;
-    std::vector<VkVertexInputBindingDescription> ShaderBindingDescriptions;
+    std::vector<VkVertexInputAttributeDescription>
+        ShaderAttributeDescriptions;                                         // Per-vertex attribute data(all 'in' attributes description)
+    std::vector<VkVertexInputBindingDescription> ShaderBindingDescriptions;  // Description of per-vertex data(it's stride)
     Ref<VulkanFramebuffer> TargetFramebuffer;
 
     ECullMode CullMode;

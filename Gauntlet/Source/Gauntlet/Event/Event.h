@@ -26,6 +26,8 @@ enum class EEventType : uint8_t
 #define EVENT_CLASS_TYPE(type)                                                                                                             \
     FORCEINLINE static EEventType GetStaticType() { return EEventType::type; }
 
+class EventDispatcher;
+
 class Event
 {
   public:
@@ -43,11 +45,15 @@ class Event
 
     virtual std::string Format() const = 0;
 
+    FORCEINLINE const bool IsHandled() const { return m_bIsHandled; }
+    FORCEINLINE void SetHandled(const bool bIsHandled) { m_bIsHandled = bIsHandled; }
+
   protected:
-    Event(const std::string& name, EEventType type) : m_Name(name), m_Type(type) {}
+    Event(const std::string& name, EEventType type) : m_Name(name), m_Type(type), m_bIsHandled(false) {}
 
     EEventType m_Type;
     std::string m_Name;
+    bool m_bIsHandled;
 };
 
 // Event Dispatcher
@@ -55,13 +61,14 @@ class Event
 class EventDispatcher final : private Uncopyable, private Unmovable
 {
   public:
-    EventDispatcher(Event& InEvent) : m_Event(InEvent) {}
+    EventDispatcher(Event& event) : m_Event(event) {}
 
-    template <typename T, typename F> void Dispatch(const F& InFunc)
+    template <typename T, typename F> void Dispatch(const F& func)
     {
         if (m_Event.GetType() == T::GetStaticType())
         {
-            InFunc(static_cast<T&>(m_Event));
+            func(static_cast<T&>(m_Event));
+            m_Event.SetHandled(true);
         }
     }
 

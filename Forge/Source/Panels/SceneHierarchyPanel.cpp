@@ -39,7 +39,7 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
-    ImGui::DragFloat("##X", &InValues.x, 0.1f, 0.0f, 0.0f, "%.2f");
+    ImGui::DragFloat("##X", &InValues.x, 0.05f, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
     ImGui::SameLine();
 
@@ -53,7 +53,7 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
-    ImGui::DragFloat("##Y", &InValues.y, 0.1f, 0.0f, 0.0f, "%.2f");
+    ImGui::DragFloat("##Y", &InValues.y, 0.05f, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
     ImGui::SameLine();
 
@@ -67,7 +67,7 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
-    ImGui::DragFloat("##Z", &InValues.z, 0.1f, 0.0f, 0.0f, "%.2f");
+    ImGui::DragFloat("##Z", &InValues.z, 0.05f, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
     ImGui::SameLine();
 
@@ -229,25 +229,42 @@ void SceneHierarchyPanel::ShowComponents(Entity InEntity)
 
     DrawComponent<SpriteRendererComponent>("SpriteRenderer", InEntity, [](auto& spc) { ImGui::ColorEdit4("Color", &spc.Color.r); });
 
+    DrawComponent<LightComponent>("Light", InEntity,
+                                  [](auto& lc)
+                                  {
+                                      ImGui::Separator();
+                                      ImGui::ColorPicker4("Color", (float*)&lc.LightColor);
+
+                                      ImGui::Separator();
+                                      ImGui::DragFloat("Ambient", &lc.AmbientSpecularShininess.x, 0.05f, 0.0f, FLT_MAX, "%.2f");
+                                      ImGui::DragFloat("Specular", &lc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
+                                      ImGui::DragFloat("Shininess", &lc.AmbientSpecularShininess.z, 1.0f, 0.0f, FLT_MAX, "%.2f");
+                                  });
+
     DrawComponent<MeshComponent>("Mesh", InEntity,
                                  [](auto& mc)
                                  {
-                                     const Ref<Gauntlet::Material>& Mat = mc.Mesh->GetMaterial(0);
+                                     for (uint32_t i = 0; i < mc.Mesh->GetSubmeshCount(); ++i)
+                                     {
+                                         ImGui::Separator();
+                                         ImGui::Text(mc.Mesh->GetSubmeshName(i).data());
 
-                                     Ref<Texture2D> DiffuseTexture = Mat->GetDiffuseTexture(0);
-                                     if (DiffuseTexture && DiffuseTexture->GetTextureID())
-                                         ImGui::Image(DiffuseTexture->GetTextureID(),
-                                                      ImVec2{DiffuseTexture->GetWidth() / 16.0f, DiffuseTexture->GetHeight() / 16.0f});
+                                         const Ref<Gauntlet::Material>& Mat = mc.Mesh->GetMaterial(i);
 
-                                     Ref<Texture2D> EmissiveTexture = Mat->GetEmissiveTexture(0);
-                                     if (EmissiveTexture && EmissiveTexture->GetTextureID())
-                                         ImGui::Image(EmissiveTexture->GetTextureID(),
-                                                      ImVec2{EmissiveTexture->GetWidth() / 16.0f, EmissiveTexture->GetHeight() / 16.0f});
+                                         constexpr ImVec2 ImageSize(256.0f, 256.0f);
 
-                                     Ref<Texture2D> NormalMapTexture = Mat->GetNormalMapTexture(0);
-                                     if (NormalMapTexture && NormalMapTexture->GetTextureID())
-                                         ImGui::Image(NormalMapTexture->GetTextureID(),
-                                                      ImVec2{NormalMapTexture->GetWidth() / 16.0f, NormalMapTexture->GetHeight() / 16.0f});
+                                         Ref<Texture2D> DiffuseTexture = Mat->GetDiffuseTexture(0);
+                                         if (DiffuseTexture && DiffuseTexture->GetTextureID())
+                                             ImGui::Image(DiffuseTexture->GetTextureID(), ImageSize);
+
+                                         Ref<Texture2D> NormalMapTexture = Mat->GetNormalMapTexture(0);
+                                         if (NormalMapTexture && NormalMapTexture->GetTextureID())
+                                             ImGui::Image(NormalMapTexture->GetTextureID(), ImageSize);
+
+                                         Ref<Texture2D> EmissiveTexture = Mat->GetEmissiveTexture(0);
+                                         if (EmissiveTexture && EmissiveTexture->GetTextureID())
+                                             ImGui::Image(EmissiveTexture->GetTextureID(), ImageSize);
+                                     }
                                  });
 }
 

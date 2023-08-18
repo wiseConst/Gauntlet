@@ -179,6 +179,16 @@ void VulkanImGuiLayer::EndRender()
              "Failed to submit imgui render commands!");
 }
 
+void VulkanImGuiLayer::OnEvent(Event& event)
+{
+    if (m_bBlockEvents)
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (event.GetType() <= EEventType::MouseButtonRepeatedEvent && io.WantCaptureMouse) event.SetHandled(true);
+        if (event.GetType() <= EEventType::KeyButtonRepeatedEvent && io.WantCaptureKeyboard) event.SetHandled(true);
+    }
+}
+
 void VulkanImGuiLayer::CreateSyncObjects()
 {
     VkFenceCreateInfo FenceCreateInfo = {};

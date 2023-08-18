@@ -23,7 +23,11 @@ class VulkanImGuiLayer final : public ImGuiLayer
     void BeginRender() final override;
     void EndRender() final override;
 
+    void OnUpdate(const float DeltaTime) final override {}
+    void OnEvent(Event& event) final override;
     void OnImGuiRender() final override {}
+
+    void BlockEvents(const bool bBlockEvents) final override { m_bBlockEvents = bBlockEvents ;}
 
   private:
     VulkanContext& m_Context;
@@ -32,6 +36,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
 
     VkDescriptorPool m_ImGuiDescriptorPool = VK_NULL_HANDLE;
     Ref<VulkanCommandPool> m_ImGuiCommandPool;
+    bool m_bBlockEvents{false};
 
     void CreateSyncObjects();
     void SetCustomUIStyle();

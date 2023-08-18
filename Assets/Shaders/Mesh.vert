@@ -14,7 +14,6 @@ layout(location = 3) out vec3 OutTangent;
 layout(location = 4) out vec3 OutBitangent;
 layout(location = 5) out vec3 OutViewVector;
 layout(location = 6) out vec3 OutFragmentPosition;
-layout(location = 7) out vec3 OutLightPosition;
 
 layout( push_constant ) uniform PushConstants
 {	
@@ -29,7 +28,17 @@ layout(set = 0, binding = 4) uniform CameraDataBuffer
 	vec3 Position;
 } InCameraDataBuffer;
 
-const vec3 g_LightPosition = vec3(10.0f, 10.0f, -10.0f);
+layout(set = 0, binding = 5) uniform PhongModelBuffer
+{
+	vec4 LightPosition;
+	vec4 LightColor;
+	vec4 AmbientSpecularShininessGamma;
+
+	// Attenuation part https://learnopengl.com/Lighting/Light-casters
+	float Constant;
+	float Linear;
+	float Quadratic;
+} InPhongModelBuffer;
 
 void main()
 {
@@ -45,7 +54,6 @@ void main()
 	OutBitangent = OutBitangent;
 	OutViewVector = normalize(VertexWorldPosition.xyz - InCameraDataBuffer.Position);
 	OutFragmentPosition = VertexWorldPosition.xyz;
-	OutLightPosition = vec3(MeshPushConstants.TransformMatrix * vec4(g_LightPosition, 1.0f));
 
 // Converting to camera space
 //	const vec3 T =  normalize((CameraViewProjectionMatrix * vec4(InTangent, 0.0f)).rgb);

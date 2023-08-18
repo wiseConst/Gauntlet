@@ -45,7 +45,7 @@ class Application : private Uncopyable, private Unmovable
 
     FORCEINLINE static Application& Get() { return *s_Instance; }
 
-    FORCEINLINE const auto& GetGUILayer() const { return m_ImGuiLayer; }
+    FORCEINLINE auto& GetGUILayer() { return m_ImGuiLayer; }
 
     FORCEINLINE const auto& GetSpecification() const { return m_AppInfo; }
     FORCEINLINE auto& GetSpecification() { return m_AppInfo; }

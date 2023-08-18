@@ -60,6 +60,11 @@ class VulkanRenderer final : public Renderer
         // Misc
         VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         Ref<VulkanPipeline> MeshWireframePipeline = nullptr;
+
+        // Light
+        std::vector<AllocatedBuffer> UniformPhongModelBuffers;
+        std::vector<void*> MappedUniformPhongModelBuffers;
+        PhongModelBuffer MeshPhongModelBuffer;
     };
 
   public:
@@ -68,6 +73,9 @@ class VulkanRenderer final : public Renderer
 
     void Create() final override;
     void Destroy() final override;
+
+    void ApplyPhongModelImpl(const glm::vec4& LightPosition, const glm::vec4& LightColor,
+                             const glm::vec3& AmbientSpecularShininess) final override;
 
     void BeginSceneImpl(const PerspectiveCamera& InCamera) final override;
     void SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix) final override;

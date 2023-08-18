@@ -24,7 +24,7 @@ class EditorLayer final : public Layer
 
   private:
     Ref<EditorCamera> m_EditorCamera;
-    const Scoped<ImGuiLayer>& m_GUILayer;
+    Scoped<ImGuiLayer>& m_GUILayer;
 
     Ref<Scene> m_ActiveScene;
 

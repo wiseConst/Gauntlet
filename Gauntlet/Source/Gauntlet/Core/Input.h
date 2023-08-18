@@ -11,9 +11,6 @@ class Input final : private Uncopyable, private Unmovable
   public:
     virtual ~Input() = default;
 
-    static void Init();
-    static void Destroy();
-
     static bool IsKeyPressed(int32_t KeyCode);
     static bool IsMouseButtonPressed(int32_t Button);
 
@@ -25,8 +22,6 @@ class Input final : private Uncopyable, private Unmovable
     static int32_t GetMouseY();
 
   private:
-    static Input* s_Instance;
-
     Input() = default;
 };
 }  // namespace Gauntlet

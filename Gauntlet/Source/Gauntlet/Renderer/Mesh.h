@@ -25,9 +25,11 @@ class Mesh final
 
     void Destroy();
 
-    FORCEINLINE const uint32_t GetSubmeshCount() const { return m_MeshesData.size(); }
     FORCEINLINE const auto& GetVertexBuffers() const { return m_VertexBuffers; }
     FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
+
+    FORCEINLINE const uint32_t GetSubmeshCount() const { return m_MeshesData.size(); }
+    FORCEINLINE const auto& GetSubmeshName(const uint32_t InMeshIndex) { return m_MeshesData[InMeshIndex].Name; }
 
     FORCEINLINE const Ref<Gauntlet::Material>& GetMaterial(const uint32_t InMeshIndex) { return m_MeshesData[InMeshIndex].Material; }
 
@@ -38,15 +40,16 @@ class Mesh final
     // Actual submesh
     struct MeshData
     {
-        MeshData(const std::vector<MeshVertex>& InVertices, const std::vector<uint32_t>& InIndices,
+        MeshData(const std::string& InName, std::vector<MeshVertex>& InVertices, const std::vector<uint32_t>& InIndices,
                  const Ref<Gauntlet::Material>& InMaterial)
-            : Vertices(InVertices), Indices(InIndices), Material(InMaterial)
+            : Name(InName), Vertices(InVertices), Indices(InIndices), Material(InMaterial)
         {
         }
 
         std::vector<MeshVertex> Vertices;
         std::vector<uint32_t> Indices;
         Ref<Gauntlet::Material> Material;
+        std::string Name;
     };
 
     std::string m_Directory;

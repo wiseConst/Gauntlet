@@ -36,8 +36,8 @@
 #include <Gauntlet/Scene/Entity.h>
 
 // UI
-// #include <Gauntlet/ImGui/ImGuiLayer.h>
 #include <imgui/imgui.h>
+#include <Gauntlet/ImGui/ImGuiLayer.h>
 
 // MULTITHREADING
 #include <Gauntlet/Core/JobSystem.h>

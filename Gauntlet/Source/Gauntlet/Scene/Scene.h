@@ -12,7 +12,7 @@ class SceneHierarchyPanel;
 class Scene final : private Uncopyable, private Unmovable
 {
   public:
-    Scene();
+    Scene(const std::string& Name = "Default");
     ~Scene();
 
     Entity CreateEntity(const std::string& Name = "NONE");
@@ -20,8 +20,11 @@ class Scene final : private Uncopyable, private Unmovable
 
     void OnUpdate(const float DeltaTime);
 
+    FORCEINLINE const auto& GetName() const { return m_Name; }
+
   private:
     GRECS::Registry m_Registry;
+    std::string m_Name;
 
     friend class Entity;
     friend class SceneHierarchyPanel;

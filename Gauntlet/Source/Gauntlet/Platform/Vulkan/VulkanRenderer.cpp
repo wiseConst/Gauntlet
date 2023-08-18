@@ -66,10 +66,12 @@ void VulkanRenderer::Create()
         Utility::GetDescriptorSetLayoutBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
     const auto CameraDataBufferBinding =
         Utility::GetDescriptorSetLayoutBinding(4, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    const auto PhongModelBufferBinding = Utility::GetDescriptorSetLayoutBinding(5, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                                                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    VkDescriptorSetLayoutBinding Bindings[] = {DiffuseTextureBinding, NormalTextureBinding, EmissiveTextureBinding, EnvironmentMapBinding,
-                                               CameraDataBufferBinding};
-    auto MeshDescriptorSetLayoutCreateInfo  = Utility::GetDescriptorSetLayoutCreateInfo(5, Bindings);
+    std::vector<VkDescriptorSetLayoutBinding> Bindings = {DiffuseTextureBinding, NormalTextureBinding,    EmissiveTextureBinding,
+                                                          EnvironmentMapBinding, CameraDataBufferBinding, PhongModelBufferBinding};
+    auto MeshDescriptorSetLayoutCreateInfo             = Utility::GetDescriptorSetLayoutCreateInfo(Bindings.size(), Bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &MeshDescriptorSetLayoutCreateInfo, nullptr,
                                          &s_Data.MeshDescriptorSetLayout),
              "Failed to create mesh descriptor set layout!");
@@ -102,7 +104,8 @@ void VulkanRenderer::Create()
     PipelineSpec.ShaderBindingDescriptions = {Utility::GetShaderBindingDescription(0, s_Data.MeshVertexBufferLayout.GetStride())};
 
     std::vector<VkVertexInputAttributeDescription> ShaderAttributeDescriptions;
-    for (uint32_t i = 0; i < s_Data.MeshVertexBufferLayout.GetElements().size(); ++i)
+    ShaderAttributeDescriptions.reserve(s_Data.MeshVertexBufferLayout.GetElements().size());
+    for (uint32_t i = 0; i < ShaderAttributeDescriptions.capacity(); ++i)
     {
         const auto& CurrentBufferElement = s_Data.MeshVertexBufferLayout.GetElements()[i];
         ShaderAttributeDescriptions.emplace_back(Utility::GetShaderAttributeDescription(
@@ -119,6 +122,8 @@ void VulkanRenderer::Create()
             s_Data.PostProcessFramebuffer->GetSpec().Width  = m_Context.GetSwapchain()->GetImageExtent().width;
             s_Data.PostProcessFramebuffer->GetSpec().Height = m_Context.GetSwapchain()->GetImageExtent().height;
             s_Data.PostProcessFramebuffer->Invalidate();
+            LOG_INFO("PPFB Resize: (%u, %u)", s_Data.PostProcessFramebuffer->GetSpec().Width,
+                     s_Data.PostProcessFramebuffer->GetSpec().Height);
         });
 
     PipelineSpec.PolygonMode = EPolygonMode::POLYGON_MODE_LINE;
@@ -126,6 +131,8 @@ void VulkanRenderer::Create()
     m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshWireframePipeline->Invalidate(); });
 
     SetupSkybox();
+
+    // Replace with reserve
 
     const VkDeviceSize CameraDataBufferSize = sizeof(CameraDataBuffer);
     s_Data.UniformCameraDataBuffers.resize(FRAMES_IN_FLIGHT);
@@ -138,6 +145,18 @@ void VulkanRenderer::Create()
 
         s_Data.MappedUniformCameraDataBuffers[i] = m_Context.GetAllocator()->Map(s_Data.UniformCameraDataBuffers[i].Allocation);
     }
+
+    const VkDeviceSize PhongModelBufferSize = sizeof(PhongModelBuffer);
+    s_Data.UniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
+    s_Data.MappedUniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
+
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
+    {
+        BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, PhongModelBufferSize, s_Data.UniformPhongModelBuffers[i],
+                                  VMA_MEMORY_USAGE_CPU_ONLY);
+
+        s_Data.MappedUniformPhongModelBuffers[i] = m_Context.GetAllocator()->Map(s_Data.UniformPhongModelBuffers[i].Allocation);
+    }
 }
 
 void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
@@ -145,6 +164,9 @@ void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
     s_Data.MeshCameraDataBuffer.Projection = InCamera.GetProjectionMatrix();
     s_Data.MeshCameraDataBuffer.View       = InCamera.GetViewMatrix();
     s_Data.MeshCameraDataBuffer.Position   = InCamera.GetPosition();
+
+    memcpy(s_Data.MappedUniformCameraDataBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshCameraDataBuffer,
+           sizeof(CameraDataBuffer));
 
     VulkanRenderer2D::GetStorageData().CameraProjectionMatrix = InCamera.GetViewProjectionMatrix();
     s_Data.SkyboxPushConstants.TransformMatrix =
@@ -184,11 +206,7 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
         GNT_ASSERT(VulkanMaterial, "Failed to retrieve mesh material!");
         auto MaterialDescriptorSet = VulkanMaterial->GetDescriptorSet();
 
-        memcpy(s_Data.MappedUniformCameraDataBuffers[Swapchain->GetCurrentFrameIndex()], &s_Data.MeshCameraDataBuffer,
-               sizeof(CameraDataBuffer));
-
         s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.MeshPipeline->GetLayout(), 0, 1, &MaterialDescriptorSet);
-        // ++s_Data.CurrentDescriptorSetIndex;
 
         VkDeviceSize Offset = 0;
         s_Data.CurrentCommandBuffer->BindVertexBuffers(
@@ -199,6 +217,20 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
         s_Data.CurrentCommandBuffer->DrawIndexed(std::static_pointer_cast<VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i])->GetCount());
         ++Renderer::GetStats().DrawCalls;
     }
+}
+
+void VulkanRenderer::ApplyPhongModelImpl(const glm::vec4& LightPosition, const glm::vec4& LightColor,
+                                         const glm::vec3& AmbientSpecularShininessGamma)
+{
+    s_Data.MeshPhongModelBuffer.LightPosition                 = LightPosition;
+    s_Data.MeshPhongModelBuffer.LightColor                    = LightColor;
+    s_Data.MeshPhongModelBuffer.AmbientSpecularShininessGamma = glm::vec4(AmbientSpecularShininessGamma, s_RendererSettings.Gamma);
+    s_Data.MeshPhongModelBuffer.Constant                      = s_RendererSettings.Constant;
+    s_Data.MeshPhongModelBuffer.Linear                        = s_RendererSettings.Linear;
+    s_Data.MeshPhongModelBuffer.Quadratic                     = s_RendererSettings.Quadratic;
+
+    memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshPhongModelBuffer,
+           sizeof(PhongModelBuffer));
 }
 
 void VulkanRenderer::SetupSkybox()
@@ -336,6 +368,9 @@ void VulkanRenderer::Destroy()
     {
         m_Context.GetAllocator()->Unmap(s_Data.UniformCameraDataBuffers[i].Allocation);
         BufferUtils::DestroyBuffer(s_Data.UniformCameraDataBuffers[i]);
+
+        m_Context.GetAllocator()->Unmap(s_Data.UniformPhongModelBuffers[i].Allocation);
+        BufferUtils::DestroyBuffer(s_Data.UniformPhongModelBuffers[i]);
     }
 
     s_Data.PostProcessFramebuffer->Destroy();

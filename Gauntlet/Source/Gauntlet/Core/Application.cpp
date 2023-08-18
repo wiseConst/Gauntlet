@@ -44,13 +44,12 @@ Application::Application(const ApplicationSpecification& InApplicationSpec)
         std::string(m_Window->GetTitle()) + std::string(" - ") + ConfigurationString + std::string(" <") + RHIString + std::string(">");
     m_Window->SetWindowTitle(WindowTitle);
 
-    Input::Init();
     m_Context.reset(GraphicsContext::Create(m_Window));
 
     Renderer::Init();
     Renderer2D::Init();
 
-    m_ImGuiLayer.reset(ImGuiLayer::Create());
+    m_ImGuiLayer = ImGuiLayer::Create();
     m_ImGuiLayer->OnAttach();
 }
 
@@ -58,10 +57,12 @@ void Application::Run()
 {
     m_LayerQueue.Init();
 
-    const float LoadMeshStartTime = GetTimeNow();
-    JobSystem::Wait();  // JobSystem::Update();
-    const float LoadMeshEndTime = GetTimeNow();
-    LOG_INFO("Time took to prepare application: (%f)ms", LoadMeshEndTime - LoadMeshStartTime);
+    {
+        const float AppPrepareStartTime = GetTimeNow();
+        JobSystem::Wait();  // JobSystem::Update();
+        const float AppPrepareEndTime = GetTimeNow();
+        LOG_INFO("Time took to prepare application: (%f)ms", AppPrepareEndTime - AppPrepareStartTime);
+    }
 
     uint32_t FrameCount = 0;
     float LastTime      = 0.0f;
@@ -118,12 +119,13 @@ void Application::OnEvent(Event& e)
     EventDispatcher dispatcher(e);
     dispatcher.Dispatch<WindowCloseEvent>(BIND_FN(Application::OnWindowClosed));
 
+    m_ImGuiLayer->OnEvent(e);
+    if (e.IsHandled()) return;
+
     for (auto& OneLayer : m_LayerQueue)
     {
         if (OneLayer) OneLayer->OnEvent(e);
     }
-
-    m_ImGuiLayer->OnEvent(e);
 }
 
 const float Application::GetTimeNow()
@@ -145,7 +147,6 @@ Application::~Application()
 {
     JobSystem::Shutdown();
 
-    Input::Destroy();
     Renderer2D::Shutdown();
     Renderer::Shutdown();
 

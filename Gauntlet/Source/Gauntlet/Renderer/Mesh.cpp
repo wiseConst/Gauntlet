@@ -184,7 +184,7 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
 
     Material->Invalidate();
 
-    return MeshData(Vertices, Indices, Material);
+    return MeshData(mesh->mName.C_Str(), Vertices, Indices, Material);
 }
 
 std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextureType type)

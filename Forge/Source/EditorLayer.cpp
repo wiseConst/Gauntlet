@@ -6,14 +6,13 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
-    m_ActiveScene = MakeRef<Scene>();
+    m_ActiveScene = MakeRef<Scene>("TestBed");
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 
-    // TEST ECS
     {
-        auto Square                                          = m_ActiveScene->CreateEntity("Square");
+        auto Square                                          = m_ActiveScene->CreateEntity("WhiteSquare");
         Square.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
-        auto& tc                                             = Square.AddComponent<TransformComponent>();
+        auto& tc                                             = Square.GetComponent<TransformComponent>();
         tc.Translation                                       = glm::vec3(50.0f, 50.0f, 0.0f);
         tc.Scale                                             = glm::vec3(1.0f);
     }
@@ -21,7 +20,7 @@ void EditorLayer::OnAttach()
     {
         auto Cerberus                               = m_ActiveScene->CreateEntity("Cerberus");
         Cerberus.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
-        auto& tc                                    = Cerberus.AddComponent<TransformComponent>();
+        auto& tc                                    = Cerberus.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(0, -5.0f, 10.0f);
         tc.Scale       = glm::vec3(0.1f);
@@ -31,7 +30,7 @@ void EditorLayer::OnAttach()
     {
         auto Omen                               = m_ActiveScene->CreateEntity("Omen");
         Omen.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
-        auto& tc                                = Omen.AddComponent<TransformComponent>();
+        auto& tc                                = Omen.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(-10.0f, -10.0f, 0.0f);
         tc.Scale       = glm::vec3(10.0f);
@@ -42,46 +41,77 @@ void EditorLayer::OnAttach()
          auto CyberPunkRevolver = m_ActiveScene->CreateEntity("CyberPunkRevolver");
          CyberPunkRevolver.AddComponent<MeshComponent>().Mesh =
              Mesh::Create(std::string(ASSETS_PATH) + "Models/cyberpunk_revolver/scene.gltf");
-         auto& tc = CyberPunkRevolver.AddComponent<TransformComponent>();
+         auto& tc = CyberPunkRevolver.GetComponent<TransformComponent>();
 
          tc.Translation = glm::vec3(55.0f, 55.0f, 0.0f);
          tc.Scale       = glm::vec3(0.05f);
      }*/
 
-    /*
-    {
+    /*{
         auto VikingRoom                               = m_ActiveScene->CreateEntity("VikingRoom");
         VikingRoom.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
-        auto& tc                                      = VikingRoom.AddComponent<TransformComponent>();
+        auto& tc                                      = VikingRoom.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(-20.0f, -20.0f, 0.0f);
         tc.Scale       = glm::vec3(10.0f);
-    }
-    */
+    }*/
 
     {
-        auto Cube                               = m_ActiveScene->CreateEntity("Cube");
-        Cube.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Cube.gltf");
-        auto& tc                                = Cube.AddComponent<TransformComponent>();
+        auto Sphere                               = m_ActiveScene->CreateEntity("Sphere");
+        Sphere.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Sphere.gltf");
+        auto& tc                                  = Sphere.GetComponent<TransformComponent>();
 
-        tc.Scale = glm::vec3(150.0f);
+        tc.Scale         = glm::vec3(150.0f);
+        tc.Translation.y = 0.15f;
     }
 
-    
     {
+        auto rhetorician                               = m_ActiveScene->CreateEntity("rhetorician");
+        rhetorician.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/rhetorician/scene.gltf");
+        auto& tc                                       = rhetorician.GetComponent<TransformComponent>();
+
+        tc.Scale       = glm::vec3(2.0f);
+        tc.Translation = glm::vec3(0.0f, 0.0f, -40.0f);
+    }
+
+    {
+        auto handgun_animation = m_ActiveScene->CreateEntity("handgun_animation");
+        handgun_animation.AddComponent<MeshComponent>().Mesh =
+            Mesh::Create(std::string(ASSETS_PATH) + "Models/handgun_animation/scene.gltf");
+        auto& tc = handgun_animation.GetComponent<TransformComponent>();
+
+        tc.Scale       = glm::vec3(15.0f);
+        tc.Translation = glm::vec3(-5.0f, 0.0f, -5.0f);
+    }
+
+    {
+        auto LightSquare                                          = m_ActiveScene->CreateEntity("LightSquare");
+        LightSquare.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
+        auto& tc                                                  = LightSquare.GetComponent<TransformComponent>();
+        tc.Scale                                                  = glm::vec3(2.5f);
+        tc.Translation                                            = glm::vec3(10.0f, 10.0f, -10.0f);
+
+        auto& lc                      = LightSquare.AddComponent<LightComponent>();
+        lc.LightColor                 = glm::vec4(1.0f);
+        lc.AmbientSpecularShininess.x = 0.1f;
+        lc.AmbientSpecularShininess.y = 0.5f;
+        lc.AmbientSpecularShininess.z = 32.0f;
+    }
+
+    /*{
         auto Sponza                               = m_ActiveScene->CreateEntity("Sponza");
         Sponza.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Sponza/sponza.gltf");
-        auto& tc                                  = Sponza.AddComponent<TransformComponent>();
+        auto& tc                                  = Sponza.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(60.0, 60.0f, -60.0f);
         tc.Scale       = glm::vec3(0.5f);
-    }
+    }*/
 
     /*
     {
         auto Car                               = m_ActiveScene->CreateEntity("old_rusty_car");
         Car.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/old_rusty_car/scene.gltf");
-        auto& tc                               = Car.AddComponent<TransformComponent>();
+        auto& tc                               = Car.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(-90.0f, -90.0f, 90.0f);
         tc.Scale       = glm::vec3(0.15f);
@@ -93,31 +123,16 @@ void EditorLayer::OnDetach() {}
 
 void EditorLayer::OnUpdate(const float DeltaTime)
 {
-    if (m_bIsViewportFocused && m_bIsViewportHovered)
-    {
-        m_EditorCamera->OnUpdate(DeltaTime);
-    }
+    if (m_bIsViewportFocused) m_EditorCamera->OnUpdate(DeltaTime);
 
     Renderer::BeginScene(*m_EditorCamera);
 
     m_ActiveScene->OnUpdate(DeltaTime);
-
-    /*for (float y = -3.0f; y < 3.0f; y += 0.5f)
-    {
-        for (float x = -3.0f; x < 3.0f; x += 0.5f)
-        {
-            const glm::vec4 Color = {(x + 3.0f) / 6.0f, 0.2f, (y + 3.0f) / 6.0f, 0.7f};
-            Renderer2D::DrawQuad({x + 18.0f, y, -8.0f}, glm::vec2(0.45f), Color);
-        }
-    }*/
 }
 
 void EditorLayer::OnEvent(Event& InEvent)
 {
-    if (m_bIsViewportFocused || m_bIsViewportHovered)
-    {
-        m_EditorCamera->OnEvent(InEvent);
-    }
+    if (m_bIsViewportHovered) m_EditorCamera->OnEvent(InEvent);
 }
 
 void EditorLayer::OnImGuiRender()
@@ -133,9 +148,7 @@ void EditorLayer::OnImGuiRender()
 
     m_bIsViewportFocused = ImGui::IsWindowFocused();
     m_bIsViewportHovered = ImGui::IsWindowHovered();
-
-    // LOG_TRACE("Focused: %d", m_bIsViewportFocused ? 1 : 0);
-    // LOG_TRACE("Hovered: %d", m_bIsViewportHovered ? 1 : 0);
+    m_GUILayer->BlockEvents(m_bIsViewportFocused && !m_bIsViewportHovered);
 
     ImGui::Image(Renderer::GetFinalImage()->GetTextureID(), m_ViewportSize);
     ImGui::End();
@@ -167,8 +180,13 @@ void EditorLayer::OnImGuiRender()
     }
 
     ImGui::Begin("Renderer Settings");
-    ImGui::Checkbox("Render Wireframe", &Renderer::GetSettings().ShowWireframes);
-    ImGui::Checkbox("VSync", &Renderer::GetSettings().VSync);
+    auto& rs = Renderer::GetSettings();
+    ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
+    ImGui::Checkbox("VSync", &rs.VSync);
+    ImGui::DragFloat("Gamma", &rs.Gamma, 0.1f, 1.0f, 5.0f, "%.2f");
+    ImGui::DragFloat("Constant", &rs.Constant, 0.005f, 0.0f, 5.0f, "%.2f");
+    ImGui::DragFloat("Linear", &rs.Linear, 0.0005f, 0.0f, 5.0f, "%.6f");
+    ImGui::DragFloat("Quadratic", &rs.Quadratic, 0.0005f, 0.0f, 5.0f, "%.6f");
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();
@@ -182,26 +200,19 @@ void EditorLayer::OnImGuiRender()
 
 void EditorLayer::BeginDockspace()
 {
-    static bool opt_fullscreen                = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
     static bool bShowDockSpace                = true;
 
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-    if (opt_fullscreen)
-    {
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-    }
-    else
-    {
-        dockspace_flags &= ~ImGuiDockNodeFlags_PassthruCentralNode;
-    }
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background
     // and handle the pass-thru hole, so we ask Begin() to not render a background.
@@ -214,15 +225,13 @@ void EditorLayer::BeginDockspace()
     // any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("DockSpace Demo", &bShowDockSpace, window_flags);
-    ImGui::PopStyleVar();
-
-    if (opt_fullscreen) ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(3);
 
     // Submit the DockSpace
     ImGuiIO& io                   = ImGui::GetIO();
     ImGuiStyle& style             = ImGui::GetStyle();
     const float PrevWindowMinSize = style.WindowMinSize.x;
-    style.WindowMinSize.x         = 350.0f;
+    style.WindowMinSize.x         = 360.0f;
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
     {
         ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
@@ -230,17 +239,21 @@ void EditorLayer::BeginDockspace()
     }
     style.WindowMinSize.x = PrevWindowMinSize;
 
+    const float SceneNameRegionX = ImGui::GetContentRegionAvail().x - m_ActiveScene->GetName().length() * ImGui::GetFont()->FontSize * 4.0f;
     if (ImGui::BeginMenuBar())
     {
-        if (ImGui::BeginMenu("Viewport Settings"))
+        if (ImGui::BeginMenu("Editor Settings"))
         {
-            // Disabling fullscreen would allow the window to be moved to the front of other windows,
-            // which we can't undo at the moment without finer window depth/z control.
-            ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen);
-
             if (ImGui::MenuItem("Close Editor", NULL)) Application::Get().Close();
             ImGui::EndMenu();
         }
+
+        ImGui::SameLine(SceneNameRegionX);
+        ImGui::PushStyleColor(ImGuiCol_Button, {0.2f, 0.205f, 0.21f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.2f, 0.205f, 0.21f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.2f, 0.205f, 0.21f, 1.0f});
+        ImGui::Button(m_ActiveScene->GetName().data());
+        ImGui::PopStyleColor(3);
 
         ImGui::EndMenuBar();
     }
