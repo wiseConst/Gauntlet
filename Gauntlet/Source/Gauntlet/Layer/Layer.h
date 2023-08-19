@@ -13,7 +13,7 @@ class Layer : private Uncopyable, private Unmovable
     virtual ~Layer() = default;
 
     virtual void OnUpdate(const float DeltaTime) = 0;
-    virtual void OnEvent(Event& event)         = 0;
+    virtual void OnEvent(Event& event)           = 0;
 
     virtual void OnImGuiRender() = 0;
 

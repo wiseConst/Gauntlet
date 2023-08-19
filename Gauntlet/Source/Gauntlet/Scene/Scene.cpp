@@ -73,12 +73,19 @@ void Scene::OnUpdate(const float DeltaTime)
                 Renderer::SubmitMesh(Mesh, Transform);
             }
 
-            if (entity.HasComponent<LightComponent>())
+            if (entity.HasComponent<PointLightComponent>())
             {
-                auto& lc = entity.GetComponent<LightComponent>();
+                auto& plc = entity.GetComponent<PointLightComponent>();
 
                 const glm::vec4 Position = glm::vec4(Transform.Translation, 1.0f);
-                Renderer::ApplyPhongModel(Position, lc.LightColor, lc.AmbientSpecularShininess);
+                Renderer::AddPointLight(Position, plc.Color, plc.AmbientSpecularShininess, plc.CLQ);
+            }
+
+            if (entity.HasComponent<DirectionalLightComponent>())
+            {
+                auto& dlc = entity.GetComponent<DirectionalLightComponent>();
+
+                Renderer::AddDirectionalLight(dlc.Color, dlc.Direction, dlc.AmbientSpecularShininess);
             }
         }
     }

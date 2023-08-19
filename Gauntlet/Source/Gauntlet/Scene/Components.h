@@ -45,7 +45,8 @@ struct TransformComponent
                                    glm::rotate(glm::mat4(1.0f), glm::radians(RotationY), glm::vec3(0, 1, 0)) *
                                    glm::rotate(glm::mat4(1.0f), glm::radians(RotationZ), glm::vec3(0, 0, 1));
 
-        return glm::translate(glm::mat4(1.0f), Translation) * Rotation *glm::scale(glm::mat4(1.0f), Scale);
+        // If you don't understand order look at this: https://learnopengl.com/Getting-started/Transformations
+        return glm::translate(glm::mat4(1.0f), Translation) * Rotation * glm::scale(glm::mat4(1.0f), Scale);
     }
 
     operator glm::mat4() const { return GetTransform(); }
@@ -79,13 +80,24 @@ struct MeshComponent
     MeshComponent(const Ref<Gauntlet::Mesh>& InMesh) : Mesh(InMesh) {}
 };
 
-struct LightComponent
+struct PointLightComponent
 {
-    glm::vec4 LightColor;
+    glm::vec3 Color;
+    glm::vec3 AmbientSpecularShininess;
+    glm::vec3 CLQ; // Constant Linear Quadratic
+
+    PointLightComponent()                           = default;
+    PointLightComponent(const PointLightComponent&) = default;
+};
+
+struct DirectionalLightComponent
+{
+    glm::vec3 Color;
+    glm::vec3 Direction;
     glm::vec3 AmbientSpecularShininess;
 
-    LightComponent()                      = default;
-    LightComponent(const LightComponent&) = default;
+    DirectionalLightComponent()                     = default;
+    DirectionalLightComponent(const DirectionalLightComponent&) = default;
 };
 
 }  // namespace Gauntlet

@@ -66,8 +66,8 @@ void VulkanRenderer::Create()
         Utility::GetDescriptorSetLayoutBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
     const auto CameraDataBufferBinding =
         Utility::GetDescriptorSetLayoutBinding(4, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    const auto PhongModelBufferBinding = Utility::GetDescriptorSetLayoutBinding(5, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                                                                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    const auto PhongModelBufferBinding =
+        Utility::GetDescriptorSetLayoutBinding(5, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
 
     std::vector<VkDescriptorSetLayoutBinding> Bindings = {DiffuseTextureBinding, NormalTextureBinding,    EmissiveTextureBinding,
                                                           EnvironmentMapBinding, CameraDataBufferBinding, PhongModelBufferBinding};
@@ -146,7 +146,7 @@ void VulkanRenderer::Create()
         s_Data.MappedUniformCameraDataBuffers[i] = m_Context.GetAllocator()->Map(s_Data.UniformCameraDataBuffers[i].Allocation);
     }
 
-    const VkDeviceSize PhongModelBufferSize = sizeof(PhongModelBuffer);
+    const VkDeviceSize PhongModelBufferSize = sizeof(LightingModelBuffer);
     s_Data.UniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
     s_Data.MappedUniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
 
@@ -184,6 +184,8 @@ void VulkanRenderer::BeginImpl()
 
     s_Data.CurrentCommandBuffer->BeginDebugLabel("3D", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
     s_Data.PostProcessFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
+
+    s_Data.CurrentPointLightIndex = 0;
 }
 
 void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix)
@@ -219,18 +221,32 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
     }
 }
 
-void VulkanRenderer::ApplyPhongModelImpl(const glm::vec4& LightPosition, const glm::vec4& LightColor,
-                                         const glm::vec3& AmbientSpecularShininessGamma)
+void VulkanRenderer::AddPointLightImpl(const glm::vec3& Position, const glm::vec3& Color, const glm::vec3& AmbientSpecularShininess,
+                                       const glm::vec3& CLQ)
 {
-    s_Data.MeshPhongModelBuffer.LightPosition                 = LightPosition;
-    s_Data.MeshPhongModelBuffer.LightColor                    = LightColor;
-    s_Data.MeshPhongModelBuffer.AmbientSpecularShininessGamma = glm::vec4(AmbientSpecularShininessGamma, s_RendererSettings.Gamma);
-    s_Data.MeshPhongModelBuffer.Constant                      = s_RendererSettings.Constant;
-    s_Data.MeshPhongModelBuffer.Linear                        = s_RendererSettings.Linear;
-    s_Data.MeshPhongModelBuffer.Quadratic                     = s_RendererSettings.Quadratic;
+    if (s_Data.CurrentPointLightIndex >= s_MAX_POINT_LIGHTS) return;
+    s_Data.MeshLightingModelBuffer.Gamma = s_RendererSettings.Gamma;
 
-    memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshPhongModelBuffer,
-           sizeof(PhongModelBuffer));
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Position                 = glm::vec4(Position, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Color                    = glm::vec4(Color, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].AmbientSpecularShininess = glm::vec4(AmbientSpecularShininess, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].CLQ                      = glm::vec4(CLQ, 0.0f);
+
+    memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
+           sizeof(LightingModelBuffer));
+    ++s_Data.CurrentPointLightIndex;
+}
+
+void VulkanRenderer::AddDirectionalLightImpl(const glm::vec3& Color, const glm::vec3& Direction, const glm::vec3& AmbientSpecularShininess)
+{
+    s_Data.MeshLightingModelBuffer.Gamma = s_RendererSettings.Gamma;
+
+    s_Data.MeshLightingModelBuffer.DirLight.Color                    = glm::vec4(Color, 0.0f);
+    s_Data.MeshLightingModelBuffer.DirLight.Direction                = glm::vec4(Direction, 0.0f);
+    s_Data.MeshLightingModelBuffer.DirLight.AmbientSpecularShininess = glm::vec4(AmbientSpecularShininess, 0.0f);
+
+    memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
+           sizeof(LightingModelBuffer));
 }
 
 void VulkanRenderer::SetupSkybox()

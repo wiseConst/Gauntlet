@@ -64,7 +64,8 @@ class VulkanRenderer final : public Renderer
         // Light
         std::vector<AllocatedBuffer> UniformPhongModelBuffers;
         std::vector<void*> MappedUniformPhongModelBuffers;
-        PhongModelBuffer MeshPhongModelBuffer;
+        LightingModelBuffer MeshLightingModelBuffer;
+        uint32_t CurrentPointLightIndex = 0;
     };
 
   public:
@@ -74,8 +75,10 @@ class VulkanRenderer final : public Renderer
     void Create() final override;
     void Destroy() final override;
 
-    void ApplyPhongModelImpl(const glm::vec4& LightPosition, const glm::vec4& LightColor,
-                             const glm::vec3& AmbientSpecularShininess) final override;
+    void AddPointLightImpl(const glm::vec3& Position, const glm::vec3& Color, const glm::vec3& AmbientSpecularShininess,
+                           const glm::vec3& CLQ) final override;
+    void AddDirectionalLightImpl(const glm::vec3& Color, const glm::vec3& Direction,
+                                 const glm::vec3& AmbientSpecularShininess) final override;
 
     void BeginSceneImpl(const PerspectiveCamera& InCamera) final override;
     void SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix) final override;

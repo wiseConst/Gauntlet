@@ -28,7 +28,7 @@ class Mesh final
     FORCEINLINE const auto& GetVertexBuffers() const { return m_VertexBuffers; }
     FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
 
-    FORCEINLINE const uint32_t GetSubmeshCount() const { return m_MeshesData.size(); }
+    FORCEINLINE const uint32_t GetSubmeshCount() const { return static_cast<uint32_t>(m_MeshesData.size()); }
     FORCEINLINE const auto& GetSubmeshName(const uint32_t InMeshIndex) { return m_MeshesData[InMeshIndex].Name; }
 
     FORCEINLINE const Ref<Gauntlet::Material>& GetMaterial(const uint32_t InMeshIndex) { return m_MeshesData[InMeshIndex].Material; }

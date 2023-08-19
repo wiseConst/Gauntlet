@@ -85,17 +85,35 @@ void EditorLayer::OnAttach()
     }
 
     {
-        auto LightSquare                                          = m_ActiveScene->CreateEntity("LightSquare");
-        LightSquare.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
-        auto& tc                                                  = LightSquare.GetComponent<TransformComponent>();
-        tc.Scale                                                  = glm::vec3(2.5f);
-        tc.Translation                                            = glm::vec3(10.0f, 10.0f, -10.0f);
+        auto PointLight                                          = m_ActiveScene->CreateEntity("PointLight");
+        PointLight.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
+        auto& tc                                                 = PointLight.GetComponent<TransformComponent>();
+        tc.Scale                                                 = glm::vec3(1.5f);
+        tc.Translation                                           = glm::vec3(10.0f, 10.0f, -10.0f);
 
-        auto& lc                      = LightSquare.AddComponent<LightComponent>();
-        lc.LightColor                 = glm::vec4(1.0f);
-        lc.AmbientSpecularShininess.x = 0.1f;
-        lc.AmbientSpecularShininess.y = 0.5f;
-        lc.AmbientSpecularShininess.z = 32.0f;
+        auto& plc                      = PointLight.AddComponent<PointLightComponent>();
+        plc.Color                      = glm::vec4(0.2f);
+        plc.AmbientSpecularShininess.x = 0.1f;
+        plc.AmbientSpecularShininess.y = 0.5f;
+        plc.AmbientSpecularShininess.z = 32.0f;
+        plc.CLQ                        = glm::vec3(1.0f, 0.004f, 0.00007f);
+    }
+
+    {
+        auto DirectionalLight = m_ActiveScene->CreateEntity("DirectionalLight");
+        auto& src             = DirectionalLight.AddComponent<SpriteRendererComponent>();
+        src.Color             = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+
+        auto& tc       = DirectionalLight.GetComponent<TransformComponent>();
+        tc.Scale       = glm::vec3(2.5f);
+        tc.Translation = glm::vec3(20.0f, 20.0f, -10.0f);
+
+        auto& dlc                      = DirectionalLight.AddComponent<DirectionalLightComponent>();
+        dlc.Color                      = glm::vec3(0.0f, 0.0f, 0.05f);
+        dlc.Direction                  = tc.Translation;
+        dlc.AmbientSpecularShininess.x = 0.25f;
+        dlc.AmbientSpecularShininess.y = 0.6f;
+        dlc.AmbientSpecularShininess.z = 32.0f;
     }
 
     /*{
@@ -184,9 +202,6 @@ void EditorLayer::OnImGuiRender()
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("VSync", &rs.VSync);
     ImGui::DragFloat("Gamma", &rs.Gamma, 0.1f, 1.0f, 5.0f, "%.2f");
-    ImGui::DragFloat("Constant", &rs.Constant, 0.005f, 0.0f, 5.0f, "%.2f");
-    ImGui::DragFloat("Linear", &rs.Linear, 0.0005f, 0.0f, 5.0f, "%.6f");
-    ImGui::DragFloat("Quadratic", &rs.Quadratic, 0.0005f, 0.0f, 5.0f, "%.6f");
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();

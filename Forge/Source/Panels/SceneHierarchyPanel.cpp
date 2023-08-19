@@ -229,17 +229,44 @@ void SceneHierarchyPanel::ShowComponents(Entity InEntity)
 
     DrawComponent<SpriteRendererComponent>("SpriteRenderer", InEntity, [](auto& spc) { ImGui::ColorEdit4("Color", &spc.Color.r); });
 
-    DrawComponent<LightComponent>("Light", InEntity,
-                                  [](auto& lc)
-                                  {
-                                      ImGui::Separator();
-                                      ImGui::ColorPicker4("Color", (float*)&lc.LightColor);
+    DrawComponent<PointLightComponent>("PointLight", InEntity,
+                                       [](auto& lc)
+                                       {
+                                           ImGui::Separator();
+                                           ImGui::Text("LightColor");
+                                           ImGui::ColorPicker3("Color", (float*)&lc.Color);
 
-                                      ImGui::Separator();
-                                      ImGui::DragFloat("Ambient", &lc.AmbientSpecularShininess.x, 0.05f, 0.0f, FLT_MAX, "%.2f");
-                                      ImGui::DragFloat("Specular", &lc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
-                                      ImGui::DragFloat("Shininess", &lc.AmbientSpecularShininess.z, 1.0f, 0.0f, FLT_MAX, "%.2f");
-                                  });
+                                           ImGui::Separator();
+                                           ImGui::Text("Phong Model Settings");
+                                           ImGui::DragFloat("Ambient", &lc.AmbientSpecularShininess.x, 0.05f, 0.0f, FLT_MAX, "%.2f");
+                                           ImGui::DragFloat("Specular", &lc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
+                                           ImGui::DragFloat("Shininess", &lc.AmbientSpecularShininess.z, 1.0f, 0.0f, FLT_MAX, "%.2f");
+
+                                           ImGui::Separator();
+                                           ImGui::Text("Attenuation");
+                                           ImGui::DragFloat("Constant", &lc.CLQ.x, 0.005f, 0.0f, 5.0f, "%.2f");
+                                           ImGui::DragFloat("Linear", &lc.CLQ.y, 0.0005f, 0.0f, 5.0f, "%.6f");
+                                           ImGui::DragFloat("Quadratic", &lc.CLQ.z, 0.0005f, 0.0f, 5.0f, "%.6f");
+                                       });
+
+    DrawComponent<DirectionalLightComponent>(
+        "DirectionalLightComponent", InEntity,
+        [](auto& dlc)
+        {
+            ImGui::Separator();
+
+            DrawVec3Control("Direction", dlc.Direction);
+
+            ImGui::Separator();
+            ImGui::Text("LightColor");
+            ImGui::ColorPicker3("Color", (float*)&dlc.Color);
+
+            ImGui::Separator();
+            ImGui::Text("Phong Model Settings");
+            ImGui::DragFloat("Ambient", &dlc.AmbientSpecularShininess.x, 0.05f, 0.0f, FLT_MAX, "%.2f");
+            ImGui::DragFloat("Specular", &dlc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
+            ImGui::DragFloat("Shininess", &dlc.AmbientSpecularShininess.z, 1.0f, 0.0f, FLT_MAX, "%.2f");
+        });
 
     DrawComponent<MeshComponent>("Mesh", InEntity,
                                  [](auto& mc)

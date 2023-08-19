@@ -5,6 +5,9 @@
 
 namespace Gauntlet
 {
+
+// Vertices
+
 struct QuadVertex
 {
     glm::vec3 Position;
@@ -31,6 +34,8 @@ struct Vertex
     glm::vec3 Position;
 };
 
+// Camera
+
 struct CameraDataBuffer
 {
     glm::mat4 Projection;
@@ -38,17 +43,30 @@ struct CameraDataBuffer
     alignas(16) glm::vec3 Position;
 };
 
-static constexpr uint32_t s_MAX_POINT_LIGHTS = 4;
+// Lighting
+static constexpr uint32_t s_MAX_POINT_LIGHTS = 16;
 
-struct PhongModelBuffer
+struct PointLight
 {
-    glm::vec4 LightPosition;
-    glm::vec4 LightColor;
-    glm::vec4 AmbientSpecularShininessGamma;
+    glm::vec4 Position = glm::vec4(0.0f);
+    glm::vec4 Color = glm::vec4(0.0f);
+    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f,0.0f);
+    glm::vec4 CLQ = glm::vec4(1.0f, glm::vec3(0.0f));  // Constant Linear Quadratic
+};
 
-    float Constant;
-    float Linear;
-    float Quadratic;
+struct DirectionalLight
+{
+    glm::vec4 Color;
+    glm::vec4 Direction;
+    glm::vec4 AmbientSpecularShininess;
+};
+
+struct LightingModelBuffer
+{
+    DirectionalLight DirLight;
+    PointLight PointLights[s_MAX_POINT_LIGHTS];
+
+    alignas(16) float Gamma;
 };
 
 // PUSH CONSTANTS

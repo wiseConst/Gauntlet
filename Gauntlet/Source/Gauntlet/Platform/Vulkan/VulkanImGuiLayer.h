@@ -27,7 +27,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
     void OnEvent(Event& event) final override;
     void OnImGuiRender() final override {}
 
-    void BlockEvents(const bool bBlockEvents) final override { m_bBlockEvents = bBlockEvents ;}
+    void BlockEvents(const bool bBlockEvents) final override { m_bBlockEvents = bBlockEvents; }
 
   private:
     VulkanContext& m_Context;

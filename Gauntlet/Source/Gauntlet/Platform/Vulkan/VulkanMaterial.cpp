@@ -105,14 +105,14 @@ void VulkanMaterial::Invalidate()
 
         Writes.push_back(CameraDataBufferWriteSet);
 
-        VkDescriptorBufferInfo PhongModelBufferInfo = {};
-        PhongModelBufferInfo.buffer                 = RendererStorageData.UniformPhongModelBuffers[CurrentFrameIndex].Buffer;
-        PhongModelBufferInfo.range                  = sizeof(PhongModelBuffer);
-        PhongModelBufferInfo.offset                 = 0;
+        VkDescriptorBufferInfo LightingModelBufferInfo = {};
+        LightingModelBufferInfo.buffer                 = RendererStorageData.UniformPhongModelBuffers[CurrentFrameIndex].Buffer;
+        LightingModelBufferInfo.range                  = sizeof(LightingModelBuffer);
+        LightingModelBufferInfo.offset                 = 0;
 
         // PhongModel
         auto PhongModelBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, m_DescriptorSet, 1, &PhongModelBufferInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, m_DescriptorSet, 1, &LightingModelBufferInfo);
 
         Writes.push_back(PhongModelBufferWriteSet);
 

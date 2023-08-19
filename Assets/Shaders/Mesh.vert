@@ -28,18 +28,6 @@ layout(set = 0, binding = 4) uniform CameraDataBuffer
 	vec3 Position;
 } InCameraDataBuffer;
 
-layout(set = 0, binding = 5) uniform PhongModelBuffer
-{
-	vec4 LightPosition;
-	vec4 LightColor;
-	vec4 AmbientSpecularShininessGamma;
-
-	// Attenuation part https://learnopengl.com/Lighting/Light-casters
-	float Constant;
-	float Linear;
-	float Quadratic;
-} InPhongModelBuffer;
-
 void main()
 {
 	const vec4 VertexWorldPosition = MeshPushConstants.TransformMatrix * vec4(InPosition, 1.0f);
@@ -48,7 +36,7 @@ void main()
 
 	OutColor = InColor;
 	// We also have to take in consideration that normals can change in case we did some rotation, but they aren't affected by model translation
-	OutNormal = vec3(mat3(transpose(inverse(MeshPushConstants.TransformMatrix))) * InNormal);
+	OutNormal = mat3(transpose(inverse(MeshPushConstants.TransformMatrix))) * InNormal;
 	OutTexCoord = InTexCoord;
 	OutTangent = InTangent;
 	OutBitangent = OutBitangent;

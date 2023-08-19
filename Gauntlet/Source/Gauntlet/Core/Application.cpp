@@ -95,7 +95,7 @@ void Application::Run()
         m_Window->OnUpdate();
 
         // MainThread delta
-        const float CurrentTime = (float)glfwGetTime();
+        const float CurrentTime = GetTimeNow();
         m_MainThreadDelta       = CurrentTime - LastFrameTime;
         LastFrameTime           = CurrentTime;
 
@@ -104,7 +104,7 @@ void Application::Run()
         ++FrameCount;
         if (DeltaTime >= 1.0f)
         {
-            Renderer::GetStats().FPS = FrameCount / DeltaTime;
+            Renderer::GetStats().FPS = static_cast<uint32_t>(FrameCount / DeltaTime);
             FrameCount               = 0;
             LastTime                 = CurrentTime;
         }

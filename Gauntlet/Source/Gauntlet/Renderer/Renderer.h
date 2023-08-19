@@ -32,10 +32,16 @@ class Renderer : private Uncopyable, private Unmovable
         s_Renderer->SubmitMeshImpl(InMesh, InTransformMatrix);
     }
 
-    FORCEINLINE static void ApplyPhongModel(const glm::vec4& LightPosition, const glm::vec4& LightColor,
-                                            const glm::vec3& AmbientSpecularShininess)
+    FORCEINLINE static void AddPointLight(const glm::vec3& Position, const glm::vec3& Color, const glm::vec3& AmbientSpecularShininess,
+                                          const glm::vec3& CLQ)
     {
-        s_Renderer->ApplyPhongModelImpl(LightPosition, LightColor, AmbientSpecularShininess);
+        s_Renderer->AddPointLightImpl(Position, Color, AmbientSpecularShininess, CLQ);
+    }
+
+    FORCEINLINE static void AddDirectionalLight(const glm::vec3& Color, const glm::vec3& Direction,
+                                                const glm::vec3& AmbientSpecularShininess)
+    {
+        s_Renderer->AddDirectionalLightImpl(Color, Direction, AmbientSpecularShininess);
     }
 
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
@@ -54,9 +60,6 @@ class Renderer : private Uncopyable, private Unmovable
         bool ShowWireframes = false;
         bool VSync          = false;
         float Gamma         = 1.0f;
-        float Constant      = 0.58f;
-        float Linear        = 0.004f;
-        float Quadratic     = 0.00007f;
     } static s_RendererSettings;
 
     struct RendererStats
@@ -79,10 +82,12 @@ class Renderer : private Uncopyable, private Unmovable
     } static s_RendererStats;
 
   protected:
-    virtual void Create()                                                       = 0;
-    virtual void Destroy()                                                      = 0;
-    virtual void ApplyPhongModelImpl(const glm::vec4& LightPosition, const glm::vec4& LightColor,
-                                     const glm::vec3& AmbientSpecularShininess) = 0;
+    virtual void Create()  = 0;
+    virtual void Destroy() = 0;
+
+    virtual void AddPointLightImpl(const glm::vec3& Position, const glm::vec3& Color, const glm::vec3& AmbientSpecularShininess,
+                                   const glm::vec3& CLQ)                                                                                = 0;
+    virtual void AddDirectionalLightImpl(const glm::vec3& Color, const glm::vec3& Direction, const glm::vec3& AmbientSpecularShininess) = 0;
 
     virtual void BeginSceneImpl(const PerspectiveCamera& InCamera)                           = 0;
     virtual void SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix) = 0;
