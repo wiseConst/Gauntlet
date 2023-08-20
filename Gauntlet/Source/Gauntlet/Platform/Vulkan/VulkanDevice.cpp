@@ -140,15 +140,17 @@ void VulkanDevice::CreateLogicalDevice(const VkSurfaceKHR& InSurface)
     deviceCI.pQueueCreateInfos    = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
 
+    VkPhysicalDeviceVulkan12Features Vulkan12Features          = {};
+    Vulkan12Features.sType                                     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    Vulkan12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    Vulkan12Features.descriptorBindingPartiallyBound           = VK_TRUE;
+    Vulkan12Features.pNext                                     = VK_NULL_HANDLE;
+
+    deviceCI.pNext = &Vulkan12Features;
+
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
     PhysicalDeviceFeatures.samplerAnisotropy        = VK_TRUE;
     PhysicalDeviceFeatures.fillModeNonSolid         = VK_TRUE;
-
-    // Features for texture batching (vulkan descriptors)
-    VkPhysicalDeviceDescriptorIndexingFeatures PhysicalDeviceDescriptorIndexingFeatures = {};
-    PhysicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-    PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-    deviceCI.pNext                                                           = &PhysicalDeviceDescriptorIndexingFeatures;
 
     deviceCI.pEnabledFeatures        = &PhysicalDeviceFeatures;
     deviceCI.enabledExtensionCount   = static_cast<uint32_t>(DeviceExtensions.size());

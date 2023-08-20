@@ -7,8 +7,12 @@
 #include "VulkanShader.h"
 #include "VulkanSwapchain.h"
 
+#include "Gauntlet/Core/Application.h"
+
 namespace Gauntlet
 {
+#define PIPELINE_CACHE 1
+
 static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology InPrimitiveTopology)
 {
     switch (InPrimitiveTopology)
@@ -89,7 +93,10 @@ void VulkanPipeline::Invalidate()
     if (m_Pipeline) Destroy();
 
     CreatePipelineLayout();
+    const float PipelineCreationBegin = Application::Get().GetTimeNow();
     CreatePipeline();
+    const float PipelineCreationEnd = Application::Get().GetTimeNow();
+    LOG_INFO("Took %0.3f ms to create %s!", (PipelineCreationEnd - PipelineCreationBegin) * 1000.0f, m_Specification.Name.data());
 }
 
 void VulkanPipeline::CreatePipelineLayout()
@@ -101,8 +108,7 @@ void VulkanPipeline::CreatePipelineLayout()
      * Pipeline layouts contains the information about shader inputs of a given pipeline.
      * It’s here where you would configure your push constants and descriptor sets.
      */
-    VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo = {};
-    PipelineLayoutCreateInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(m_Specification.DescriptorSetLayouts.size());
     PipelineLayoutCreateInfo.pSetLayouts                = m_Specification.DescriptorSetLayouts.data();
     PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(m_Specification.PushConstantRanges.size());
@@ -118,9 +124,23 @@ void VulkanPipeline::CreatePipeline()
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
+#if PIPELINE_CACHE
+    // Creating cache
+    {
+        std::vector<uint8_t> CacheData = Utility::LoadPipelineCacheFromDisk(
+            Context.GetDevice()->GetLogicalDevice(), std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cached");
+
+        VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
+        PipelineCacheCreateInfo.initialDataSize           = CacheData.size();
+        PipelineCacheCreateInfo.pInitialData              = CacheData.data();
+
+        VK_CHECK(vkCreatePipelineCache(Context.GetDevice()->GetLogicalDevice(), &PipelineCacheCreateInfo, nullptr, &m_Cache),
+                 "Failed to create pipeline cache!");
+    }
+#endif
+
     // Contains the configuration for what kind of topology will be drawn.
-    VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {};
-    InputAssemblyState.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     InputAssemblyState.primitiveRestartEnable                 = m_Specification.PrimitiveRestartEnable;
     InputAssemblyState.topology                               = GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
 
@@ -135,21 +155,18 @@ void VulkanPipeline::CreatePipeline()
 
     // Contains the information for vertex buffers and vertex formats.
     // This is equivalent to the VAO configuration in OpenGL.
-    VkPipelineVertexInputStateCreateInfo VertexInputState = {};
-    VertexInputState.sType                                = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VkPipelineVertexInputStateCreateInfo VertexInputState = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     VertexInputState.vertexAttributeDescriptionCount      = static_cast<uint32_t>(m_Specification.ShaderAttributeDescriptions.size());
     VertexInputState.pVertexAttributeDescriptions         = m_Specification.ShaderAttributeDescriptions.data();
     VertexInputState.vertexBindingDescriptionCount        = static_cast<uint32_t>(m_Specification.ShaderBindingDescriptions.size());
     VertexInputState.pVertexBindingDescriptions           = m_Specification.ShaderBindingDescriptions.data();
 
     // Breakes primitives into small ones
-    VkPipelineTessellationStateCreateInfo TessellationState = {};
-    TessellationState.sType                                 = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+    VkPipelineTessellationStateCreateInfo TessellationState = {VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO};
 
     // Configuration for the fixed-function rasterization. In here is where we enable or disable backface culling, and set line width or
     // wireframe drawing.
-    VkPipelineRasterizationStateCreateInfo RasterizationState = {};
-    RasterizationState.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    VkPipelineRasterizationStateCreateInfo RasterizationState = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     RasterizationState.cullMode                               = GauntletCullModeToVulkan(m_Specification.CullMode);
     RasterizationState.lineWidth                              = m_Specification.LineWidth;
     RasterizationState.polygonMode                            = GauntletPolygonModeToVulkan(m_Specification.PolygonMode);
@@ -172,8 +189,7 @@ void VulkanPipeline::CreatePipeline()
     RasterizationState.depthBiasSlopeFactor    = 0.0f;
 
     // TODO: Make it configurable?
-    VkPipelineMultisampleStateCreateInfo MultisampleState = {};
-    MultisampleState.sType                                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    VkPipelineMultisampleStateCreateInfo MultisampleState = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     MultisampleState.sampleShadingEnable                  = VK_FALSE;
     MultisampleState.rasterizationSamples                 = VK_SAMPLE_COUNT_1_BIT;
     MultisampleState.minSampleShading                     = 1.0f;
@@ -199,8 +215,7 @@ void VulkanPipeline::CreatePipeline()
      * Setup dummy color blending. We aren't using transparent objects yet
      * the blending is just "no blend", but we do write to the color attachment
      */
-    VkPipelineColorBlendStateCreateInfo ColorBlendState = {};
-    ColorBlendState.sType                               = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    VkPipelineColorBlendStateCreateInfo ColorBlendState = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
     ColorBlendState.attachmentCount                     = 1;
     ColorBlendState.pAttachments                        = &ColorBlendAttachment;
     ColorBlendState.logicOpEnable                       = VK_FALSE;
@@ -221,15 +236,13 @@ void VulkanPipeline::CreatePipeline()
     Scissor.extent   = Context.GetSwapchain()->GetImageExtent();
 
     // TODO: Make it configurable?
-    VkPipelineViewportStateCreateInfo ViewportState = {};
-    ViewportState.sType                             = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    VkPipelineViewportStateCreateInfo ViewportState = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     ViewportState.viewportCount                     = 1;
     ViewportState.pViewports                        = &Viewport;
     ViewportState.scissorCount                      = 1;
     ViewportState.pScissors                         = &Scissor;
 
-    VkPipelineDepthStencilStateCreateInfo DepthStencilState = {};
-    DepthStencilState.sType                                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    VkPipelineDepthStencilStateCreateInfo DepthStencilState = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
     DepthStencilState.depthTestEnable                       = m_Specification.bDepthTest ? VK_TRUE : VK_FALSE;
     DepthStencilState.depthWriteEnable                      = m_Specification.bDepthWrite ? VK_TRUE : VK_FALSE;
     DepthStencilState.depthCompareOp        = m_Specification.bDepthTest ? m_Specification.DepthCompareOp : VK_COMPARE_OP_ALWAYS;
@@ -246,13 +259,11 @@ void VulkanPipeline::CreatePipeline()
     std::vector<VkDynamicState> DynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     // TODO: Make it configurable?
-    VkPipelineDynamicStateCreateInfo DynamicState = {};
-    DynamicState.sType                            = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    VkPipelineDynamicStateCreateInfo DynamicState = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
     DynamicState.dynamicStateCount                = static_cast<uint32_t>(DynamicStates.size());
     DynamicState.pDynamicStates                   = DynamicStates.data();
 
-    VkGraphicsPipelineCreateInfo PipelineCreateInfo = {};
-    PipelineCreateInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    VkGraphicsPipelineCreateInfo PipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     PipelineCreateInfo.layout                       = m_PipelineLayout;
     PipelineCreateInfo.renderPass                   = m_Specification.TargetFramebuffer->GetRenderPass();
     PipelineCreateInfo.pInputAssemblyState          = &InputAssemblyState;
@@ -268,7 +279,7 @@ void VulkanPipeline::CreatePipeline()
     PipelineCreateInfo.pDynamicState                = &DynamicState;
 
     VK_CHECK(
-        vkCreateGraphicsPipelines(Context.GetDevice()->GetLogicalDevice(), VK_NULL_HANDLE, 1, &PipelineCreateInfo, nullptr, &m_Pipeline),
+        vkCreateGraphicsPipelines(Context.GetDevice()->GetLogicalDevice(), m_Cache, 1, &PipelineCreateInfo, VK_NULL_HANDLE, &m_Pipeline),
         "Failed to create pipeline!");
 }
 
@@ -276,9 +287,18 @@ void VulkanPipeline::Destroy()
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
 
-    vkDestroyPipeline(Context.GetDevice()->GetLogicalDevice(), m_Pipeline, nullptr);
-    vkDestroyPipelineLayout(Context.GetDevice()->GetLogicalDevice(), m_PipelineLayout, nullptr);
+#if PIPELINE_CACHE
+    GNT_ASSERT(Utility::DropPipelineCacheToDisk(
+                   LogicalDevice, m_Cache, std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cached") == VK_TRUE,
+               "Failed to save pipeline cache to disk!");
+
+    vkDestroyPipelineCache(LogicalDevice, m_Cache, nullptr);
+#endif
+
+    vkDestroyPipelineLayout(LogicalDevice, m_PipelineLayout, nullptr);
+    vkDestroyPipeline(LogicalDevice, m_Pipeline, nullptr);
 }
 
 }  // namespace Gauntlet

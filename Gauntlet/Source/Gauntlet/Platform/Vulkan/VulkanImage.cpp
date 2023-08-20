@@ -65,29 +65,6 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
     InImage->Allocation = Context.GetAllocator()->CreateImage(ImageCreateInfo, &InImage->Image);
 }
 
-// Currently unused
-VkFormat ChooseSupportedImageFormat(const VkPhysicalDevice& InDevice, const std::vector<VkFormat>& AvailableFormats,
-                                    VkImageTiling InImageTiling, VkFormatFeatureFlags InFormatFeatures)
-{
-    for (auto& Format : AvailableFormats)
-    {
-        VkFormatProperties FormatProps = {};
-        vkGetPhysicalDeviceFormatProperties(InDevice, Format, &FormatProps);
-
-        if (InImageTiling == VK_IMAGE_TILING_LINEAR && (FormatProps.linearTilingFeatures & InFormatFeatures) == InFormatFeatures)
-        {
-            return Format;
-        }
-        else if (InImageTiling == VK_IMAGE_TILING_OPTIMAL && (FormatProps.optimalTilingFeatures & InFormatFeatures) == InFormatFeatures)
-        {
-            return Format;
-        }
-    }
-
-    GNT_ASSERT(false, "Failed to find a supported format!");
-    return VK_FORMAT_UNDEFINED;
-}
-
 void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
                      VkImageAspectFlags InAspectFlags, VkImageViewType InImageViewType)
 {

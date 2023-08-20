@@ -26,9 +26,6 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
                  VkFormat InFormat, VkImageTiling InImageTiling = VK_IMAGE_TILING_OPTIMAL, const uint32_t InMipLevels = 1,
                  const uint32_t InArrayLayers = 1);
 
-VkFormat ChooseSupportedImageFormat(const VkPhysicalDevice& InDevice, const std::vector<VkFormat>& AvailableFormats,
-                                    VkImageTiling InImageTiling, VkFormatFeatureFlags InFormatFeatures);
-
 void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
                      VkImageAspectFlags InAspectFlags, VkImageViewType InImageViewType = VK_IMAGE_VIEW_TYPE_2D);
 
@@ -54,19 +51,11 @@ class VulkanImage final : public Image
     void Create();
     void Destroy() final override;
 
-    FORCEINLINE const auto& Get() const { return m_Image.Image; }
     FORCEINLINE auto& Get() { return m_Image.Image; }
-
-    FORCEINLINE const auto& GetView() const { return m_Image.ImageView; }
     FORCEINLINE auto& GetView() { return m_Image.ImageView; }
-
-    FORCEINLINE const auto& GetSampler() const { return m_Sampler; }
     FORCEINLINE auto& GetSampler() { return m_Sampler; }
-
-    FORCEINLINE const auto GetFormat() const { return ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format); }
     FORCEINLINE auto GetFormat() { return ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format); }
-
-    FORCEINLINE const ImageSpecification& GetSpecification() { return m_Specification; }
+    FORCEINLINE ImageSpecification& GetSpecification() final override { return m_Specification; }
 
     FORCEINLINE uint32_t GetWidth() const final override { return m_Specification.Width; }
     FORCEINLINE uint32_t GetHeight() const final override { return m_Specification.Height; }
@@ -83,7 +72,11 @@ class VulkanImage final : public Image
     }
 
     FORCEINLINE const auto& GetDescriptorInfo() const { return m_DescriptorImageInfo; }
-    FORCEINLINE virtual void* GetTextureID() const final override { return m_DescriptorSet; }
+    FORCEINLINE void* GetTextureID() const final override
+    {
+        if (!m_DescriptorSet) LOG_WARN("Attempting to return NULL image descriptor set!");
+        return m_DescriptorSet;
+    }
 
   private:
     ImageSpecification m_Specification;

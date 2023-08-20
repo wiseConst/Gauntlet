@@ -48,10 +48,10 @@ static constexpr uint32_t s_MAX_POINT_LIGHTS = 16;
 
 struct PointLight
 {
-    glm::vec4 Position = glm::vec4(0.0f);
-    glm::vec4 Color = glm::vec4(0.0f);
-    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f,0.0f);
-    glm::vec4 CLQ = glm::vec4(1.0f, glm::vec3(0.0f));  // Constant Linear Quadratic
+    glm::vec4 Position                 = glm::vec4(0.0f);
+    glm::vec4 Color                    = glm::vec4(0.0f);
+    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+    glm::vec4 CLQ                      = glm::vec4(1.0f, glm::vec3(0.0f));  // Attenuation: Constant Linear Quadratic
 };
 
 struct DirectionalLight

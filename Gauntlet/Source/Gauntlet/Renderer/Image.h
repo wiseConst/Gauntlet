@@ -87,12 +87,11 @@ class Image
     Image()  = default;
     ~Image() = default;
 
-    FORCEINLINE virtual uint32_t GetWidth() const    = 0;
-    FORCEINLINE virtual uint32_t GetHeight() const   = 0;
-    FORCEINLINE virtual float GetAspectRatio() const = 0;
-
-    FORCEINLINE virtual const ImageSpecification& GetSpecification() = 0;
-    FORCEINLINE virtual void* GetTextureID() const                   = 0;
+    FORCEINLINE virtual uint32_t GetWidth() const              = 0;
+    FORCEINLINE virtual uint32_t GetHeight() const             = 0;
+    FORCEINLINE virtual float GetAspectRatio() const           = 0;
+    FORCEINLINE virtual ImageSpecification& GetSpecification() = 0;
+    FORCEINLINE virtual void* GetTextureID() const             = 0;
 
     static Ref<Image> Create(const ImageSpecification& InImageSpecification);
 

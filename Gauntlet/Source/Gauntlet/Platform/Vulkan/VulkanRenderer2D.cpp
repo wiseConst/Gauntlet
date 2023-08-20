@@ -91,6 +91,7 @@ void VulkanRenderer2D::Create()
     // Default 2D graphics pipeline creation
     {
         PipelineSpecification PipelineSpec = {};
+        PipelineSpec.Name                  = "Quad2D";
         PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetStorageData().PostProcessFramebuffer;
         PipelineSpec.bDepthTest            = true;
         PipelineSpec.bDepthWrite           = true;

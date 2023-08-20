@@ -93,7 +93,7 @@ struct BufferElement
     std::string_view Name;
     EShaderDataType Type = EShaderDataType::None;
     uint32_t Size        = 0;
-    size_t Offset        = 0;
+    uint32_t Offset      = 0;
 };
 
 class BufferLayout final

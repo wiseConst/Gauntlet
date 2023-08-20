@@ -59,7 +59,7 @@ class Renderer : private Uncopyable, private Unmovable
     {
         bool ShowWireframes = false;
         bool VSync          = false;
-        float Gamma         = 1.0f;
+        float Gamma         = 1.1f;
     } static s_RendererSettings;
 
     struct RendererStats

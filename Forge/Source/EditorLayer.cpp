@@ -26,16 +26,14 @@ void EditorLayer::OnAttach()
         tc.Scale       = glm::vec3(0.1f);
     }
 
-    /*
-    {
+    /*{
         auto Omen                               = m_ActiveScene->CreateEntity("Omen");
         Omen.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
         auto& tc                                = Omen.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(-10.0f, -10.0f, 0.0f);
         tc.Scale       = glm::vec3(10.0f);
-    }
-    */
+    }*/
 
     /* {
          auto CyberPunkRevolver = m_ActiveScene->CreateEntity("CyberPunkRevolver");
@@ -86,7 +84,7 @@ void EditorLayer::OnAttach()
 
     {
         auto PointLight                                          = m_ActiveScene->CreateEntity("PointLight");
-        PointLight.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
+        PointLight.AddComponent<SpriteRendererComponent>().Color = glm::vec4{0.2f};
         auto& tc                                                 = PointLight.GetComponent<TransformComponent>();
         tc.Scale                                                 = glm::vec3(1.5f);
         tc.Translation                                           = glm::vec3(10.0f, 10.0f, -10.0f);
@@ -135,9 +133,14 @@ void EditorLayer::OnAttach()
         tc.Scale       = glm::vec3(0.15f);
     }
     */
+
+    m_WiseTreeTexture = Texture2D::Create(std::string(ASSETS_PATH) + "Textures/WiseTree.jpg", true);
 }
 
-void EditorLayer::OnDetach() {}
+void EditorLayer::OnDetach()
+{
+    m_WiseTreeTexture->Destroy();
+}
 
 void EditorLayer::OnUpdate(const float DeltaTime)
 {
@@ -185,11 +188,11 @@ void EditorLayer::OnImGuiRender()
         ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages);
         ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers);
         ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers);
-        ImGui::Text("VRAM Usage: (%f) MB", Stats.GPUMemoryAllocated / 1024.0f / 1024.0f);
+        ImGui::Text("VRAM Usage: (%0.2f) MB", Stats.GPUMemoryAllocated / 1024.0f / 1024.0f);
         ImGui::Text("FPS: (%u)", Stats.FPS);
         ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets);
-        ImGui::Text("CPU Wait Time: %f(ms)", Stats.CPUWaitTime);
-        ImGui::Text("GPU Wait Time: %f(ms)", Stats.GPUWaitTime);
+        ImGui::Text("CPU Wait Time: %0.2f ms", Stats.CPUWaitTime * 1000.0f);
+        ImGui::Text("GPU Wait Time: %0.2f ms", Stats.GPUWaitTime * 1000.0f);
         ImGui::Text("VMA Allocations: %llu", Stats.Allocations);
         ImGui::Text("DrawCalls: %llu", Stats.DrawCalls);
         ImGui::Text("QuadCount: %llu", Stats.QuadCount);
@@ -208,6 +211,12 @@ void EditorLayer::OnImGuiRender()
 
     ImGui::Begin("Content Browser");
     ImGui::Text("Files");
+    ImGui::Image(m_WiseTreeTexture->GetTextureID(),
+                 {
+                     (float)m_WiseTreeTexture->GetWidth() * 0.25f,
+                     (float)m_WiseTreeTexture->GetHeight() * 0.25f,
+                 },
+                 {0, 1}, {1, 0});
     ImGui::End();
 
     EndDockspace();
@@ -263,6 +272,7 @@ void EditorLayer::BeginDockspace()
             ImGui::EndMenu();
         }
 
+        // Scene name
         ImGui::SameLine(SceneNameRegionX);
         ImGui::PushStyleColor(ImGuiCol_Button, {0.2f, 0.205f, 0.21f, 1.0f});
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.2f, 0.205f, 0.21f, 1.0f});

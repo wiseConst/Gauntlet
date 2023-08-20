@@ -71,7 +71,8 @@ void VulkanRenderer::Create()
 
     std::vector<VkDescriptorSetLayoutBinding> Bindings = {DiffuseTextureBinding, NormalTextureBinding,    EmissiveTextureBinding,
                                                           EnvironmentMapBinding, CameraDataBufferBinding, PhongModelBufferBinding};
-    auto MeshDescriptorSetLayoutCreateInfo             = Utility::GetDescriptorSetLayoutCreateInfo(Bindings.size(), Bindings.data());
+    auto MeshDescriptorSetLayoutCreateInfo =
+        Utility::GetDescriptorSetLayoutCreateInfo(static_cast<uint32_t>(Bindings.size()), Bindings.data());
     VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &MeshDescriptorSetLayoutCreateInfo, nullptr,
                                          &s_Data.MeshDescriptorSetLayout),
              "Failed to create mesh descriptor set layout!");
@@ -86,6 +87,7 @@ void VulkanRenderer::Create()
 
     // Base mesh pipeline creation
     PipelineSpecification PipelineSpec = {};
+    PipelineSpec.Name                  = "Mesh3D";
     PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
     PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
     PipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -126,6 +128,7 @@ void VulkanRenderer::Create()
                      s_Data.PostProcessFramebuffer->GetSpec().Height);
         });
 
+    PipelineSpec.Name        = "Mesh3D-Wireframe";
     PipelineSpec.PolygonMode = EPolygonMode::POLYGON_MODE_LINE;
     s_Data.MeshWireframePipeline.reset(new VulkanPipeline(PipelineSpec));
     m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshWireframePipeline->Invalidate(); });
@@ -214,9 +217,10 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
         s_Data.CurrentCommandBuffer->BindVertexBuffers(
             0, 1, &std::static_pointer_cast<VulkanVertexBuffer>(InMesh->GetVertexBuffers()[i])->Get(), &Offset);
 
-        s_Data.CurrentCommandBuffer->BindIndexBuffer(std::static_pointer_cast<VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i])->Get(), 0,
-                                                     VK_INDEX_TYPE_UINT32);
-        s_Data.CurrentCommandBuffer->DrawIndexed(std::static_pointer_cast<VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i])->GetCount());
+        Ref<Gauntlet::VulkanIndexBuffer> VulkanIndexBuffer =
+            std::static_pointer_cast<Gauntlet::VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i]);
+        s_Data.CurrentCommandBuffer->BindIndexBuffer(VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+        s_Data.CurrentCommandBuffer->DrawIndexed(static_cast<uint32_t>(VulkanIndexBuffer->GetCount()));
         ++Renderer::GetStats().DrawCalls;
     }
 }
@@ -227,10 +231,11 @@ void VulkanRenderer::AddPointLightImpl(const glm::vec3& Position, const glm::vec
     if (s_Data.CurrentPointLightIndex >= s_MAX_POINT_LIGHTS) return;
     s_Data.MeshLightingModelBuffer.Gamma = s_RendererSettings.Gamma;
 
-    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Position                 = glm::vec4(Position, 0.0f);
-    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Color                    = glm::vec4(Color, 0.0f);
-    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].AmbientSpecularShininess = glm::vec4(AmbientSpecularShininess, 0.0f);
-    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].CLQ                      = glm::vec4(CLQ, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Position = glm::vec4(Position, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Color    = glm::vec4(Color, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].AmbientSpecularShininess =
+        glm::vec4(AmbientSpecularShininess, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].CLQ = glm::vec4(CLQ, 0.0f);
 
     memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
            sizeof(LightingModelBuffer));
@@ -251,7 +256,7 @@ void VulkanRenderer::AddDirectionalLightImpl(const glm::vec3& Color, const glm::
 
 void VulkanRenderer::SetupSkybox()
 {
-    const auto SkyboxPath                = std::string(ASSETS_PATH) + "Textures/Skybox/Yokohama2/";
+    const auto SkyboxPath                = std::string(ASSETS_PATH) + "Textures/Skybox/SanFrancisco3/";
     const std::vector<std::string> Faces = {
         SkyboxPath + "right.jpg",   //
         SkyboxPath + "left.jpg",    //
@@ -279,6 +284,7 @@ void VulkanRenderer::SetupSkybox()
 
     // Base skybox pipeline creation
     PipelineSpecification PipelineSpec = {};
+    PipelineSpec.Name                  = "Skybox";
     PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
     PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
     PipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -345,9 +351,10 @@ void VulkanRenderer::DrawSkybox()
     s_Data.CurrentCommandBuffer->BindVertexBuffers(
         0, 1, &std::static_pointer_cast<VulkanVertexBuffer>(CubeMesh->GetVertexBuffers()[0])->Get(), &Offset);
 
-    s_Data.CurrentCommandBuffer->BindIndexBuffer(std::static_pointer_cast<VulkanIndexBuffer>(CubeMesh->GetIndexBuffers()[0])->Get(), 0,
-                                                 VK_INDEX_TYPE_UINT32);
-    s_Data.CurrentCommandBuffer->DrawIndexed(std::static_pointer_cast<VulkanIndexBuffer>(CubeMesh->GetIndexBuffers()[0])->GetCount());
+    Ref<Gauntlet::VulkanIndexBuffer> VulkanIndexBuffer =
+        std::static_pointer_cast<Gauntlet::VulkanIndexBuffer>(CubeMesh->GetIndexBuffers()[0]);
+    s_Data.CurrentCommandBuffer->BindIndexBuffer(VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+    s_Data.CurrentCommandBuffer->DrawIndexed(static_cast<uint32_t>(VulkanIndexBuffer->GetCount()));
 
     s_Data.CurrentCommandBuffer->EndDebugLabel();
 }

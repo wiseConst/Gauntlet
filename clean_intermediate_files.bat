@@ -11,54 +11,34 @@ for %%a in (%filesToRemove%) do (
 	del %%a
 )
 
-cd Assets/Shaders
-ClearShaders.bat
-cd ../../
-
-cd Sandbox
-for %%a in (%dirsToRemove%) do (
-	rmdir /S /Q %%a
-)
-cd ../
-
-cd Eclipse
-for %%a in (%filesToRemove%) do (
-	del %%a
-)
-cd ../
-
-
-cd Eclipse/vendor
+cd Gauntlet/vendor
 
 cd vma
-for %%a in (%dirsToRemove%) do (
-	rmdir /S /Q %%a
-)
+for %%a in (%dirsToRemove%) do rmdir /S /Q %%a
 
-for %%a in (%filesToRemove%) do (
-	del %%a
-)
+for %%a in (%filesToRemove%) do del %%a
 cd ../
 
 cd GLFW
-for %%a in (%dirsToRemove%) do (
-	rmdir /S /Q %%a
-)
+for %%a in (%dirsToRemove%) do rmdir /S /Q %%a
 
-for %%a in (%filesToRemove%) do (
-	del %%a
-)
+for %%a in (%filesToRemove%) do del %%a
 cd ../
 
 cd imgui
-for %%a in (%dirsToRemove%) do (
-	rmdir /S /Q %%a
-)
+for %%a in (%dirsToRemove%) do rmdir /S /Q %%a
 
-for %%a in (%filesToRemove%) do (
-	del %%a
-)
+for %%a in (%filesToRemove%) do del %%a
 cd ../
+
+cd ../../
+
+cd Assets/Shaders
+ClearShaders.bat
+cd ../Cached/Pipelines
+
+ClearPipelines.bat
+cd ../../../
 
 #PAUSE
 #echo %cd%

@@ -101,7 +101,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
         }
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
         {
-            // LOG_INFO(pCallbackData->pMessage);
+            if (LOG_VULKAN_INFO) LOG_INFO(pCallbackData->pMessage);
             break;
         }
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
@@ -123,17 +123,16 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
 namespace Utility
 {
 
-static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPool, const VkDevice& InDevice)
+static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& CommandPool, const VkDevice& Device)
 {
     VkCommandBufferAllocateInfo AllocateInfo = {};
     AllocateInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     AllocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    AllocateInfo.commandPool                 = InCommandPool;
+    AllocateInfo.commandPool                 = CommandPool;
     AllocateInfo.commandBufferCount          = 1;
 
     VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
-    VK_CHECK(vkAllocateCommandBuffers(InDevice, &AllocateInfo, &CommandBuffer),
-             "Failed to allocate command buffer for single time command!");
+    VK_CHECK(vkAllocateCommandBuffers(Device, &AllocateInfo, &CommandBuffer), "Failed to allocate command buffer for single time command!");
 
     VkCommandBufferBeginInfo BeginInfo = {};
     BeginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -144,25 +143,25 @@ static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& InCommandPoo
     return CommandBuffer;
 }
 
-static void EndSingleTimeCommands(const VkCommandBuffer& InCommandBuffer, const VkCommandPool& InCommandPool, const VkQueue& InQueue,
-                                  const VkDevice& InDevice)
+static void EndSingleTimeCommands(const VkCommandBuffer& CommandBuffer, const VkCommandPool& CommandPool, const VkQueue& Queue,
+                                  const VkDevice& Device)
 {
-    VK_CHECK(vkEndCommandBuffer(InCommandBuffer), "Failed to end command buffer for single time command!");
+    VK_CHECK(vkEndCommandBuffer(CommandBuffer), "Failed to end command buffer for single time command!");
 
     VkSubmitInfo SubmitInfo       = {};
     SubmitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers    = &InCommandBuffer;
+    SubmitInfo.pCommandBuffers    = &CommandBuffer;
 
-    VK_CHECK(vkQueueSubmit(InQueue, 1, &SubmitInfo, VK_NULL_HANDLE), "Failed to submit command buffer to the queue!");
-    VK_CHECK(vkQueueWaitIdle(InQueue), "Failed to wait on queue submit!");
+    VK_CHECK(vkQueueSubmit(Queue, 1, &SubmitInfo, VK_NULL_HANDLE), "Failed to submit command buffer to the queue!");
+    VK_CHECK(vkQueueWaitIdle(Queue), "Failed to wait on queue submit!");
 
-    vkFreeCommandBuffers(InDevice, InCommandPool, 1, &InCommandBuffer);
+    vkFreeCommandBuffers(Device, CommandPool, 1, &CommandBuffer);
 }
 
-static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType InFormat)
+static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType Format)
 {
-    switch (InFormat)
+    switch (Format)
     {
         case EShaderDataType::FLOAT: return VK_FORMAT_R32_SFLOAT;
         case EShaderDataType::Vec2: return VK_FORMAT_R32G32_SFLOAT;
@@ -177,121 +176,117 @@ static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType InFormat)
     return VK_FORMAT_UNDEFINED;
 }
 
-static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t InBindingID, uint32_t InStride,
-                                                                   VkVertexInputRate InInputRate = VK_VERTEX_INPUT_RATE_VERTEX)
+static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t BindingID, uint32_t Stride,
+                                                                   VkVertexInputRate InputRate = VK_VERTEX_INPUT_RATE_VERTEX)
 {
     VkVertexInputBindingDescription BindingDescription = {};
-    BindingDescription.binding                         = InBindingID;
-    BindingDescription.stride                          = InStride;
-    BindingDescription.inputRate                       = InInputRate;
+    BindingDescription.binding                         = BindingID;
+    BindingDescription.stride                          = Stride;
+    BindingDescription.inputRate                       = InputRate;
 
     return BindingDescription;
 }
 
-static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t InBindingID, VkFormat InFormat, uint32_t InLocation,
-                                                                       uint32_t InOffset)
+static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t BindingID, VkFormat Format, uint32_t Location,
+                                                                       uint32_t Offset)
 {
     VkVertexInputAttributeDescription AttributeDescription = {};
-    AttributeDescription.binding                           = InBindingID;
-    AttributeDescription.format                            = InFormat;
-    AttributeDescription.location                          = InLocation;
-    AttributeDescription.offset                            = InOffset;
+    AttributeDescription.binding                           = BindingID;
+    AttributeDescription.format                            = Format;
+    AttributeDescription.location                          = Location;
+    AttributeDescription.offset                            = Offset;
 
     return AttributeDescription;
 }
 
-static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t InBinding, const uint32_t InDescriptorCount,
-                                                                  VkDescriptorType InDescriptorType, VkShaderStageFlags InStageFlags,
-                                                                  VkSampler* InImmutableSamplers = VK_NULL_HANDLE)
+static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding, const uint32_t DescriptorCount,
+                                                                  VkDescriptorType DescriptorType, VkShaderStageFlags StageFlags,
+                                                                  VkSampler* ImmutableSamplers = VK_NULL_HANDLE)
 {
     VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding = {};
-    DescriptorSetLayoutBinding.binding                      = InBinding;
-    DescriptorSetLayoutBinding.descriptorCount              = InDescriptorCount;
-    DescriptorSetLayoutBinding.descriptorType               = InDescriptorType;
-    DescriptorSetLayoutBinding.stageFlags                   = InStageFlags;
-    DescriptorSetLayoutBinding.pImmutableSamplers           = InImmutableSamplers;
+    DescriptorSetLayoutBinding.binding                      = Binding;
+    DescriptorSetLayoutBinding.descriptorCount              = DescriptorCount;
+    DescriptorSetLayoutBinding.descriptorType               = DescriptorType;
+    DescriptorSetLayoutBinding.stageFlags                   = StageFlags;
+    DescriptorSetLayoutBinding.pImmutableSamplers           = ImmutableSamplers;
 
     return DescriptorSetLayoutBinding;
 }
 
-static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType InDescriptorType, const uint32_t InBinding,
-                                                  VkDescriptorSet InDescriptorSet, const uint32_t InDescriptorCount,
-                                                  VkDescriptorBufferInfo* InBufferInfo, VkBufferView* InTexelBufferView = VK_NULL_HANDLE,
-                                                  const uint32_t InArrayElement = 0)
+static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorType, const uint32_t Binding, VkDescriptorSet DescriptorSet,
+                                                  const uint32_t DescriptorCount, VkDescriptorBufferInfo* BufferInfo,
+                                                  VkBufferView* TexelBufferView = VK_NULL_HANDLE, const uint32_t ArrayElement = 0)
 {
     VkWriteDescriptorSet WriteDescriptorSet = {};
     WriteDescriptorSet.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    WriteDescriptorSet.descriptorType       = InDescriptorType;
-    WriteDescriptorSet.dstBinding           = InBinding;
-    WriteDescriptorSet.dstSet               = InDescriptorSet;
-    WriteDescriptorSet.descriptorCount      = InDescriptorCount;
-    WriteDescriptorSet.pBufferInfo          = InBufferInfo;
-    WriteDescriptorSet.pTexelBufferView     = InTexelBufferView;
-    WriteDescriptorSet.dstArrayElement      = InArrayElement;
+    WriteDescriptorSet.descriptorType       = DescriptorType;
+    WriteDescriptorSet.dstBinding           = Binding;
+    WriteDescriptorSet.dstSet               = DescriptorSet;
+    WriteDescriptorSet.descriptorCount      = DescriptorCount;
+    WriteDescriptorSet.pBufferInfo          = BufferInfo;
+    WriteDescriptorSet.pTexelBufferView     = TexelBufferView;
+    WriteDescriptorSet.dstArrayElement      = ArrayElement;
 
     return WriteDescriptorSet;
 }
 
-static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType InDescriptorType, const uint32_t InBinding,
-                                                  VkDescriptorSet InDescriptorSet, const uint32_t InDescriptorCount,
-                                                  VkDescriptorImageInfo* InImageInfo, VkBufferView* InTexelBufferView = VK_NULL_HANDLE,
-                                                  const uint32_t InArrayElement = 0)
+static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorType, const uint32_t Binding, VkDescriptorSet DescriptorSet,
+                                                  const uint32_t DescriptorCount, VkDescriptorImageInfo* ImageInfo,
+                                                  VkBufferView* TexelBufferView = VK_NULL_HANDLE, const uint32_t ArrayElement = 0)
 {
     VkWriteDescriptorSet WriteDescriptorSet = {};
     WriteDescriptorSet.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    WriteDescriptorSet.descriptorType       = InDescriptorType;
-    WriteDescriptorSet.dstBinding           = InBinding;
-    WriteDescriptorSet.dstSet               = InDescriptorSet;
-    WriteDescriptorSet.descriptorCount      = InDescriptorCount;
-    WriteDescriptorSet.pImageInfo           = InImageInfo;
-    WriteDescriptorSet.pTexelBufferView     = InTexelBufferView;
-    WriteDescriptorSet.dstArrayElement      = InArrayElement;
+    WriteDescriptorSet.descriptorType       = DescriptorType;
+    WriteDescriptorSet.dstBinding           = Binding;
+    WriteDescriptorSet.dstSet               = DescriptorSet;
+    WriteDescriptorSet.descriptorCount      = DescriptorCount;
+    WriteDescriptorSet.pImageInfo           = ImageInfo;
+    WriteDescriptorSet.pTexelBufferView     = TexelBufferView;
+    WriteDescriptorSet.dstArrayElement      = ArrayElement;
 
     return WriteDescriptorSet;
 }
 
-static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescriptorPool& InDescriptorPool,
-                                                                const uint32_t InDescriptorSetCount,
-                                                                VkDescriptorSetLayout* InDescriptorSetLayouts)
+static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescriptorPool& DescriptorPool, const uint32_t DescriptorSetCount,
+                                                                VkDescriptorSetLayout* DescriptorSetLayouts)
 {
     VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {};
     DescriptorSetAllocateInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    DescriptorSetAllocateInfo.descriptorPool              = InDescriptorPool;
-    DescriptorSetAllocateInfo.descriptorSetCount          = InDescriptorSetCount;
-    DescriptorSetAllocateInfo.pSetLayouts                 = InDescriptorSetLayouts;
+    DescriptorSetAllocateInfo.descriptorPool              = DescriptorPool;
+    DescriptorSetAllocateInfo.descriptorSetCount          = DescriptorSetCount;
+    DescriptorSetAllocateInfo.pSetLayouts                 = DescriptorSetLayouts;
 
     return DescriptorSetAllocateInfo;
 }
 
 static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInfo(
-    const uint32_t InBindingCount, const VkDescriptorSetLayoutBinding* InBindings,
-    const VkDescriptorSetLayoutCreateFlags InDescriptorSetLayoutCreateFlags = 0, const void* InPNext = nullptr)
+    const uint32_t BindingCount, const VkDescriptorSetLayoutBinding* Bindings,
+    const VkDescriptorSetLayoutCreateFlags DescriptorSetLayoutCreateFlags = 0, const void* pNext = nullptr)
 {
     VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {};
     DescriptorSetLayoutCreateInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    DescriptorSetLayoutCreateInfo.bindingCount                    = InBindingCount;
-    DescriptorSetLayoutCreateInfo.pBindings                       = InBindings;
-    DescriptorSetLayoutCreateInfo.pNext                           = InPNext;
-    DescriptorSetLayoutCreateInfo.flags                           = InDescriptorSetLayoutCreateFlags;
+    DescriptorSetLayoutCreateInfo.bindingCount                    = BindingCount;
+    DescriptorSetLayoutCreateInfo.pBindings                       = Bindings;
+    DescriptorSetLayoutCreateInfo.pNext                           = pNext;
+    DescriptorSetLayoutCreateInfo.flags                           = DescriptorSetLayoutCreateFlags;
 
     return DescriptorSetLayoutCreateInfo;
 }
 
 // InMaxSetCount -  How many descriptor sets can be allocated from the pool
 //  How many things can be submitted to descriptor depending on it's type (mb it's wrong)
-static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t InPoolSizeCount, const uint32_t InMaxSetCount,
-                                                              const VkDescriptorPoolSize* InPoolSizes,
-                                                              VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags = 0,
-                                                              const void* InPNext                                     = nullptr)
+static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t PoolSizeCount, const uint32_t MaxSetCount,
+                                                              const VkDescriptorPoolSize* PoolSizes,
+                                                              VkDescriptorPoolCreateFlags DescriptorPoolCreateFlags = 0,
+                                                              const void* pNext                                     = nullptr)
 {
-
     VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = {};
     DescriptorPoolCreateInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    DescriptorPoolCreateInfo.poolSizeCount              = InPoolSizeCount;
-    DescriptorPoolCreateInfo.maxSets                    = InMaxSetCount;
-    DescriptorPoolCreateInfo.pPoolSizes                 = InPoolSizes;
-    DescriptorPoolCreateInfo.flags                      = InDescriptorPoolCreateFlags;
-    DescriptorPoolCreateInfo.pNext                      = InPNext;
+    DescriptorPoolCreateInfo.poolSizeCount              = PoolSizeCount;
+    DescriptorPoolCreateInfo.maxSets                    = MaxSetCount;
+    DescriptorPoolCreateInfo.pPoolSizes                 = PoolSizes;
+    DescriptorPoolCreateInfo.flags                      = DescriptorPoolCreateFlags;
+    DescriptorPoolCreateInfo.pNext                      = pNext;
 
     return DescriptorPoolCreateInfo;
 }
@@ -304,6 +299,51 @@ static VkPushConstantRange GetPushConstantRange(const VkShaderStageFlags ShaderS
     PushConstants.stageFlags          = ShaderStages;
 
     return PushConstants;
+}
+
+static std::vector<uint8_t> LoadPipelineCacheFromDisk(const VkDevice& Device, const std::string& CacheFilePath)
+{
+    std::vector<uint8_t> CacheData;
+
+    std::ifstream in(CacheFilePath, std::ios::in | std::ios::binary | std::ios::ate);
+    if (!in.is_open())
+    {
+        LOG_WARN("Failed to load pipeline cache from disk: %s", CacheFilePath.data());
+        return CacheData;
+    }
+
+    CacheData.resize(in.tellg());
+    in.seekg(0, std::ios::beg);
+    in.read(reinterpret_cast<char*>(CacheData.data()), CacheData.size());
+
+    in.close();
+    return CacheData;
+}
+
+static VkBool32 DropPipelineCacheToDisk(const VkDevice& Device, const VkPipelineCache& PipelineCache, const std::string& CacheFilePath)
+{
+    size_t CacheSize = 0;
+    VK_CHECK(vkGetPipelineCacheData(Device, PipelineCache, &CacheSize, nullptr), "Failed to retrieve pipeline cache data size!");
+
+    std::vector<uint8_t> CacheData(CacheSize);
+    VK_CHECK(vkGetPipelineCacheData(Device, PipelineCache, &CacheSize, CacheData.data()), "Failed to retrieve pipeline cache data!");
+
+    if (!CacheData.data() || CacheSize <= 0)
+    {
+        LOG_WARN("Invalid cache data or size! %s", CacheFilePath.data());
+        return VK_FALSE;
+    }
+
+    std::ofstream out(CacheFilePath, std::ios::out | std::ios::trunc | std::ios::binary);
+    if (!out.is_open())
+    {
+        LOG_WARN("Failed to create pipeline cache file! %s", CacheFilePath.data());
+        return VK_FALSE;
+    }
+
+    out.write(reinterpret_cast<char*>(CacheData.data()), CacheData.size());
+    out.close();
+    return VK_TRUE;
 }
 
 }  // namespace Utility

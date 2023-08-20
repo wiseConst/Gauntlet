@@ -78,6 +78,8 @@ struct PipelineSpecification
     }
     ~PipelineSpecification() = default;
 
+    std::string Name = "None";
+
     std::vector<VkDescriptorSetLayout> DescriptorSetLayouts;
     std::vector<VkPushConstantRange> PushConstantRanges;
 
@@ -116,27 +118,21 @@ class VulkanPipeline final
     void Invalidate();
     void Destroy();
 
-    FORCEINLINE const auto& Get() const { return m_Pipeline; }
     FORCEINLINE auto& Get() { return m_Pipeline; }
-
-    FORCEINLINE const auto& GetLayout() const { return m_PipelineLayout; }
     FORCEINLINE auto& GetLayout() { return m_PipelineLayout; }
 
-    FORCEINLINE const auto& GetPushConstantsShaderStageFlags(const uint32_t Index = 0) const
+    FORCEINLINE const auto& GetPushConstantsShaderStageFlags(const uint32_t Index = 0)
     {
         return m_Specification.PushConstantRanges[Index].stageFlags;
     }
 
-    FORCEINLINE const auto& GetPushConstantsSize(const uint32_t Index = 0) const { return m_Specification.PushConstantRanges[Index].size; }
-
-    FORCEINLINE auto& GetPushConstantsSize(const uint32_t Index = 0) { return m_Specification.PushConstantRanges[Index].size; }
-
-    FORCEINLINE const auto& GetSpecification() const { return m_Specification; }
+    FORCEINLINE const auto& GetPushConstantsSize(const uint32_t Index = 0) { return m_Specification.PushConstantRanges[Index].size; }
+    FORCEINLINE const auto& GetSpecification() { return m_Specification; }
 
   private:
-    VkPipeline m_Pipeline = VK_NULL_HANDLE;
     PipelineSpecification m_Specification;
-
+    VkPipeline m_Pipeline             = VK_NULL_HANDLE;
+    VkPipelineCache m_Cache           = VK_NULL_HANDLE;
     VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
 
     void CreatePipelineLayout();
