@@ -28,7 +28,7 @@ VulkanShader::VulkanShader(const std::string_view& InFilePath)
     m_ShaderModule        = LoadShaderModule(ShaderCode);
 }
 
-void VulkanShader::DestroyModule()
+void VulkanShader::Destroy()
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");

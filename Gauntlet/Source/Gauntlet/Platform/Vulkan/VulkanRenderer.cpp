@@ -117,44 +117,38 @@ void VulkanRenderer::Create()
 
     PipelineSpec.DescriptorSetLayouts = {s_Data.MeshDescriptorSetLayout};
     s_Data.MeshPipeline.reset(new VulkanPipeline(PipelineSpec));
-    m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshPipeline->Invalidate(); });
     m_Context.AddSwapchainResizeCallback(
         [this]
         {
             s_Data.PostProcessFramebuffer->GetSpec().Width  = m_Context.GetSwapchain()->GetImageExtent().width;
             s_Data.PostProcessFramebuffer->GetSpec().Height = m_Context.GetSwapchain()->GetImageExtent().height;
             s_Data.PostProcessFramebuffer->Invalidate();
-            LOG_INFO("PPFB Resize: (%u, %u)", s_Data.PostProcessFramebuffer->GetSpec().Width,
+            LOG_INFO("PostProcessFramebuffer Resize: (%u, %u)", s_Data.PostProcessFramebuffer->GetSpec().Width,
                      s_Data.PostProcessFramebuffer->GetSpec().Height);
         });
 
     PipelineSpec.Name        = "Mesh3D-Wireframe";
     PipelineSpec.PolygonMode = EPolygonMode::POLYGON_MODE_LINE;
     s_Data.MeshWireframePipeline.reset(new VulkanPipeline(PipelineSpec));
-    m_Context.AddSwapchainResizeCallback([this] { s_Data.MeshWireframePipeline->Invalidate(); });
 
     SetupSkybox();
-
-    // Replace with reserve
 
     const VkDeviceSize CameraDataBufferSize = sizeof(CameraDataBuffer);
     s_Data.UniformCameraDataBuffers.resize(FRAMES_IN_FLIGHT);
     s_Data.MappedUniformCameraDataBuffers.resize(FRAMES_IN_FLIGHT);
 
+    const VkDeviceSize PhongModelBufferSize = sizeof(LightingModelBuffer);
+    s_Data.UniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
+    s_Data.MappedUniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
+        // Camera
         BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, CameraDataBufferSize, s_Data.UniformCameraDataBuffers[i],
                                   VMA_MEMORY_USAGE_CPU_ONLY);
 
         s_Data.MappedUniformCameraDataBuffers[i] = m_Context.GetAllocator()->Map(s_Data.UniformCameraDataBuffers[i].Allocation);
-    }
 
-    const VkDeviceSize PhongModelBufferSize = sizeof(LightingModelBuffer);
-    s_Data.UniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
-    s_Data.MappedUniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
-
-    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
-    {
+        // Lighting
         BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, PhongModelBufferSize, s_Data.UniformPhongModelBuffers[i],
                                   VMA_MEMORY_USAGE_CPU_ONLY);
 
@@ -179,8 +173,7 @@ void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
 
 void VulkanRenderer::BeginImpl()
 {
-    Renderer::GetStats().DrawCalls   = 0;
-    s_Data.CurrentDescriptorSetIndex = 0;
+    Renderer::GetStats().DrawCalls = 0;
 
     s_Data.CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
@@ -188,6 +181,18 @@ void VulkanRenderer::BeginImpl()
     s_Data.CurrentCommandBuffer->BeginDebugLabel("3D", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
     s_Data.PostProcessFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
 
+    s_Data.MeshLightingModelBuffer.Gamma = s_RendererSettings.Gamma;
+    {
+        // Reset all the light sources to default values in case we deleted them, because in the next frame they will be added to buffer if
+        // they weren't removed.
+        s_Data.MeshLightingModelBuffer.DirLight = DirectionalLight();
+
+        for (uint32_t i = 0; i < s_Data.CurrentPointLightIndex; ++i)
+            s_Data.MeshLightingModelBuffer.PointLights[i] = PointLight();
+
+        memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
+               sizeof(LightingModelBuffer));
+    }
     s_Data.CurrentPointLightIndex = 0;
 }
 
@@ -229,7 +234,6 @@ void VulkanRenderer::AddPointLightImpl(const glm::vec3& Position, const glm::vec
                                        const glm::vec3& CLQ)
 {
     if (s_Data.CurrentPointLightIndex >= s_MAX_POINT_LIGHTS) return;
-    s_Data.MeshLightingModelBuffer.Gamma = s_RendererSettings.Gamma;
 
     s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Position = glm::vec4(Position, 0.0f);
     s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Color    = glm::vec4(Color, 0.0f);
@@ -314,7 +318,6 @@ void VulkanRenderer::SetupSkybox()
 
     PipelineSpec.DescriptorSetLayouts = {s_Data.SkyboxDescriptorSetLayout};
     s_Data.SkyboxPipeline.reset(new VulkanPipeline(PipelineSpec));
-    m_Context.AddSwapchainResizeCallback([this] { s_Data.SkyboxPipeline->Invalidate(); });
 
     GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(&s_Data.SkyboxDescriptorSet, s_Data.SkyboxDescriptorSetLayout),
                "Failed to allocate descriptor sets!");
@@ -363,8 +366,8 @@ void VulkanRenderer::DestroySkybox()
 {
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.SkyboxDescriptorSetLayout, nullptr);
 
-    s_Data.SkyboxVertexShader->DestroyModule();
-    s_Data.SkyboxFragmentShader->DestroyModule();
+    s_Data.SkyboxVertexShader->Destroy();
+    s_Data.SkyboxFragmentShader->Destroy();
     s_Data.SkyboxPipeline->Destroy();
 
     s_Data.DefaultSkybox->Destroy();
@@ -402,8 +405,8 @@ void VulkanRenderer::Destroy()
 
     s_Data.MeshWireframePipeline->Destroy();
     s_Data.MeshPipeline->Destroy();
-    s_Data.MeshVertexShader->DestroyModule();
-    s_Data.MeshFragmentShader->DestroyModule();
+    s_Data.MeshVertexShader->Destroy();
+    s_Data.MeshFragmentShader->Destroy();
     s_Data.MeshWhiteTexture->Destroy();
     s_Data.CurrentCommandBuffer = nullptr;
 

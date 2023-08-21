@@ -1,4 +1,4 @@
-@echo off
+::@echo off
 
 set dirsToRemove=*.vs Intermediate Binaries
 set filesToRemove=*.sln *.vcxproj *.vcxproj.user *.vcxproj.filters
@@ -33,12 +33,9 @@ cd ../
 
 cd ../../
 
-cd Assets/Shaders
-ClearShaders.bat
-cd ../Cached/Pipelines
+cd Assets
+ClearCache.bat
+cd ../
 
-ClearPipelines.bat
-cd ../../../
-
-#PAUSE
-#echo %cd%
+echo %cd%
+::PAUSE

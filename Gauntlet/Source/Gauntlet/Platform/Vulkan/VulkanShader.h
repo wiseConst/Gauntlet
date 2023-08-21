@@ -6,6 +6,8 @@
 namespace Gauntlet
 {
 
+// TODO: Add shader cache simple asf
+
 class VulkanShader final : public Shader
 {
   public:
@@ -13,7 +15,7 @@ class VulkanShader final : public Shader
     ~VulkanShader() = default;
 
     FORCEINLINE const auto& GetModule() const { return m_ShaderModule; }
-    void DestroyModule();
+    void Destroy();
 
   private:
     VkShaderModule m_ShaderModule;

@@ -54,11 +54,12 @@ void VulkanFramebuffer::Invalidate()
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
-    const auto& Swapchain  = Context.GetSwapchain();
-    const auto ImageExtent = VkExtent2D{m_Specification.Width, m_Specification.Height};
-    const bool bHasDepth   = m_Specification.DepthLoadOp != ELoadOp::DONT_CARE || m_Specification.DepthStoreOp != EStoreOp::DONT_CARE;
+    const auto& Swapchain     = Context.GetSwapchain();
+    const auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
+    const auto ImageExtent    = VkExtent2D{m_Specification.Width, m_Specification.Height};
+    const bool bHasDepth      = m_Specification.DepthLoadOp != ELoadOp::DONT_CARE || m_Specification.DepthStoreOp != EStoreOp::DONT_CARE;
 
-    if (m_ColorAttachments.size() == 0)
+    if (m_ColorAttachments.empty())
     {
         for (uint32_t i = 0; i < Swapchain->GetImageCount(); ++i)
         {
@@ -87,22 +88,26 @@ void VulkanFramebuffer::Invalidate()
 
     if (m_RenderPass)
     {
-        Destroy();
+        for (auto& Framebuffer : m_Framebuffers)
+            vkDestroyFramebuffer(LogicalDevice, Framebuffer, nullptr);
 
         for (uint32_t i = 0; i < Swapchain->GetImageCount(); ++i)
         {
+            m_ColorAttachments[i]->Destroy();
             m_ColorAttachments[i]->SetExtent(ImageExtent);
             m_ColorAttachments[i]->Create();
         }
 
         if (bHasDepth)
         {
+            m_DepthAttachment->Destroy();
             m_DepthAttachment->SetExtent(ImageExtent);
             m_DepthAttachment->Create();
         }
     }
 
     // RenderPass creation
+    if (!m_RenderPass)
     {
         std::vector<VkAttachmentDescription> Attachments(1);
         // Color Attachment
@@ -146,7 +151,7 @@ void VulkanFramebuffer::Invalidate()
         }
         SubpassDesc.pColorAttachments = &AttachmentRefs[0];
 
-        /* Some explanatio about subpass dependency
+        /* Some explanation about subpass dependency
          * srcSubpass:
          * Index of subpass we depend on(current subpass won't start until srcSubpass has finished execution)
          * If we wanted to depend on a subpass that's part of a previous RenderPass, we could just pass in VK_SUBPASS_EXTERNAL here
@@ -202,8 +207,7 @@ void VulkanFramebuffer::Invalidate()
         RenderPassCreateInfo.subpassCount           = 1;
         RenderPassCreateInfo.pSubpasses             = &SubpassDesc;
 
-        VK_CHECK(vkCreateRenderPass(Context.GetDevice()->GetLogicalDevice(), &RenderPassCreateInfo, nullptr, &m_RenderPass),
-                 "Failed to create render pass!");
+        VK_CHECK(vkCreateRenderPass(LogicalDevice, &RenderPassCreateInfo, nullptr, &m_RenderPass), "Failed to create render pass!");
     }
 
     // Framebuffers creation
@@ -267,13 +271,13 @@ void VulkanFramebuffer::Destroy()
 
     if (m_DepthAttachment) m_DepthAttachment->Destroy();
 
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
+    auto& Context           = (VulkanContext&)VulkanContext::Get();
+    VkDevice& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
 
-    vkDestroyRenderPass(Context.GetDevice()->GetLogicalDevice(), m_RenderPass, nullptr);
+    vkDestroyRenderPass(LogicalDevice, m_RenderPass, nullptr);
 
     for (auto& Framebuffer : m_Framebuffers)
-        vkDestroyFramebuffer(Context.GetDevice()->GetLogicalDevice(), Framebuffer, nullptr);
+        vkDestroyFramebuffer(LogicalDevice, Framebuffer, nullptr);
 }
 
 const uint32_t VulkanFramebuffer::GetWidth() const

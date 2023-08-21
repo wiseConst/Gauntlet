@@ -33,10 +33,7 @@ class VulkanRenderer final : public Renderer
         Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
 
         BufferLayout MeshVertexBufferLayout;
-
         VkDescriptorSetLayout MeshDescriptorSetLayout = VK_NULL_HANDLE;
-        std::vector<VkDescriptorSet> MeshDescriptorSets;
-        uint32_t CurrentDescriptorSetIndex = 0;
 
         // Camera UBO
         std::vector<AllocatedBuffer> UniformCameraDataBuffers;

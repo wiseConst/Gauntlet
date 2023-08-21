@@ -129,8 +129,6 @@ void VulkanRenderer2D::Create()
         s_Data2D.QuadPipeline.reset(new VulkanPipeline(PipelineSpec));
     }
 
-    m_Context.AddSwapchainResizeCallback([this] { s_Data2D.QuadPipeline->Invalidate(); });
-
     // Initially 1 staging buffer
     Scoped<VulkanStagingStorage::StagingBuffer> QuadVertexStagingBuffer(new VulkanStagingStorage::StagingBuffer());
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data2D.DefaultVertexBufferSize, (*QuadVertexStagingBuffer).Buffer);
@@ -422,8 +420,8 @@ void VulkanRenderer2D::Destroy()
     delete[] s_Data2D.QuadVertexBufferBase;
     s_Data2D.QuadWhiteTexture->Destroy();
     s_Data2D.QuadPipeline->Destroy();
-    s_Data2D.VertexShader->DestroyModule();
-    s_Data2D.FragmentShader->DestroyModule();
+    s_Data2D.VertexShader->Destroy();
+    s_Data2D.FragmentShader->Destroy();
 
     s_Data2D.QuadIndexBuffer->Destroy();
 

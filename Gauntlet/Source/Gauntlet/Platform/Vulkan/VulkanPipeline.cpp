@@ -11,7 +11,6 @@
 
 namespace Gauntlet
 {
-#define PIPELINE_CACHE 1
 
 static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology InPrimitiveTopology)
 {
@@ -93,6 +92,7 @@ void VulkanPipeline::Invalidate()
     if (m_Pipeline) Destroy();
 
     CreatePipelineLayout();
+
     const float PipelineCreationBegin = Application::Get().GetTimeNow();
     CreatePipeline();
     const float PipelineCreationEnd = Application::Get().GetTimeNow();
@@ -124,11 +124,10 @@ void VulkanPipeline::CreatePipeline()
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
-#if PIPELINE_CACHE
-    // Creating cache
+    // Creating pipeline cache
     {
         std::vector<uint8_t> CacheData = Utility::LoadPipelineCacheFromDisk(
-            Context.GetDevice()->GetLogicalDevice(), std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cached");
+            Context.GetDevice()->GetLogicalDevice(), std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cache");
 
         VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
         PipelineCacheCreateInfo.initialDataSize           = CacheData.size();
@@ -137,7 +136,6 @@ void VulkanPipeline::CreatePipeline()
         VK_CHECK(vkCreatePipelineCache(Context.GetDevice()->GetLogicalDevice(), &PipelineCacheCreateInfo, nullptr, &m_Cache),
                  "Failed to create pipeline cache!");
     }
-#endif
 
     // Contains the configuration for what kind of topology will be drawn.
     VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
@@ -289,13 +287,11 @@ void VulkanPipeline::Destroy()
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
     auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
 
-#if PIPELINE_CACHE
     GNT_ASSERT(Utility::DropPipelineCacheToDisk(
-                   LogicalDevice, m_Cache, std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cached") == VK_TRUE,
+                   LogicalDevice, m_Cache, std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
                "Failed to save pipeline cache to disk!");
 
     vkDestroyPipelineCache(LogicalDevice, m_Cache, nullptr);
-#endif
 
     vkDestroyPipelineLayout(LogicalDevice, m_PipelineLayout, nullptr);
     vkDestroyPipeline(LogicalDevice, m_Pipeline, nullptr);

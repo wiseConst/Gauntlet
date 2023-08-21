@@ -52,9 +52,9 @@ vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 UnitN
 	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
 	const vec3 DiffuseColor = DiffuseFactor * vec3(DirLight.Color);
 
-	// Specular
-	const vec3 ReflectDir = reflect(-NormalizedLightDirection, UnitNormal);
-	const float SpecularFactor = pow(max(dot(-InViewVector, ReflectDir), 0.0), DirLight.AmbientSpecularShininess.z);
+	// Specular Blinn-Phong
+	const vec3 HalfwayDir = normalize(-InViewVector + NormalizedLightDirection);
+	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), DirLight.AmbientSpecularShininess.z);
 	const vec3 SpecularColor = DirLight.AmbientSpecularShininess.y * SpecularFactor * vec3(DirLight.Color);  
 
 	return AmbientColor + DiffuseColor + SpecularColor;
@@ -71,9 +71,9 @@ vec3 CalculatePointLightColor(PointLight InPointLight, const vec3 UnitNormal) {
 	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
 	const vec3 DiffuseColor = DiffuseFactor * vec3(InPointLight.Color);
 	
-	// Specular
-	const vec3 ReflectDir = reflect(-NormalizedLightDirection, UnitNormal);
-	const float SpecularFactor = pow(max(dot(-InViewVector, ReflectDir), 0.0), InPointLight.AmbientSpecularShininess.z);
+	// Specular Blinn-Phong
+	const vec3 HalfwayDir = normalize(-InViewVector + NormalizedLightDirection);
+	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), InPointLight.AmbientSpecularShininess.z);
 	const vec3 SpecularColor = InPointLight.AmbientSpecularShininess.y * SpecularFactor * vec3(InPointLight.Color);  
 	
 	// Attenuation based on distance

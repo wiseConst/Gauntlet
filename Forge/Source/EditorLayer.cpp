@@ -204,7 +204,7 @@ void EditorLayer::OnImGuiRender()
     auto& rs = Renderer::GetSettings();
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("VSync", &rs.VSync);
-    ImGui::DragFloat("Gamma", &rs.Gamma, 0.1f, 1.0f, 5.0f, "%.2f");
+    ImGui::DragFloat("Gamma", &rs.Gamma, 0.1f, 1.0f, 2.2f, "%.1f");
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();
@@ -295,5 +295,8 @@ void EditorLayer::UpdateViewportSize()
         m_EditorCamera->GetViewportWidth() != m_ViewportSize.x || m_EditorCamera->GetViewportHeight() != m_ViewportSize.y;
     const auto bIsViewportValid = m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f;
 
-    if (bNeedViewportResize && bIsViewportValid) m_EditorCamera->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+    if (bNeedViewportResize && bIsViewportValid)
+    {
+        m_EditorCamera->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+    }
 }
