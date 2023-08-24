@@ -5,19 +5,17 @@
 
 #include <imgui/imgui.h>
 
-#include <glm/glm.hpp>
-
 namespace Gauntlet
 {
 
 class ImGuiLayer : public Layer
 {
   public:
-    ImGuiLayer(const std::string_view& DebugName) : Layer(DebugName) {}
+    ImGuiLayer(const std::string_view& debugName) : Layer(debugName) {}
     ImGuiLayer()          = default;
     virtual ~ImGuiLayer() = default;
 
-    virtual void OnUpdate(const float DeltaTime) = 0;
+    virtual void OnUpdate(const float deltaTime) = 0;
     virtual void OnEvent(Event& event)           = 0;
     virtual void OnImGuiRender()                 = 0;
 

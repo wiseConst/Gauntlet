@@ -10,9 +10,9 @@ namespace Gauntlet
 
 constexpr static uint32_t s_MaxCubeMapImages = 6;
 
-VulkanTextureCube::VulkanTextureCube(const std::vector<std::string>& InFaces) : m_Faces(InFaces)
+VulkanTextureCube::VulkanTextureCube(const std::vector<std::string>& faces) : m_Faces(faces)
 {
-    GNT_ASSERT(InFaces.size() == s_MaxCubeMapImages, "Cube maps size should be 6!");
+    GNT_ASSERT(faces.size() == s_MaxCubeMapImages, "Cube maps size should be 6!");
     Create();
 }
 

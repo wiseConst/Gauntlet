@@ -7,32 +7,32 @@
 
 namespace Gauntlet
 {
-void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags InCommandBufferUsageFlags) const
+void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags) const
 {
     VkCommandBufferBeginInfo CommandBufferBeginInfo = {};
     CommandBufferBeginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    CommandBufferBeginInfo.flags                    = InCommandBufferUsageFlags;
+    CommandBufferBeginInfo.flags                    = commandBufferUsageFlags;
 
     VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &CommandBufferBeginInfo), "Failed to begin command buffer recording!");
 }
 
-void VulkanCommandBuffer::BeginDebugLabel(const char* InCommandBufferLabelName, const glm::vec4& InLabelColor) const
+void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const
 {
     if (s_bEnableValidationLayers)
     {
         VkDebugUtilsLabelEXT CommandBufferLabelEXT = {};
         CommandBufferLabelEXT.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        CommandBufferLabelEXT.pLabelName           = InCommandBufferLabelName;
-        CommandBufferLabelEXT.color[0]             = InLabelColor.r;
-        CommandBufferLabelEXT.color[1]             = InLabelColor.g;
-        CommandBufferLabelEXT.color[2]             = InLabelColor.b;
-        CommandBufferLabelEXT.color[3]             = InLabelColor.a;
+        CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;
+        CommandBufferLabelEXT.color[0]             = labelColor.r;
+        CommandBufferLabelEXT.color[1]             = labelColor.g;
+        CommandBufferLabelEXT.color[2]             = labelColor.b;
+        CommandBufferLabelEXT.color[3]             = labelColor.a;
 
         vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
     }
 }
 
-void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& InPipeline, VkPipelineBindPoint InPipelineBindPoint) const
+void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint) const
 {
     auto& Context         = (VulkanContext&)VulkanContext::Get();
     const auto& Swapchain = Context.GetSwapchain();
@@ -48,17 +48,17 @@ void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& InPipeline, Vk
     Viewport.height = -static_cast<float>(Swapchain->GetImageExtent().height);
 
     VkRect2D Scissor = {{0, 0}, Swapchain->GetImageExtent()};
-    if (InPipeline->GetSpecification().TargetFramebuffer)
+    if (pipeline->GetSpecification().TargetFramebuffer)
     {
-        Scissor.extent = VkExtent2D(InPipeline->GetSpecification().TargetFramebuffer->GetWidth(),
-                                    InPipeline->GetSpecification().TargetFramebuffer->GetHeight());
+        Scissor.extent = VkExtent2D(pipeline->GetSpecification().TargetFramebuffer->GetWidth(),
+                                    pipeline->GetSpecification().TargetFramebuffer->GetHeight());
 
         Viewport.y      = static_cast<float>(Scissor.extent.height);
         Viewport.width  = static_cast<float>(Scissor.extent.width);
         Viewport.height = -static_cast<float>(Scissor.extent.height);
     }
 
-    vkCmdBindPipeline(m_CommandBuffer, InPipelineBindPoint, InPipeline->Get());
+    vkCmdBindPipeline(m_CommandBuffer, pipelineBindPoint, pipeline->Get());
     vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);
     vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
 }

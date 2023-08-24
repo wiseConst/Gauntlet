@@ -25,6 +25,8 @@ class VulkanRenderer final : public Renderer
     {
         // Framebuffers && RenderPasses
         Ref<VulkanFramebuffer> PostProcessFramebuffer = nullptr;
+        bool bFramebuffersNeedResize                  = {false};
+        glm::vec2 NewFramebufferSize                  = {0.0f, 0.0f};
 
         // Mesh
         Ref<VulkanPipeline> MeshPipeline      = nullptr;
@@ -72,16 +74,18 @@ class VulkanRenderer final : public Renderer
     void Create() final override;
     void Destroy() final override;
 
-    void AddPointLightImpl(const glm::vec3& Position, const glm::vec3& Color, const glm::vec3& AmbientSpecularShininess,
+    void AddPointLightImpl(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
                            const glm::vec3& CLQ) final override;
-    void AddDirectionalLightImpl(const glm::vec3& Color, const glm::vec3& Direction,
+    void AddDirectionalLightImpl(const glm::vec3& color, const glm::vec3& direction,
                                  const glm::vec3& AmbientSpecularShininess) final override;
 
-    void BeginSceneImpl(const PerspectiveCamera& InCamera) final override;
-    void SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix) final override;
+    void BeginSceneImpl(const PerspectiveCamera& camera) final override;
+    void EndSceneImpl() final override;
+    void SubmitMeshImpl(const Ref<Mesh>& mesh, const glm::mat4& transform) final override;
 
     void BeginImpl() final override;
     void FlushImpl() final override;
+    void ResizeFramebuffersImpl(uint32_t width, uint32_t height) final override;
 
     const Ref<Image> GetFinalImageImpl() final override;
 

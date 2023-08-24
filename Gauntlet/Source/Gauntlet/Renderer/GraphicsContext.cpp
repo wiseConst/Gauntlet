@@ -7,14 +7,14 @@ namespace Gauntlet
 {
 GraphicsContext* GraphicsContext::s_Context = nullptr;
 
-GraphicsContext* GraphicsContext::Create(Scoped<Window>& InWindow)
+GraphicsContext* GraphicsContext::Create(Scoped<Window>& window)
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
             LOG_INFO("RHI: Vulkan");
-            return new VulkanContext(InWindow);
+            return new VulkanContext(window);
         }
         case RendererAPI::EAPI::None:
         {

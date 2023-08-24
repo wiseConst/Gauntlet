@@ -24,15 +24,15 @@ static void GLFWErrorCallback(int error, const char* description)
     LOG_ERROR("GLFW Error (%d: %s)", error, description);
 }
 
-Window* Window::Create(const WindowSpecification& InWindowSpec)
+Window* Window::Create(const WindowSpecification& windowSpec)
 {
-    return new WindowsWindow(InWindowSpec);
+    return new WindowsWindow(windowSpec);
 }
 
-WindowsWindow::WindowsWindow(const WindowSpecification& InWindowSpec) : Window(InWindowSpec)
+WindowsWindow::WindowsWindow(const WindowSpecification& windowSpec) : Window(windowSpec)
 {
     Init();
-    m_IsRunning = true;
+    m_bIsRunning = true;
 }
 
 void WindowsWindow::Init()
@@ -185,9 +185,8 @@ void WindowsWindow::OnUpdate()
     {
         auto& Context = GraphicsContext::Get();
         Context.SwapBuffers();
+        SetVSync(Renderer::GetSettings().VSync);
     }
-
-    SetVSync(Renderer::GetSettings().VSync);
 }
 
 void WindowsWindow::HandleMinimized()
@@ -201,12 +200,12 @@ void WindowsWindow::HandleMinimized()
     }
 }
 
-void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
+void WindowsWindow::SetWindowLogo(const std::string_view& filePath)
 {
     int32_t Width    = 0;
     int32_t Height   = 0;
     int32_t Channels = 0;
-    stbi_uc* Pixels  = ImageUtils::LoadImageFromFile(InFilePath.data(), &Width, &Height, &Channels, false);
+    stbi_uc* Pixels  = ImageUtils::LoadImageFromFile(filePath.data(), &Width, &Height, &Channels, false);
 
     GLFWimage IconImage = {};
     IconImage.pixels    = Pixels;
@@ -217,21 +216,21 @@ void WindowsWindow::SetWindowLogo(const std::string_view& InFilePath)
     ImageUtils::UnloadImage(Pixels);
 }
 
-void WindowsWindow::SetVSync(bool IsVsync)
+void WindowsWindow::SetVSync(bool bIsVsync)
 {
-    if (m_IsVSync == IsVsync) return;
-    m_IsVSync = IsVsync;
+    if (m_bIsVSync == bIsVsync) return;
+    m_bIsVSync = bIsVsync;
 
     auto& Context = GraphicsContext::Get();
-    Context.SetVSync(IsVsync);
+    Context.SetVSync(bIsVsync);
 }
 
-void WindowsWindow::SetWindowTitle(const std::string_view& InTitle)
+void WindowsWindow::SetWindowTitle(const std::string_view& title)
 {
-    GNT_ASSERT(InTitle.data(), "Window title is not valid!");
+    GNT_ASSERT(title.data(), "Window title is not valid!");
 
-    glfwSetWindowTitle(m_Window, InTitle.data());
-    m_WindowSpec.Title = InTitle;
+    glfwSetWindowTitle(m_Window, title.data());
+    m_WindowSpec.Title = title;
 }
 
 void WindowsWindow::Shutdown()

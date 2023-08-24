@@ -20,14 +20,14 @@ void Log::Shutdown()
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
 }
 
-void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
+void Log::Output(ELogLevel logLevel, const char* message, ...)
 {
     std::scoped_lock m_Lock(s_LogMutex);
     const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: "};
 
     auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
     int32_t LevelIndex = 0;
-    switch (InLogLevel)
+    switch (logLevel)
     {
         case ELogLevel::LL_FATAL:
         {
@@ -64,8 +64,8 @@ void Log::Output(ELogLevel InLogLevel, const char* InMessage, ...)
     char FormattedMessage[OUT_MESSAGE_LENGTH] = {0};
 
     va_list args;
-    va_start(args, InMessage);
-    vsnprintf(FormattedMessage, OUT_MESSAGE_LENGTH, InMessage, args);
+    va_start(args, message);
+    vsnprintf(FormattedMessage, OUT_MESSAGE_LENGTH, message, args);
     va_end(args);
 
     // Get global UTC time

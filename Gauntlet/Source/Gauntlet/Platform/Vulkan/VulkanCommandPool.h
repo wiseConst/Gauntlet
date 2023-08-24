@@ -20,7 +20,7 @@ struct CommandPoolSpecification
     CommandPoolSpecification() : QueueFamilyIndex(UINT32_MAX), CommandPoolUsage(ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE) {}
     CommandPoolSpecification(const CommandPoolSpecification&) = default;
 
-    static VkCommandPoolCreateFlags ConvertCommandPoolUsageFlagsToVulkan(ECommandPoolUsage InCommandPoolUsage)
+    static VkCommandPoolCreateFlags ConvertCommandPoolUsageFlagsToVulkan(ECommandPoolUsage commandPoolUsage)
     {
         /* Command buffer flags:
          *   1) VK_COMMAND_POOL_CREATE_TRANSIENT_BIT:
@@ -34,7 +34,7 @@ struct CommandPoolSpecification
          * pool.
          */
 
-        switch (InCommandPoolUsage)
+        switch (commandPoolUsage)
         {
             case ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE: return VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
             case ECommandPoolUsage::COMMAND_POOL_TRANSFER_USAGE:
@@ -52,7 +52,7 @@ struct CommandPoolSpecification
 class VulkanCommandPool final : private Uncopyable, private Unmovable
 {
   public:
-    VulkanCommandPool(const CommandPoolSpecification& InCommandPoolSpecification);
+    VulkanCommandPool(const CommandPoolSpecification& commandPoolSpecification);
     VulkanCommandPool()  = delete;
     ~VulkanCommandPool() = default;
 

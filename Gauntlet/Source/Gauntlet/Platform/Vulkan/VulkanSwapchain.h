@@ -18,7 +18,7 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     using ResizeCallback = std::function<void()>;
 
   public:
-    VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface);
+    VulkanSwapchain(Scoped<VulkanDevice>& device, VkSurfaceKHR& surface);
     ~VulkanSwapchain() = default;
 
     FORCEINLINE bool IsValid() const { return m_Swapchain && m_SwapchainImages.size() > 0; }
@@ -38,21 +38,18 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
 
     FORCEINLINE const auto& GetRenderPass() { return m_RenderPass; }
 
-    FORCEINLINE void SetClearColor(const glm::vec4& InClearColor)
-    {
-        m_ClearColor = {InClearColor.r, InClearColor.g, InClearColor.b, InClearColor.a};
-    }
+    FORCEINLINE void SetClearColor(const glm::vec4& clearColor) { m_ClearColor = {clearColor.r, clearColor.g, clearColor.b, clearColor.a}; }
 
-    void BeginRenderPass(const VkCommandBuffer& InCommandBuffer);
-    FORCEINLINE void EndRenderPass(const VkCommandBuffer& InCommandBuffer) { vkCmdEndRenderPass(InCommandBuffer); }
+    void BeginRenderPass(const VkCommandBuffer& commandBuffer);
+    FORCEINLINE void EndRenderPass(const VkCommandBuffer& commandBuffer) { vkCmdEndRenderPass(commandBuffer); }
 
-    bool TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence = VK_NULL_HANDLE);
-    void PresentImage(const VkSemaphore& InRenderFinishedSemaphore);
+    bool TryAcquireNextImage(const VkSemaphore& imageAcquiredSemaphore, const VkFence& fence = VK_NULL_HANDLE);
+    void PresentImage(const VkSemaphore& renderFinishedSemaphore);
 
     void Invalidate();
     void Destroy();
 
-    FORCEINLINE void AddResizeCallback(const std::function<void()>& InResizeCallback) { m_ResizeCallbacks.push_back(InResizeCallback); }
+    FORCEINLINE void AddResizeCallback(const std::function<void()>& resizeCallback) { m_ResizeCallbacks.push_back(resizeCallback); }
 
   private:
     std::vector<ResizeCallback> m_ResizeCallbacks;

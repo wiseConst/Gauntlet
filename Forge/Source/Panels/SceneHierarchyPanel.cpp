@@ -9,17 +9,16 @@
 
 namespace Gauntlet
 {
-static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, const float InResetValue = 0.0f,
-                            const float InColumnWidth = 100.0f)
+static void DrawVec3Control(const std::string& label, glm::vec3& values, const float resetValue = 0.0f, const float columnWidth = 100.0f)
 {
     ImGuiIO& io   = ImGui::GetIO();
     auto BoldFont = io.Fonts->Fonts[1];
 
-    ImGui::PushID(InLabel.data());
+    ImGui::PushID(label.data());
     ImGui::Columns(2);  // First for label, second for values
 
-    ImGui::SetColumnWidth(0, InColumnWidth);  // Label width
-    ImGui::Text(InLabel.data());
+    ImGui::SetColumnWidth(0, columnWidth);  // Label width
+    ImGui::Text(label.data());
     ImGui::NextColumn();
 
     ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
@@ -33,13 +32,13 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.8f, 0.1f, 0.15f, 1.0f});
 
     ImGui::PushFont(BoldFont);
-    if (ImGui::Button("X", ButtonSize)) InValues.x = InResetValue;
+    if (ImGui::Button("X", ButtonSize)) values.x = resetValue;
     ImGui::PopFont();
 
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
-    ImGui::DragFloat("##X", &InValues.x, 0.05f, 0.0f, 0.0f, "%.2f");
+    ImGui::DragFloat("##X", &values.x, 0.05f, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
     ImGui::SameLine();
 
@@ -48,12 +47,12 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.1f, 0.8f, 0.15f, 1.0f});
 
     ImGui::PushFont(BoldFont);
-    if (ImGui::Button("Y", ButtonSize)) InValues.y = InResetValue;
+    if (ImGui::Button("Y", ButtonSize)) values.y = resetValue;
     ImGui::PopFont();
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
-    ImGui::DragFloat("##Y", &InValues.y, 0.05f, 0.0f, 0.0f, "%.2f");
+    ImGui::DragFloat("##Y", &values.y, 0.05f, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
     ImGui::SameLine();
 
@@ -62,12 +61,12 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.15f, 0.1f, 0.8f, 1.0f});
 
     ImGui::PushFont(BoldFont);
-    if (ImGui::Button("Z", ButtonSize)) InValues.z = InResetValue;
+    if (ImGui::Button("Z", ButtonSize)) values.z = resetValue;
     ImGui::PopFont();
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
-    ImGui::DragFloat("##Z", &InValues.z, 0.05f, 0.0f, 0.0f, "%.2f");
+    ImGui::DragFloat("##Z", &values.z, 0.05f, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
     ImGui::SameLine();
 
@@ -76,9 +75,9 @@ static void DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, con
     ImGui::PopID();
 }
 
-template <typename T, typename UIFunction> static void DrawComponent(const std::string& InLabel, Entity InEntity, UIFunction&& InUIFunction)
+template <typename T, typename UIFunction> static void DrawComponent(const std::string& label, Entity entity, UIFunction&& uiFunction)
 {
-    if (!InEntity.HasComponent<T>()) return;
+    if (!entity.HasComponent<T>()) return;
 
     const ImGuiTreeNodeFlags TreeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
                                              ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
@@ -89,7 +88,7 @@ template <typename T, typename UIFunction> static void DrawComponent(const std::
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{4, 4});
     const float LineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
     ImGui::Separator();
-    const bool bIsOpened = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), TreeNodeFlags, InLabel.data());
+    const bool bIsOpened = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), TreeNodeFlags, label.data());
     ImGui::PopStyleVar();
 
     ImGui::SameLine(ContentRegionAvailable.x - LineHeight * 0.5f);
@@ -105,20 +104,21 @@ template <typename T, typename UIFunction> static void DrawComponent(const std::
 
     if (bIsOpened)
     {
-        auto& Component = InEntity.GetComponent<T>();
-        InUIFunction(Component);
+        auto& Component = entity.GetComponent<T>();
+        uiFunction(Component);
 
         ImGui::TreePop();
     }
 
-    if (bIsRemoved) InEntity.RemoveComponent<T>();
+    if (bIsRemoved) entity.RemoveComponent<T>();
 }
 
-SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& InContext) : m_Context(InContext) {}
+SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context) : m_Context(context) {}
 
-void SceneHierarchyPanel::SetContext(const Ref<Scene>& InContext)
+void SceneHierarchyPanel::SetContext(const Ref<Scene>& context)
 {
-    m_Context = InContext;
+    // TODO: Handle properly reseting prev?
+    m_Context = context;
 }
 
 void SceneHierarchyPanel::OnImGuiRender()
@@ -127,11 +127,12 @@ void SceneHierarchyPanel::OnImGuiRender()
 
     if (m_Context)
     {
-        for (GRECS::Entity ent : GRECS::SceneView(m_Context->m_Registry))
-        {
-            Entity entity{ent, m_Context.get()};
-            DrawEntityNode(entity);
-        }
+        m_Context->m_Registry.each(
+            [&](auto entityID)
+            {
+                Entity entity{entityID, m_Context.get()};
+                DrawEntityNode(entity);
+            });
 
         // Deselection
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && ImGui::IsWindowHovered()) m_SelectionContext = {};
@@ -152,17 +153,17 @@ void SceneHierarchyPanel::OnImGuiRender()
     ImGui::End();
 }
 
-void SceneHierarchyPanel::DrawEntityNode(Entity InEntity)
+void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 {
-    const auto& tag = InEntity.GetComponent<TagComponent>().Tag;
+    auto& tag = entity.GetComponent<TagComponent>();  // Can't get component throws exception
 
-    ImGuiTreeNodeFlags SelectionFlag = m_SelectionContext == InEntity ? ImGuiTreeNodeFlags_Selected : 0;
+    ImGuiTreeNodeFlags SelectionFlag = m_SelectionContext == entity ? ImGuiTreeNodeFlags_Selected : 0;
     const ImGuiTreeNodeFlags flags   = SelectionFlag | (ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth);
-    bool bIsOpened                   = ImGui::TreeNodeEx((void*)(uint64_t)InEntity, flags, tag.data());
+    bool bIsOpened                   = ImGui::TreeNodeEx((void*)(uint64_t)entity, flags, tag.Tag.data());
 
     if (ImGui::IsItemClicked())
     {
-        m_SelectionContext = InEntity;
+        m_SelectionContext = entity;
     }
 
     bool bIsEntityDeleted{false};
@@ -181,16 +182,16 @@ void SceneHierarchyPanel::DrawEntityNode(Entity InEntity)
 
     if (bIsEntityDeleted)
     {
-        m_Context->DestroyEntity(InEntity);
-        if (m_SelectionContext == InEntity) m_SelectionContext = {};
+        m_Context->DestroyEntity(entity);
+        if (m_SelectionContext == entity) m_SelectionContext = {};
     }
 }
 
-void SceneHierarchyPanel::ShowComponents(Entity InEntity)
+void SceneHierarchyPanel::ShowComponents(Entity entity)
 {
-    if (InEntity.HasComponent<TagComponent>())
+    if (entity.HasComponent<TagComponent>())
     {
-        auto& tag = InEntity.GetComponent<TagComponent>().Tag;
+        auto& tag = entity.GetComponent<TagComponent>().Tag;
 
         char name[256];
         memset(name, 0, sizeof(name));
@@ -219,7 +220,7 @@ void SceneHierarchyPanel::ShowComponents(Entity InEntity)
     }
     ImGui::PopItemWidth();
 
-    DrawComponent<TransformComponent>("Transform", InEntity,
+    DrawComponent<TransformComponent>("Transform", entity,
                                       [](auto& tc)
                                       {
                                           DrawVec3Control("Translation", tc.Translation);
@@ -227,9 +228,9 @@ void SceneHierarchyPanel::ShowComponents(Entity InEntity)
                                           DrawVec3Control("Scale", tc.Scale);
                                       });
 
-    DrawComponent<SpriteRendererComponent>("SpriteRenderer", InEntity, [](auto& spc) { ImGui::ColorEdit4("Color", &spc.Color.r); });
+    DrawComponent<SpriteRendererComponent>("SpriteRenderer", entity, [](auto& spc) { ImGui::ColorEdit4("Color", &spc.Color.r); });
 
-    DrawComponent<PointLightComponent>("PointLight", InEntity,
+    DrawComponent<PointLightComponent>("PointLight", entity,
                                        [](auto& lc)
                                        {
                                            ImGui::Separator();
@@ -249,7 +250,7 @@ void SceneHierarchyPanel::ShowComponents(Entity InEntity)
                                            ImGui::DragFloat("Quadratic", &lc.CLQ.z, 0.0005f, 0.0f, 5.0f, "%.6f");
                                        });
 
-    DrawComponent<DirectionalLightComponent>("DirectionalLightComponent", InEntity,
+    DrawComponent<DirectionalLightComponent>("DirectionalLightComponent", entity,
                                              [](auto& dlc)
                                              {
                                                  ImGui::Separator();
@@ -267,7 +268,7 @@ void SceneHierarchyPanel::ShowComponents(Entity InEntity)
                                                  ImGui::DragFloat("Shininess", &dlc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
                                              });
 
-    DrawComponent<MeshComponent>("Mesh", InEntity,
+    DrawComponent<MeshComponent>("Mesh", entity,
                                  [](auto& mc)
                                  {
                                      for (uint32_t i = 0; i < mc.Mesh->GetSubmeshCount(); ++i)

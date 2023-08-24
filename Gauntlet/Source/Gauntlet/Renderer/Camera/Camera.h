@@ -21,8 +21,8 @@ class Camera : private Uncopyable, private Unmovable
   public:
     Camera() = default;
 
-    virtual void OnUpdate(const float DeltaTime) = 0;
-    virtual void OnEvent(Event& InEvent)         = 0;
+    virtual void OnUpdate(const float deltaTime) = 0;
+    virtual void OnEvent(Event& event)         = 0;
 
     FORCEINLINE const auto& GetPosition() const { return m_Position; }
     FORCEINLINE const auto& GetViewMatrix() const { return m_ViewMatrix; }
@@ -31,17 +31,17 @@ class Camera : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetRotation() const { return m_Rotation; }
     FORCEINLINE const auto GetAspectRatio() const { return m_AspectRatio; }
 
-    FORCEINLINE void SetPosition(const glm::vec3& InPosition)
+    FORCEINLINE void SetPosition(const glm::vec3& position)
     {
-        m_Position = InPosition;
+        m_Position = position;
         RecalculateViewMatrix();
     }
 
-    FORCEINLINE void SetRotation(const glm::vec3& InRotation)
+    FORCEINLINE void SetRotation(const glm::vec3& rotation)
     {
-        if (InRotation.z > 180.0f)
+        if (rotation.z > 180.0f)
             m_Rotation -= 360.0f;
-        else if (InRotation.z <= -180.0f)
+        else if (rotation.z <= -180.0f)
             m_Rotation += 360.0f;
 
         RecalculateViewMatrix();
@@ -58,10 +58,9 @@ class Camera : private Uncopyable, private Unmovable
     float m_CameraTranslationSpeed = 1.0f;
     float m_CameraRotationSpeed    = 180.0f;
 
-    Camera(const float InAspectRatio = 0.0f)
-        : m_AspectRatio(InAspectRatio), m_ProjectionMatrix(glm::mat4(1.f)), m_ViewMatrix(glm::mat4(1.f))
+    Camera(const float aspectRatio = 0.0f) : m_AspectRatio(aspectRatio), m_ProjectionMatrix(glm::mat4(1.f)), m_ViewMatrix(glm::mat4(1.f))
     {
-        if (InAspectRatio == 0.0f)
+        if (aspectRatio == 0.0f)
         {
             m_AspectRatio = Application::Get().GetWindow()->GetAspectRatio();
         }

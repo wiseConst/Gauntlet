@@ -17,15 +17,17 @@ IncludeDir["vma"] =      "Gauntlet/vendor/vma/include"
 IncludeDir["stb"] =      "Gauntlet/vendor/stb"
 IncludeDir["glm"] =      "Gauntlet/vendor/glm"
 IncludeDir["assimp"] =   "Gauntlet/vendor/assimp"
+IncludeDir["entt"] =     "Gauntlet/vendor/entt/single_include"
+IncludeDir["json"] =     "Gauntlet/vendor/json/single_include" 
 
 Binaries = {}
-Binaries["Assimp_Debug"] =   "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
-Binaries["Assimp_Release"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.dll"
+Binaries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
+Binaries["Assimp_Release"] =        "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.dll"
 Binaries["Assimp_RelWithDebInfo"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.dll"
 
 Libraries = {}
-Libraries["Assimp_Debug"] =   "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.lib"
-Libraries["Assimp_Release"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
+Libraries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.lib"
+Libraries["Assimp_Release"] =        "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
 Libraries["Assimp_RelWithDebInfo"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
 
 group "Dependencies"
@@ -65,7 +67,9 @@ project "Gauntlet"
         "%{IncludeDir.stb}",
         "%{IncludeDir.VULKAN}/Include",
         "%{IncludeDir.vma}/Include",
-        "%{IncludeDir.assimp}/Include"
+        "%{IncludeDir.assimp}/Include",
+        "%{IncludeDir.entt}",
+        "%{IncludeDir.json}"
     }
 
     links
@@ -115,13 +119,16 @@ project "Forge"
 
     files 
     {
-        "%{prj.name}/Source/**.h","%{prj.name}/Source/**.cpp"
+        "%{prj.name}/Source/**.h",
+        "%{prj.name}/Source/**.cpp"
     }
 
     includedirs
     {
         "Forge/Source",
         "%{IncludeDir.glm}",
+        "%{IncludeDir.entt}",
+        "%{IncludeDir.json}",
 		"Gauntlet/vendor",
 		"Gauntlet/Source"
     }

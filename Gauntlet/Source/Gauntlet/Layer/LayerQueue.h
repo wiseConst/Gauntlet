@@ -27,13 +27,13 @@ class LayerQueue final : private Uncopyable, private Unmovable
         }
     }
 
-    FORCEINLINE void OnUpdate(const float DeltaTime)
+    FORCEINLINE void OnUpdate(const float deltaTime)
     {
         for (auto* Layer : m_Queue)
         {
             if (!Layer) continue;
 
-            Layer->OnUpdate(DeltaTime);
+            Layer->OnUpdate(deltaTime);
         }
     }
 
@@ -47,11 +47,11 @@ class LayerQueue final : private Uncopyable, private Unmovable
         }
     }
 
-    FORCEINLINE void Enqueue(Layer* InLayer)
+    FORCEINLINE void Enqueue(Layer* layer)
     {
-        GNT_ASSERT(InLayer, "Layer you want to enqueue is null!");
+        GNT_ASSERT(layer, "Layer you want to enqueue is null!");
 
-        m_Queue.emplace_back(InLayer);
+        m_Queue.emplace_back(layer);
     }
 
     FORCEINLINE void Destroy()

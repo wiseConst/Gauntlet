@@ -7,10 +7,12 @@
 
 namespace Gauntlet
 {
-static const std::vector<uint32_t> ReadFromeFile(const std::string_view& InFilePath)
+
+// TODO: in vulk util i have the same func?
+static const std::vector<uint32_t> ReadFromeFile(const std::string_view& filePath)
 {
-    std::ifstream in(InFilePath.data(), std::ios::in | std::ios::binary);
-    const auto ErrorMessage = std::string("Failed to open file! FilePath: ") + std::string(InFilePath.data());
+    std::ifstream in(filePath.data(), std::ios::in | std::ios::binary);
+    const auto ErrorMessage = std::string("Failed to open file! FilePath: ") + std::string(filePath.data());
     GNT_ASSERT(in, ErrorMessage.data());
 
     in.seekg(0, std::ios::end);
@@ -22,9 +24,9 @@ static const std::vector<uint32_t> ReadFromeFile(const std::string_view& InFileP
     return Result;
 }
 
-VulkanShader::VulkanShader(const std::string_view& InFilePath)
+VulkanShader::VulkanShader(const std::string_view& filePath)
 {
-    const auto ShaderCode = ReadFromeFile(InFilePath);
+    const auto ShaderCode = ReadFromeFile(filePath);
     m_ShaderModule        = LoadShaderModule(ShaderCode);
 }
 

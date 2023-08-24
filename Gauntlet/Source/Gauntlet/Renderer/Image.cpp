@@ -9,14 +9,14 @@ namespace Gauntlet
 
 namespace ImageUtils
 {
-stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
-                           const bool InbFlipOnLoad, ELoadImageType InLoadImageType)
+stbi_uc* LoadImageFromFile(const std::string_view& filePath, int32_t* outWidth, int32_t* outHeight, int32_t* outChannels,
+                           const bool bFlipOnLoad, ELoadImageType loadImageType)
 {
-    GNT_ASSERT(InFilePath.size() > 0, "File path is zero! %s", __FUNCTION__);
+    GNT_ASSERT(filePath.size() > 0, "File path is zero! %s", __FUNCTION__);
 
-    if (InbFlipOnLoad) stbi_set_flip_vertically_on_load(1);
+    if (bFlipOnLoad) stbi_set_flip_vertically_on_load(1);
     int DesiredChannels = 0;
-    switch (InLoadImageType)
+    switch (loadImageType)
     {
         case ELoadImageType::GREY:
         {
@@ -40,10 +40,10 @@ stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth
         }
     }
 
-    auto Pixels = stbi_load(InFilePath.data(), OutWidth, OutHeight, OutChannels, DesiredChannels);
-    if (!Pixels || !OutWidth || !OutHeight || !OutChannels)
+    auto Pixels = stbi_load(filePath.data(), outWidth, outHeight, outChannels, DesiredChannels);
+    if (!Pixels || !outWidth || !outHeight || !outChannels)
     {
-        const auto ErrorMessage = std::string("Failed to load image! Path: ") + std::string(InFilePath.data());
+        const auto ErrorMessage = std::string("Failed to load image! Path: ") + std::string(filePath.data());
         GNT_ASSERT(false, ErrorMessage.data());
     }
 
@@ -51,13 +51,13 @@ stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth
 }
 }  // namespace ImageUtils
 
-Ref<Image> Image::Create(const ImageSpecification& InImageSpecification)
+Ref<Image> Image::Create(const ImageSpecification& imageSpecification)
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            return MakeRef<VulkanImage>(InImageSpecification);
+            return MakeRef<VulkanImage>(imageSpecification);
         }
         case RendererAPI::EAPI::None:
         {

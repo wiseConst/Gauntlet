@@ -13,20 +13,20 @@ class VulkanDevice;
 class VulkanAllocator final : private Uncopyable, private Unmovable
 {
   public:
-    VulkanAllocator(const VkInstance& InInstance, const Scoped<VulkanDevice>& InDevice);
+    VulkanAllocator(const VkInstance& instance, const Scoped<VulkanDevice>& device);
     ~VulkanAllocator() = default;
 
-    VmaAllocation CreateImage(const VkImageCreateInfo& InImageCreateInfo, VkImage* InImage) const;
-    void DestroyImage(VkImage& InImage, VmaAllocation& InAllocation) const;
+    VmaAllocation CreateImage(const VkImageCreateInfo& imageCreateInfo, VkImage* outImage) const;
+    void DestroyImage(VkImage& image, VmaAllocation& allocation) const;
 
-    VmaAllocation CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer,
-                               VmaMemoryUsage InMemoryUsage = VMA_MEMORY_USAGE_AUTO) const;
-    void DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const;
+    VmaAllocation CreateBuffer(const VkBufferCreateInfo& bufferCreateInfo, VkBuffer* outBuffer,
+                               VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_AUTO) const;
+    void DestroyBuffer(VkBuffer& buffer, VmaAllocation& allocation) const;
 
-    void QueryAllocationInfo(VmaAllocationInfo& InOutAllocationInfo, const VmaAllocation& InAllocation) const;
+    void QueryAllocationInfo(VmaAllocationInfo& allocationInfo, const VmaAllocation& allocation) const;
 
-    void* Map(VmaAllocation& InAllocation) const;
-    void Unmap(VmaAllocation& InAllocation) const;
+    void* Map(VmaAllocation& allocation) const;
+    void Unmap(VmaAllocation& allocation) const;
 
     void Destroy();
 

@@ -12,10 +12,10 @@ class SceneHierarchyPanel final : private Uncopyable, private Unmovable
 {
   public:
     SceneHierarchyPanel() = default;
-    SceneHierarchyPanel(const Ref<Scene>& InContext);
+    SceneHierarchyPanel(const Ref<Scene>& context);
     ~SceneHierarchyPanel() = default;
 
-    void SetContext(const Ref<Scene>& InContext);
+    void SetContext(const Ref<Scene>& context);
 
     void OnImGuiRender();
 
@@ -23,8 +23,8 @@ class SceneHierarchyPanel final : private Uncopyable, private Unmovable
     Ref<Scene> m_Context;
     Entity m_SelectionContext;
 
-    void DrawEntityNode(Entity InEntity);
-    void ShowComponents(Entity InEntity);
+    void DrawEntityNode(Entity entity);
+    void ShowComponents(Entity entity);
 };
 
 }  // namespace Gauntlet

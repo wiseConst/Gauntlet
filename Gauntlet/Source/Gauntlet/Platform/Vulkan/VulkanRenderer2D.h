@@ -47,10 +47,12 @@ class VulkanRenderer2D final : public Renderer2D
 
         static constexpr size_t DefaultVertexBufferSize = MaxVertices * sizeof(QuadVertex);
 
+        // Quad staging storage
         VulkanStagingStorage StagingStorage;
         std::vector<Ref<VulkanVertexBuffer>> QuadVertexBuffers;
         uint32_t CurrentQuadVertexBufferIndex = 0;
 
+        // Quad2D Base
         BufferLayout VertexBufferLayout;
         QuadVertex* QuadVertexBufferBase = nullptr;
         QuadVertex* QuadVertexBufferPtr  = nullptr;
@@ -62,6 +64,7 @@ class VulkanRenderer2D final : public Renderer2D
         Ref<VulkanShader> VertexShader;
         Ref<VulkanShader> FragmentShader;
 
+        // Textures && descriptors
         VkDescriptorSetLayout QuadDescriptorSetLayout;
         std::vector<VkDescriptorSet> QuadDescriptorSets;
         uint32_t CurrentDescriptorSetIndex = 0;
@@ -70,6 +73,7 @@ class VulkanRenderer2D final : public Renderer2D
         Ref<VulkanTexture2D> QuadWhiteTexture;  // Texture Slot 0 = white tex
         uint32_t CurrentTextureSlotIndex = 1;   // 0 slot already tied with white texture
 
+        // Uniform related stuff
         glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);
         MeshPushConstants PushConstants;
     };
@@ -84,18 +88,18 @@ class VulkanRenderer2D final : public Renderer2D
     void BeginImpl() final override;
     void FlushImpl() final override;
 
-    void DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec4& InColor) final override;
+    void DrawQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color) final override;
 
-    void DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation, const Ref<Texture2D>& InTexture,
-                      const glm::vec4& InColor) final override;
+    void DrawQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation, const Ref<Texture2D>& texture,
+                      const glm::vec4& color) final override;
 
-    void DrawQuadImpl(const glm::mat4& InTransform, const glm::vec4& InColor) final override;
+    void DrawQuadImpl(const glm::mat4& transform, const glm::vec4& color) final override;
 
-    void DrawRotatedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
-                             const glm::vec4& InColor) final override;
+    void DrawRotatedQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                             const glm::vec4& color) final override;
 
-    void DrawTexturedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
-                              const glm::vec4& InBlendColor) final override;
+    void DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture,
+                              const glm::vec4& blendColor) final override;
 
     static VulkanRenderer2DStorage& GetStorageData() { return s_Data2D; }
 
@@ -105,6 +109,9 @@ class VulkanRenderer2D final : public Renderer2D
 
     void FlushAndReset();
     void PreallocateRenderStorage();
+
+    // Final helper-only function
+    void DrawQuadInternal(const glm::mat4& transform, const glm::vec4& blendColor, const float textureID);
 };
 
 }  // namespace Gauntlet

@@ -27,7 +27,7 @@ class Log final
     static void Init();
     static void Shutdown();
 
-    static void Output(ELogLevel InLogLevel, const char* InMessage, ...);
+    static void Output(ELogLevel logLevel, const char* message, ...);
 
   private:
     static std::mutex s_LogMutex;

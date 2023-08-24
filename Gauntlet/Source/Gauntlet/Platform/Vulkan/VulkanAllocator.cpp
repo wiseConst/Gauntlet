@@ -11,16 +11,16 @@
 namespace Gauntlet
 {
 
-VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<VulkanDevice>& InDevice)
+VulkanAllocator::VulkanAllocator(const VkInstance& instance, const Scoped<VulkanDevice>& device)
 {
     VmaVulkanFunctions vmaVulkanFunctions    = {};
     vmaVulkanFunctions.vkGetDeviceProcAddr   = vkGetDeviceProcAddr;
     vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
 
     VmaAllocatorCreateInfo AllocatorCreateInfo = {};
-    AllocatorCreateInfo.instance               = InInstance;
-    AllocatorCreateInfo.device                 = InDevice->GetLogicalDevice();
-    AllocatorCreateInfo.physicalDevice         = InDevice->GetPhysicalDevice();
+    AllocatorCreateInfo.instance               = instance;
+    AllocatorCreateInfo.device                 = device->GetLogicalDevice();
+    AllocatorCreateInfo.physicalDevice         = device->GetPhysicalDevice();
     AllocatorCreateInfo.vulkanApiVersion       = GNT_VK_API_VERSION;
     AllocatorCreateInfo.pVulkanFunctions       = &vmaVulkanFunctions;
 
@@ -28,7 +28,7 @@ VulkanAllocator::VulkanAllocator(const VkInstance& InInstance, const Scoped<Vulk
     GNT_ASSERT(result == VK_SUCCESS, "Failed to create AMD Vulkan Allocator!");
 }
 
-VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreateInfo, VkImage* InImage) const
+VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& imageCreateInfo, VkImage* outImage) const
 {
     VmaAllocationCreateInfo AllocationCreateInfo = {};
     AllocationCreateInfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -36,7 +36,7 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreat
     AllocationCreateInfo.requiredFlags           = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     VmaAllocation Allocation = {};
-    const auto result        = vmaCreateImage(m_Allocator, &InImageCreateInfo, &AllocationCreateInfo, InImage, &Allocation, nullptr);
+    const auto result        = vmaCreateImage(m_Allocator, &imageCreateInfo, &AllocationCreateInfo, outImage, &Allocation, nullptr);
     GNT_ASSERT(result == VK_SUCCESS, "Failed to create vulkan image via VMA!");
 
     VmaAllocationInfo AllocationInfo = {};
@@ -50,37 +50,37 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& InImageCreat
     return Allocation;
 }
 
-void VulkanAllocator::DestroyImage(VkImage& InImage, VmaAllocation& InAllocation) const
+void VulkanAllocator::DestroyImage(VkImage& image, VmaAllocation& allocation) const
 {
     VmaAllocationInfo AllocationInfo = {};
-    QueryAllocationInfo(AllocationInfo, InAllocation);
+    QueryAllocationInfo(AllocationInfo, allocation);
 
     auto& RendererStats = Renderer::GetStats();
     RendererStats.GPUMemoryAllocated -= AllocationInfo.size;
 
-    vmaDestroyImage(m_Allocator, InImage, InAllocation);
+    vmaDestroyImage(m_Allocator, image, allocation);
     --RendererStats.Allocations;
     --RendererStats.AllocatedImages;
 }
 
-VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCreateInfo, VkBuffer* InBuffer,
-                                            VmaMemoryUsage InMemoryUsage) const
+VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& bufferCreateInfo, VkBuffer* outBuffer,
+                                            VmaMemoryUsage memoryUsage) const
 {
     VmaAllocationCreateInfo AllocationCreateInfo = {};
-    AllocationCreateInfo.usage                   = InMemoryUsage;
+    AllocationCreateInfo.usage                   = memoryUsage;
 
-    if (InBufferCreateInfo.usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)  // Staging buffer case
+    if (bufferCreateInfo.usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)  // Staging buffer case
     {
         AllocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         AllocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
     }
 
     VmaAllocation Allocation = VK_NULL_HANDLE;
-    const auto result        = vmaCreateBuffer(m_Allocator, &InBufferCreateInfo, &AllocationCreateInfo, InBuffer, &Allocation, nullptr);
+    const auto result        = vmaCreateBuffer(m_Allocator, &bufferCreateInfo, &AllocationCreateInfo, outBuffer, &Allocation, nullptr);
     GNT_ASSERT(result == VK_SUCCESS, "Failed to create buffer via VMA!");
 
     auto& RendererStats = Renderer::GetStats();
-    if (InMemoryUsage & VMA_MEMORY_USAGE_GPU_ONLY)
+    if (memoryUsage & VMA_MEMORY_USAGE_GPU_ONLY)
     {
         VmaAllocationInfo AllocationInfo = {};
         QueryAllocationInfo(AllocationInfo, Allocation);
@@ -92,11 +92,11 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& InBufferCr
     return Allocation;
 }
 
-void VulkanAllocator::DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocation) const
+void VulkanAllocator::DestroyBuffer(VkBuffer& buffer, VmaAllocation& allocation) const
 {
     auto& Context                    = (VulkanContext&)VulkanContext::Get();
     VmaAllocationInfo AllocationInfo = {};
-    QueryAllocationInfo(AllocationInfo, InAllocation);
+    QueryAllocationInfo(AllocationInfo, allocation);
 
     auto& RendererStats = Renderer::GetStats();
     if ((Context.GetDevice()->GetMemoryProperties().memoryHeaps[AllocationInfo.memoryType - 1].flags &
@@ -105,38 +105,38 @@ void VulkanAllocator::DestroyBuffer(VkBuffer& InBuffer, VmaAllocation& InAllocat
         RendererStats.GPUMemoryAllocated -= AllocationInfo.size;
     }
 
-    vmaDestroyBuffer(m_Allocator, InBuffer, InAllocation);
+    vmaDestroyBuffer(m_Allocator, buffer, allocation);
     --RendererStats.Allocations;
     --RendererStats.AllocatedBuffers;
 }
 
-void VulkanAllocator::QueryAllocationInfo(VmaAllocationInfo& InOutAllocationInfo, const VmaAllocation& InAllocation) const
+void VulkanAllocator::QueryAllocationInfo(VmaAllocationInfo& allocationInfo, const VmaAllocation& allocation) const
 {
-    vmaGetAllocationInfo(m_Allocator, InAllocation, &InOutAllocationInfo);
+    vmaGetAllocationInfo(m_Allocator, allocation, &allocationInfo);
 }
 
-void* VulkanAllocator::Map(VmaAllocation& InAllocation) const
+void* VulkanAllocator::Map(VmaAllocation& allocation) const
 {
     void* Mapped = nullptr;
 
-    const auto result = vmaMapMemory(m_Allocator, InAllocation, &Mapped);
+    const auto result = vmaMapMemory(m_Allocator, allocation, &Mapped);
     GNT_ASSERT(result == VK_SUCCESS && Mapped, "Failed to map memory!");
 
     return Mapped;
 }
 
-void VulkanAllocator::Unmap(VmaAllocation& InAllocation) const
+void VulkanAllocator::Unmap(VmaAllocation& allocation) const
 {
-    vmaUnmapMemory(m_Allocator, InAllocation);
+    vmaUnmapMemory(m_Allocator, allocation);
 }
 
 void VulkanAllocator::Destroy()
 {
     auto& RendererStats = Renderer::GetStats();
-#if GNT_DEBUG
-    LOG_WARN("Before VMA destroying. Remaining data: buffers (%u), images (%u).", RendererStats.AllocatedBuffers,
-             RendererStats.AllocatedImages);
-#endif
+
+    if (RendererStats.AllocatedBuffers != 0 || RendererStats.AllocatedImages != 0)
+        LOG_WARN("Seems like you forgot to destroy something... Remaining data: buffers (%u), images (%u).", RendererStats.AllocatedBuffers,
+                 RendererStats.AllocatedImages);
 
     vmaDestroyAllocator(m_Allocator);
 }

@@ -123,7 +123,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
 namespace Utility
 {
 
-static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& CommandPool, const VkDevice& Device)
+NODISCARD static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& CommandPool, const VkDevice& Device)
 {
     VkCommandBufferAllocateInfo AllocateInfo = {};
     AllocateInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -159,7 +159,7 @@ static void EndSingleTimeCommands(const VkCommandBuffer& CommandBuffer, const Vk
     vkFreeCommandBuffers(Device, CommandPool, 1, &CommandBuffer);
 }
 
-static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType Format)
+NODISCARD static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType Format)
 {
     switch (Format)
     {
@@ -176,7 +176,7 @@ static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType Format)
     return VK_FORMAT_UNDEFINED;
 }
 
-static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t BindingID, uint32_t Stride,
+NODISCARD static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t BindingID, uint32_t Stride,
                                                                    VkVertexInputRate InputRate = VK_VERTEX_INPUT_RATE_VERTEX)
 {
     VkVertexInputBindingDescription BindingDescription = {};
@@ -187,7 +187,7 @@ static VkVertexInputBindingDescription GetShaderBindingDescription(uint32_t Bind
     return BindingDescription;
 }
 
-static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t BindingID, VkFormat Format, uint32_t Location,
+NODISCARD static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t BindingID, VkFormat Format, uint32_t Location,
                                                                        uint32_t Offset)
 {
     VkVertexInputAttributeDescription AttributeDescription = {};
@@ -199,7 +199,7 @@ static VkVertexInputAttributeDescription GetShaderAttributeDescription(uint32_t 
     return AttributeDescription;
 }
 
-static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding, const uint32_t DescriptorCount,
+NODISCARD static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding, const uint32_t DescriptorCount,
                                                                   VkDescriptorType DescriptorType, VkShaderStageFlags StageFlags,
                                                                   VkSampler* ImmutableSamplers = VK_NULL_HANDLE)
 {
@@ -213,7 +213,8 @@ static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t
     return DescriptorSetLayoutBinding;
 }
 
-static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorType, const uint32_t Binding, VkDescriptorSet DescriptorSet,
+NODISCARD static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorType, const uint32_t Binding,
+                                                           VkDescriptorSet DescriptorSet,
                                                   const uint32_t DescriptorCount, VkDescriptorBufferInfo* BufferInfo,
                                                   VkBufferView* TexelBufferView = VK_NULL_HANDLE, const uint32_t ArrayElement = 0)
 {
@@ -230,7 +231,8 @@ static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorTyp
     return WriteDescriptorSet;
 }
 
-static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorType, const uint32_t Binding, VkDescriptorSet DescriptorSet,
+NODISCARD static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorType, const uint32_t Binding,
+                                                           VkDescriptorSet DescriptorSet,
                                                   const uint32_t DescriptorCount, VkDescriptorImageInfo* ImageInfo,
                                                   VkBufferView* TexelBufferView = VK_NULL_HANDLE, const uint32_t ArrayElement = 0)
 {
@@ -247,7 +249,8 @@ static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType DescriptorTyp
     return WriteDescriptorSet;
 }
 
-static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescriptorPool& DescriptorPool, const uint32_t DescriptorSetCount,
+NODISCARD static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescriptorPool& DescriptorPool,
+                                                                         const uint32_t DescriptorSetCount,
                                                                 VkDescriptorSetLayout* DescriptorSetLayouts)
 {
     VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {};
@@ -259,7 +262,8 @@ static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescript
     return DescriptorSetAllocateInfo;
 }
 
-static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInfo(
+NODISCARD static VkDescriptorSetLayoutCreateInfo
+GetDescriptorSetLayoutCreateInfo(
     const uint32_t BindingCount, const VkDescriptorSetLayoutBinding* Bindings,
     const VkDescriptorSetLayoutCreateFlags DescriptorSetLayoutCreateFlags = 0, const void* pNext = nullptr)
 {
@@ -275,7 +279,7 @@ static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInfo(
 
 // InMaxSetCount -  How many descriptor sets can be allocated from the pool
 //  How many things can be submitted to descriptor depending on it's type (mb it's wrong)
-static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t PoolSizeCount, const uint32_t MaxSetCount,
+NODISCARD static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t PoolSizeCount, const uint32_t MaxSetCount,
                                                               const VkDescriptorPoolSize* PoolSizes,
                                                               VkDescriptorPoolCreateFlags DescriptorPoolCreateFlags = 0,
                                                               const void* pNext                                     = nullptr)
@@ -291,7 +295,8 @@ static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t Poo
     return DescriptorPoolCreateInfo;
 }
 
-static VkPushConstantRange GetPushConstantRange(const VkShaderStageFlags ShaderStages, const uint32_t Size, const uint32_t Offset = 0)
+NODISCARD static VkPushConstantRange GetPushConstantRange(const VkShaderStageFlags ShaderStages, const uint32_t Size,
+                                                         const uint32_t Offset = 0)
 {
     VkPushConstantRange PushConstants = {};
     PushConstants.offset              = Offset;
@@ -301,7 +306,7 @@ static VkPushConstantRange GetPushConstantRange(const VkShaderStageFlags ShaderS
     return PushConstants;
 }
 
-static std::vector<uint8_t> LoadPipelineCacheFromDisk(const VkDevice& Device, const std::string& CacheFilePath)
+NODISCARD static std::vector<uint8_t> LoadPipelineCacheFromDisk(const std::string& CacheFilePath)
 {
     std::vector<uint8_t> CacheData;
 
@@ -320,7 +325,8 @@ static std::vector<uint8_t> LoadPipelineCacheFromDisk(const VkDevice& Device, co
     return CacheData;
 }
 
-static VkBool32 DropPipelineCacheToDisk(const VkDevice& Device, const VkPipelineCache& PipelineCache, const std::string& CacheFilePath)
+NODISCARD static VkBool32 DropPipelineCacheToDisk(const VkDevice& Device, const VkPipelineCache& PipelineCache,
+                                                 const std::string& CacheFilePath)
 {
     size_t CacheSize = 0;
     VK_CHECK(vkGetPipelineCacheData(Device, PipelineCache, &CacheSize, nullptr), "Failed to retrieve pipeline cache data size!");

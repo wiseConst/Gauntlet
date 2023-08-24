@@ -14,27 +14,29 @@
 
 namespace Gauntlet
 {
-// TODO: Do I actually emplace components in my GRECS???
 
 struct TagComponent
 {
-    std::string Tag;
+    std::string Tag{"None"};
 
     TagComponent()                    = default;
     TagComponent(const TagComponent&) = default;
-    TagComponent(const std::string& InTag) : Tag(InTag) {}
+    TagComponent(const std::string& tag) : Tag(tag) {}
 };
 
 struct TransformComponent
 {
-    bool Padlock{false};
     glm::vec3 Translation{0.0f};
     glm::vec3 Rotation{0.0f};
     glm::vec3 Scale{1.0f};
+    bool Padlock{false};
 
     TransformComponent()                          = default;
     TransformComponent(const TransformComponent&) = default;
-    TransformComponent(const glm::vec3& InTranslation) : Translation(InTranslation) {}
+    TransformComponent(const glm::vec3& translation, const glm::vec3& rotation, const glm::vec3& scale)
+        : Translation(translation), Rotation(rotation), Scale(scale)
+    {
+    }
 
     glm::mat4 GetTransform() const
     {
@@ -58,33 +60,33 @@ struct SpriteRendererComponent
 
     SpriteRendererComponent()                               = default;
     SpriteRendererComponent(const SpriteRendererComponent&) = default;
-    SpriteRendererComponent(const glm::vec4& InColor) : Color(InColor) {}
+    SpriteRendererComponent(const glm::vec4& color) : Color(color) {}
 };
 
 struct CameraComponent
 {
-    Ref<Gauntlet::Camera> Camera;
+    Ref<Gauntlet::Camera> Camera{nullptr};
     bool bIsPrimary = true;
 
     CameraComponent()                       = default;
     CameraComponent(const CameraComponent&) = default;
-    CameraComponent(const Ref<Gauntlet::Camera>& InCamera) : Camera(InCamera) {}
+    CameraComponent(const Ref<Gauntlet::Camera>& camera) : Camera(camera) {}
 };
 
 struct MeshComponent
 {
-    Ref<Gauntlet::Mesh> Mesh;
+    Ref<Gauntlet::Mesh> Mesh{nullptr};
 
     MeshComponent()                     = default;
     MeshComponent(const MeshComponent&) = default;
-    MeshComponent(const Ref<Gauntlet::Mesh>& InMesh) : Mesh(InMesh) {}
+    MeshComponent(const Ref<Gauntlet::Mesh>& mesh) : Mesh(mesh) {}
 };
 
 struct PointLightComponent
 {
-    glm::vec3 Color;
-    glm::vec3 AmbientSpecularShininess;
-    glm::vec3 CLQ;  // Constant Linear Quadratic
+    glm::vec3 Color{0.0f};
+    glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
+    glm::vec3 CLQ{0.0f};  // Constant Linear Quadratic
 
     PointLightComponent()                           = default;
     PointLightComponent(const PointLightComponent&) = default;
@@ -92,9 +94,9 @@ struct PointLightComponent
 
 struct DirectionalLightComponent
 {
-    glm::vec3 Color;
-    glm::vec3 Direction;
-    glm::vec3 AmbientSpecularShininess;
+    glm::vec3 Color{0.0f};
+    glm::vec3 Direction{0.0f};
+    glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
 
     DirectionalLightComponent()                                 = default;
     DirectionalLightComponent(const DirectionalLightComponent&) = default;

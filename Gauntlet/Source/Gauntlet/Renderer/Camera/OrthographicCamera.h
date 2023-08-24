@@ -12,10 +12,9 @@ namespace Gauntlet
 class OrthographicCamera final : public Camera
 {
   public:
-    OrthographicCamera(const float InAspectRatio = 0.0f, const float InCameraWidth = 8.0f)
-        : Camera(InAspectRatio), m_CameraWidth(InCameraWidth)
+    OrthographicCamera(const float aspectRatio = 0.0f, const float cameraWidth = 8.0f) : Camera(aspectRatio), m_CameraWidth(cameraWidth)
     {
-        GNT_ASSERT(InAspectRatio >= 0.0f && InCameraWidth > 0.0f, "Camera width && aspect ratio can only be positive!");
+        GNT_ASSERT(aspectRatio >= 0.0f && cameraWidth > 0.0f, "Camera width && aspect ratio can only be positive!");
         SetProjection(m_AspectRatio * -m_CameraWidth, m_AspectRatio * m_CameraWidth, -m_CameraWidth, m_CameraWidth, -m_CameraWidth,
                       m_CameraWidth);
         m_ZoomLevel = m_CameraWidth;
@@ -24,16 +23,16 @@ class OrthographicCamera final : public Camera
 
     FORCEINLINE const auto& GetZoomLevel() const { return m_ZoomLevel; }
 
-    void OnUpdate(const float DeltaTime) final override
+    void OnUpdate(const float deltaTime) final override
     {
-        if (Input::IsKeyPressed(GNT_KEY_S)) m_Position.y -= m_CameraTranslationSpeed * DeltaTime;
-        if (Input::IsKeyPressed(GNT_KEY_W)) m_Position.y += m_CameraTranslationSpeed * DeltaTime;
+        if (Input::IsKeyPressed(GNT_KEY_S)) m_Position.y -= m_CameraTranslationSpeed * deltaTime;
+        if (Input::IsKeyPressed(GNT_KEY_W)) m_Position.y += m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_A)) m_Position.x -= m_CameraTranslationSpeed * DeltaTime;
-        if (Input::IsKeyPressed(GNT_KEY_D)) m_Position.x += m_CameraTranslationSpeed * DeltaTime;
+        if (Input::IsKeyPressed(GNT_KEY_A)) m_Position.x -= m_CameraTranslationSpeed * deltaTime;
+        if (Input::IsKeyPressed(GNT_KEY_D)) m_Position.x += m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_Q)) m_Rotation.z += m_CameraRotationSpeed * DeltaTime;
-        if (Input::IsKeyPressed(GNT_KEY_E)) m_Rotation.z -= m_CameraRotationSpeed * DeltaTime;
+        if (Input::IsKeyPressed(GNT_KEY_Q)) m_Rotation.z += m_CameraRotationSpeed * deltaTime;
+        if (Input::IsKeyPressed(GNT_KEY_E)) m_Rotation.z -= m_CameraRotationSpeed * deltaTime;
 
         SetRotation(m_Rotation);
 
@@ -41,9 +40,9 @@ class OrthographicCamera final : public Camera
         SetPosition(m_Position);
     }
 
-    void OnEvent(Event& InEvent) final override
+    void OnEvent(Event& event) final override
     {
-        EventDispatcher dispatcher(InEvent);
+        EventDispatcher dispatcher(event);
         dispatcher.Dispatch<WindowResizeEvent>(BIND_FN(OrthographicCamera::OnWindowResized));
         dispatcher.Dispatch<MouseScrolledEvent>(BIND_FN(OrthographicCamera::OnMouseScrolled));
     }
@@ -54,9 +53,9 @@ class OrthographicCamera final : public Camera
         m_ProjectionMatrix = glm::ortho(left, right, bottom, top, zNear, zFar);
     }
 
-    FORCEINLINE static Ref<OrthographicCamera> Create(const float InAspectRatio = 0.0f, const float InCameraWidth = 8.0f)
+    FORCEINLINE static Ref<OrthographicCamera> Create(const float aspectRatio = 0.0f, const float cameraWidth = 8.0f)
     {
-        return Ref<OrthographicCamera>(new OrthographicCamera(InAspectRatio, InCameraWidth));
+        return Ref<OrthographicCamera>(new OrthographicCamera(aspectRatio, cameraWidth));
     }
 
     FORCEINLINE const float GetWidthBorder() const { return m_ZoomLevel * m_AspectRatio; }
@@ -66,15 +65,15 @@ class OrthographicCamera final : public Camera
     float m_ZoomLevel         = 1.5f;
     const float m_CameraWidth = 8.0f;
 
-    void OnWindowResized(WindowResizeEvent& InEvent)
+    void OnWindowResized(WindowResizeEvent& event)
     {
-        m_AspectRatio = InEvent.GetAspectRatio();
+        m_AspectRatio = event.GetAspectRatio();
         SetProjection(m_AspectRatio * -m_ZoomLevel, m_AspectRatio * m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel);
     }
 
-    void OnMouseScrolled(MouseScrolledEvent& InEvent)
+    void OnMouseScrolled(MouseScrolledEvent& event)
     {
-        m_ZoomLevel -= InEvent.GetOffsetY() * 0.25f;
+        m_ZoomLevel -= event.GetOffsetY() * 0.25f;
         m_ZoomLevel = std::max(m_ZoomLevel, 0.25f);
 
         SetProjection(m_AspectRatio * -m_ZoomLevel, m_AspectRatio * m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel);

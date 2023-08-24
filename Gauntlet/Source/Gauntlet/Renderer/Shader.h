@@ -10,7 +10,7 @@ class Shader
     Shader()          = default;
     virtual ~Shader() = default;
 
-    static Ref<Shader> CreateShader(const std::string_view& InFilePath);
+    static Ref<Shader> CreateShader(const std::string_view& filePath);
 };
 
 }  // namespace Gauntlet

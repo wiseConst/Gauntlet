@@ -11,7 +11,7 @@ namespace Gauntlet
 class VulkanShader final : public Shader
 {
   public:
-    VulkanShader(const std::string_view& InFilePath);
+    VulkanShader(const std::string_view& filePath);
     ~VulkanShader() = default;
 
     FORCEINLINE const auto& GetModule() const { return m_ShaderModule; }
@@ -20,7 +20,7 @@ class VulkanShader final : public Shader
   private:
     VkShaderModule m_ShaderModule;
 
-    VkShaderModule LoadShaderModule(const std::vector<uint32_t>& InShaderCode);
+    VkShaderModule LoadShaderModule(const std::vector<uint32_t>& shaderCode);
 };
 
 }  // namespace Gauntlet

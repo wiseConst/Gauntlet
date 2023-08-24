@@ -11,17 +11,17 @@ class WindowsWindow final : public Window
 {
   public:
     WindowsWindow() = delete;
-    WindowsWindow(const WindowSpecification& InWindowSpec);
+    WindowsWindow(const WindowSpecification& windowSpec);
 
     ~WindowsWindow();
 
     void OnUpdate() final override;
     void HandleMinimized() final override;
 
-    void SetWindowLogo(const std::string_view& InFilePath) final override;
-    void SetWindowTitle(const std::string_view& InTitle) final override;
+    void SetWindowLogo(const std::string_view& filePath) final override;
+    void SetWindowTitle(const std::string_view& title) final override;
     void SetVSync(bool IsVsync) final override;
-    FORCEINLINE void SetWindowCallback(const EventCallbackFn& InFnCallback) final override { m_CallbackFn = InFnCallback; }
+    FORCEINLINE void SetWindowCallback(const EventCallbackFn& fnCallback) final override { m_CallbackFn = fnCallback; }
 
     FORCEINLINE void* GetNativeWindow() const final override { return m_Window; }
 

@@ -14,11 +14,11 @@ class JobSystem final : private Uncopyable, private Unmovable
     static void Update();
     static void Wait();  // Temporary function until I handle meshes descriptor sets
 
-    template <typename Func, typename... Args> static void Submit(Func&& InFunc, Args&&... InArgs)
+    template <typename Func, typename... Args> static void Submit(Func&& InFunc, Args&&... args)
     {
         std::scoped_lock<std::mutex> Lock(s_QueueMutex);
 
-        Job Command = std::bind(std::forward<Func>(InFunc), std::forward<Args>(InArgs)...);
+        Job Command = std::bind(std::forward<Func>(InFunc), std::forward<Args>(args)...);
         // Check if our application runs in singlethreaded mode with no worker threads at all.
         if (s_ThreadCount == 0)
         {

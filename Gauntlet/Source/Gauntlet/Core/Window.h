@@ -13,8 +13,8 @@ struct WindowSpecification
     WindowSpecification()  = delete;
     ~WindowSpecification() = default;
 
-    WindowSpecification(const std::string_view& InTitle = "Gauntlet Engine", uint32_t width = 1280, uint32_t height = 720)
-        : Title(InTitle), Width(width), Height(height)
+    WindowSpecification(const std::string_view& title = "Gauntlet Engine", uint32_t width = 1280, uint32_t height = 720)
+        : Title(title), Width(width), Height(height)
     {
     }
 
@@ -29,7 +29,7 @@ class Window : private Unmovable, private Uncopyable
     using EventCallbackFn = std::function<void(Event&)>;
 
   public:
-    Window(const WindowSpecification& InWindowSpec) : m_WindowSpec(InWindowSpec) {}
+    Window(const WindowSpecification& windowSpec) : m_WindowSpec(windowSpec) {}
 
     Window()          = delete;
     virtual ~Window() = default;
@@ -37,14 +37,14 @@ class Window : private Unmovable, private Uncopyable
     virtual void OnUpdate()        = 0;
     virtual void HandleMinimized() = 0;
 
-    virtual void SetWindowLogo(const std::string_view& InFilePath) = 0;
-    virtual void SetWindowTitle(const std::string_view& InTitle)   = 0;
-    virtual void SetVSync(bool IsVsync)                            = 0;
-    FORCEINLINE void SetIsRunning(bool IsRunning) { m_IsRunning = IsRunning; }
-    FORCEINLINE virtual void SetWindowCallback(const EventCallbackFn& InFnCallback) = 0;
+    virtual void SetWindowLogo(const std::string_view& filePath) = 0;
+    virtual void SetWindowTitle(const std::string_view& title)   = 0;
+    virtual void SetVSync(bool bIsVsync)                         = 0;
+    FORCEINLINE void SetIsRunning(bool bIsRunning) { m_bIsRunning = bIsRunning; }
+    FORCEINLINE virtual void SetWindowCallback(const EventCallbackFn& fnCallback) = 0;
 
-    FORCEINLINE bool IsRunning() const { return m_IsRunning; }
-    FORCEINLINE bool IsVSync() const { return m_IsVSync; }
+    FORCEINLINE bool IsRunning() const { return m_bIsRunning; }
+    FORCEINLINE bool IsVSync() const { return m_bIsVSync; }
     FORCEINLINE bool IsMinimized() const { return m_WindowSpec.Height == 0 || m_WindowSpec.Width == 0; }
 
     FORCEINLINE const char* GetTitle() const { return m_WindowSpec.Title.data(); }
@@ -54,13 +54,13 @@ class Window : private Unmovable, private Uncopyable
 
     FORCEINLINE const float GetAspectRatio() { return GetWidth() / (float)GetHeight(); }
 
-    static Window* Create(const WindowSpecification& InWindowSpec);
+    static Window* Create(const WindowSpecification& windowSpec);
 
   protected:
     WindowSpecification m_WindowSpec;
 
-    bool m_IsRunning{false};
-    bool m_IsVSync{false};
+    bool m_bIsRunning{false};
+    bool m_bIsVSync{false};
 };
 
 }  // namespace Gauntlet

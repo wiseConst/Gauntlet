@@ -8,8 +8,8 @@
 namespace Gauntlet
 {
 
-VulkanCommandPool::VulkanCommandPool(const CommandPoolSpecification& InCommandPoolSpecification)
-    : m_CommandPoolSpecification(InCommandPoolSpecification)
+VulkanCommandPool::VulkanCommandPool(const CommandPoolSpecification& commandPoolSpecification)
+    : m_CommandPoolSpecification(commandPoolSpecification)
 {
     CreateCommandPool();
     AllocateCommandBuffers();

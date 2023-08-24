@@ -12,9 +12,9 @@
 namespace Gauntlet
 {
 
-static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology InPrimitiveTopology)
+static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology)
 {
-    switch (InPrimitiveTopology)
+    switch (primitiveTopology)
     {
         case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_POINT_LIST: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
         case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_LINE_LIST: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
@@ -28,9 +28,9 @@ static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology 
     return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 }
 
-static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage InShaderStage)
+static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage)
 {
-    switch (InShaderStage)
+    switch (shaderStage)
     {
         case EShaderStage::SHADER_STAGE_VERTEX: return VK_SHADER_STAGE_VERTEX_BIT;
         case EShaderStage::SHADER_STAGE_GEOMETRY: return VK_SHADER_STAGE_GEOMETRY_BIT;
@@ -42,9 +42,9 @@ static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage InShaderSt
     return VK_SHADER_STAGE_VERTEX_BIT;
 }
 
-static VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode InCullMode)
+static VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode)
 {
-    switch (InCullMode)
+    switch (cullMode)
     {
         case ECullMode::CULL_MODE_NONE: return VK_CULL_MODE_NONE;
         case ECullMode::CULL_MODE_FRONT: return VK_CULL_MODE_FRONT_BIT;
@@ -56,9 +56,9 @@ static VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode InCullMode)
     return VK_CULL_MODE_NONE;
 }
 
-static VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode InPolygonMode)
+static VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode)
 {
-    switch (InPolygonMode)
+    switch (polygonMode)
     {
         case EPolygonMode::POLYGON_MODE_FILL: return VK_POLYGON_MODE_FILL;
         case EPolygonMode::POLYGON_MODE_LINE: return VK_POLYGON_MODE_LINE;
@@ -70,9 +70,9 @@ static VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode InPolygonMode)
     return VK_POLYGON_MODE_FILL;
 }
 
-static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace InFrontFace)
+static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
 {
-    switch (InFrontFace)
+    switch (frontFace)
     {
         case EFrontFace::FRONT_FACE_CLOCKWISE: return VK_FRONT_FACE_CLOCKWISE;
         case EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE: return VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -82,7 +82,7 @@ static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace InFrontFace)
     return VK_FRONT_FACE_CLOCKWISE;
 }
 
-VulkanPipeline::VulkanPipeline(const PipelineSpecification& InPipelineSpecification) : m_Specification(InPipelineSpecification)
+VulkanPipeline::VulkanPipeline(const PipelineSpecification& pipelineSpecification) : m_Specification(pipelineSpecification)
 {
     Invalidate();
 }
@@ -126,8 +126,8 @@ void VulkanPipeline::CreatePipeline()
 
     // Creating pipeline cache
     {
-        std::vector<uint8_t> CacheData = Utility::LoadPipelineCacheFromDisk(
-            Context.GetDevice()->GetLogicalDevice(), std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cache");
+        std::vector<uint8_t> CacheData =
+            Utility::LoadPipelineCacheFromDisk(std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cache");
 
         VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
         PipelineCacheCreateInfo.initialDataSize           = CacheData.size();

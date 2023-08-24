@@ -46,13 +46,13 @@ void Thread::Shutdown()
     Join();
 }
 
-void Thread::SetThreadAffinity(const uint32_t InThreadID)
+void Thread::SetThreadAffinity(const uint32_t threadID)
 {
 #ifdef GNT_PLATFORM_WINDOWS
 
     // Attaching thread to specific CPU
     const HANDLE NativeHandle      = m_Handle.native_handle();
-    const DWORD_PTR AffinityMask   = 1ull << InThreadID;
+    const DWORD_PTR AffinityMask   = 1ull << threadID;
     const DWORD_PTR AffinityResult = SetThreadAffinityMask(NativeHandle, AffinityMask);
     GNT_ASSERT(AffinityResult > 0, "Failed to attach the thread to specific CPU core!");
 

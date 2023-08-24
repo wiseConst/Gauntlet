@@ -22,33 +22,33 @@ struct AllocatedImage
 namespace ImageUtils
 {
 
-void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t InHeight, VkImageUsageFlags InImageUsageFlags,
-                 VkFormat InFormat, VkImageTiling InImageTiling = VK_IMAGE_TILING_OPTIMAL, const uint32_t InMipLevels = 1,
-                 const uint32_t InArrayLayers = 1);
+void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t height, VkImageUsageFlags imageUsageFlags,
+                 VkFormat format, VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL, const uint32_t mipLevels = 1,
+                 const uint32_t arrayLayers = 1);
 
-void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
-                     VkImageAspectFlags InAspectFlags, VkImageViewType InImageViewType = VK_IMAGE_VIEW_TYPE_2D);
+void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* imageView, VkFormat format,
+                     VkImageAspectFlags aspectFlags, VkImageViewType imageViewType = VK_IMAGE_VIEW_TYPE_2D);
 
-VkFormat GauntletImageFormatToVulkan(EImageFormat InImageFormat);
+VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat);
 
-void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout, const bool InIsCubeMap = false);
+void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const bool bIsCubeMap = false);
 
-void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent,
-                           const bool InIsCubeMap = false);
+void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent,
+                           const bool bIsCubeMap = false);
 
-VkFilter GauntletTextureFilterToVulkan(ETextureFilter InTextureFilter);
+VkFilter GauntletTextureFilterToVulkan(ETextureFilter textureFilter);
 
-VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap InTextureWrap);
+VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap textureWrap);
 
 }  // namespace ImageUtils
 
 class VulkanImage final : public Image
 {
   public:
-    VulkanImage(const ImageSpecification& InImageSecification);
+    VulkanImage(const ImageSpecification& imageSecification);
     ~VulkanImage() = default;
 
-    void Create();
+    void Invalidate() final override;
     void Destroy() final override;
 
     FORCEINLINE auto& Get() { return m_Image.Image; }
@@ -65,12 +65,7 @@ class VulkanImage final : public Image
         return static_cast<float>(GetWidth() / GetHeight());
     }
 
-    FORCEINLINE void SetExtent(const VkExtent2D& InExtent)
-    {
-        m_Specification.Width  = InExtent.width;
-        m_Specification.Height = InExtent.height;
-    }
-
+    FORCEINLINE auto& GetDescriptorInfo() { return m_DescriptorImageInfo; }
     FORCEINLINE const auto& GetDescriptorInfo() const { return m_DescriptorImageInfo; }
     FORCEINLINE void* GetTextureID() const final override
     {

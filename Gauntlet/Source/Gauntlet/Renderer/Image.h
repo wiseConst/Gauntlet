@@ -87,22 +87,23 @@ class Image
     Image()  = default;
     ~Image() = default;
 
+    virtual void Invalidate() = 0;
+    virtual void Destroy()    = 0;
+
     FORCEINLINE virtual uint32_t GetWidth() const              = 0;
     FORCEINLINE virtual uint32_t GetHeight() const             = 0;
     FORCEINLINE virtual float GetAspectRatio() const           = 0;
     FORCEINLINE virtual ImageSpecification& GetSpecification() = 0;
     FORCEINLINE virtual void* GetTextureID() const             = 0;
 
-    static Ref<Image> Create(const ImageSpecification& InImageSpecification);
-
-    virtual void Destroy() = 0;
+    static Ref<Image> Create(const ImageSpecification& imageSpecification);
 };
 
 namespace ImageUtils
 {
-FORCEINLINE bool IsDepthFormat(EImageFormat InImageFormat)
+FORCEINLINE bool IsDepthFormat(EImageFormat imageFormat)
 {
-    switch (InImageFormat)
+    switch (imageFormat)
     {
         case EImageFormat::DEPTH32F: return true;
         case EImageFormat::DEPTH24STENCIL8: return true;
@@ -111,13 +112,13 @@ FORCEINLINE bool IsDepthFormat(EImageFormat InImageFormat)
     return false;
 }
 
-stbi_uc* LoadImageFromFile(const std::string_view& InFilePath, int32_t* OutWidth, int32_t* OutHeight, int32_t* OutChannels,
-                           const bool InbFlipOnLoad = false, ELoadImageType InLoadImageType = ELoadImageType::RGB_ALPHA);
+stbi_uc* LoadImageFromFile(const std::string_view& filePath, int32_t* outWidth, int32_t* outHeight, int32_t* outChannels,
+                           const bool bFlipOnLoad = false, ELoadImageType loadImageType = ELoadImageType::RGB_ALPHA);
 
-FORCEINLINE void UnloadImage(stbi_uc* InPixels)
+FORCEINLINE void UnloadImage(stbi_uc* pixels)
 {
-    stbi_image_free(InPixels);
-    InPixels = nullptr;
+    stbi_image_free(pixels);
+    pixels = nullptr;
 }
 }  // namespace ImageUtils
 

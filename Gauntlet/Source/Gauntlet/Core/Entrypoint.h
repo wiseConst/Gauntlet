@@ -5,7 +5,7 @@
 
 namespace Gauntlet
 {
-
+// TODO: Handle command line args?
 extern Scoped<Application> CreateApplication();
 
 int Main(int argc, char** argv)

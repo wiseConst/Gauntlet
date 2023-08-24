@@ -15,16 +15,16 @@ struct QueueFamilyIndices
         return GraphicsFamily != UINT32_MAX && PresentFamily != UINT32_MAX && ComputeFamily != UINT32_MAX && TransferFamily != UINT32_MAX;
     }
 
-    static QueueFamilyIndices FindQueueFamilyIndices(const VkSurfaceKHR& InSurface, const VkPhysicalDevice& InPhysicalDevice)
+    static QueueFamilyIndices FindQueueFamilyIndices(const VkSurfaceKHR& surface, const VkPhysicalDevice& physicalDevice)
     {
         QueueFamilyIndices Indices = {};
 
         uint32_t QueueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(InPhysicalDevice, &QueueFamilyCount, nullptr);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &QueueFamilyCount, nullptr);
         GNT_ASSERT(QueueFamilyCount != 0, "Looks like your gpu doesn't have any queues to submit commands to.");
 
         std::vector<VkQueueFamilyProperties> QueueFamilies(QueueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(InPhysicalDevice, &QueueFamilyCount, QueueFamilies.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &QueueFamilyCount, QueueFamilies.data());
 
 #if LOG_VULKAN_INFO
         LOG_INFO("QueueFamilyCount:%u", QueueFamilyCount);
@@ -70,7 +70,7 @@ struct QueueFamilyIndices
 
             VkBool32 bPresentSupport{VK_FALSE};
             {
-                const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(InPhysicalDevice, i, InSurface, &bPresentSupport);
+                const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &bPresentSupport);
                 GNT_ASSERT(result == VK_SUCCESS, "Failed to check if current GPU supports image presenting.");
             }
 
@@ -106,7 +106,7 @@ struct QueueFamilyIndices
 class VulkanDevice final : private Uncopyable, private Unmovable
 {
   public:
-    VulkanDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface);
+    VulkanDevice(const VkInstance& instance, const VkSurfaceKHR& surface);
     VulkanDevice() = delete;
 
     ~VulkanDevice() = default;
@@ -174,12 +174,12 @@ class VulkanDevice final : private Uncopyable, private Unmovable
         VkPhysicalDeviceDriverProperties GPUDriverProperties = {};
     } m_GPUInfo;
 
-    void PickPhysicalDevice(const VkInstance& InInstance, const VkSurfaceKHR& InSurface);
-    void CreateLogicalDevice(const VkSurfaceKHR& InSurface);
+    void PickPhysicalDevice(const VkInstance& instance, const VkSurfaceKHR& surface);
+    void CreateLogicalDevice();
 
-    uint32_t RateDeviceSuitability(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSurface);
-    bool CheckDeviceExtensionSupport(const VkPhysicalDevice& InPhysicalDevice);
-    bool IsDeviceSuitable(GPUInfo& InGPUInfo, const VkSurfaceKHR& InSurface);
+    uint32_t RateDeviceSuitability(GPUInfo& gpuInfo, const VkSurfaceKHR& surface);
+    bool CheckDeviceExtensionSupport(const VkPhysicalDevice& physicalDevice);
+    bool IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surface);
 };
 
 }  // namespace Gauntlet

@@ -16,3 +16,9 @@
 [submodule "Gauntlet/vendor/volk"]
 	path = Gauntlet/vendor/volk
 	url = https://github.com/zeux/volk.git
+[submodule "Gauntlet/vendor/entt"]
+	path = Gauntlet/vendor/entt
+	url = https://github.com/skypjack/entt.git
+[submodule "Gauntlet/vendor/json"]
+	path = Gauntlet/vendor/json
+	url = https://github.com/nlohmann/json.git

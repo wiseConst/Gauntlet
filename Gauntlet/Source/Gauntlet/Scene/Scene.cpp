@@ -8,13 +8,13 @@
 namespace Gauntlet
 {
 
-Scene::Scene(const std::string& Name) : m_Name(Name) {}
+Scene::Scene(const std::string& name) : m_Name(name) {}
 
 Scene::~Scene()
 {
-    for (GRECS::Entity ent : GRECS::SceneView(m_Registry))
+    for (auto entityID : m_Registry.view<TagComponent>())
     {
-        Entity entity{ent, this};
+        Entity entity{entityID, this};
 
         if (entity.HasComponent<MeshComponent>())
         {
@@ -24,36 +24,35 @@ Scene::~Scene()
     }
 }
 
-Entity Scene::CreateEntity(const std::string& Name)
+Entity Scene::CreateEntity(const std::string& name)
 {
-    Entity ent{m_Registry.CreateEntity(), this};
-    auto& tag = ent.AddComponent<TagComponent>();
+    GNT_ASSERT(name.data(), "Invalid entity name!");
 
-    GNT_ASSERT(Name.data(), "Invalid entity name!");
-    strcpy(tag.Tag.data(), Name.data());
+    Entity entity{m_Registry.create(), this};
+    auto& tag = entity.AddComponent<TagComponent>();
+    entity.AddComponent<TransformComponent>();
+    tag.Tag = name;
 
-    auto& transform = ent.AddComponent<TransformComponent>();
-    transform.Scale = glm::vec3(1.0f);
-
-    return ent;
+    return entity;
 }
 
-void Scene::DestroyEntity(Entity InEntity)
+void Scene::DestroyEntity(Entity entity)
 {
-    if (InEntity.HasComponent<MeshComponent>())
+    if (entity.HasComponent<MeshComponent>())
     {
-        auto& Mesh = InEntity.GetComponent<MeshComponent>().Mesh;
+        // Temporary until I move every destroy func in destructor
+        auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
         Mesh->Destroy();
     }
 
-    m_Registry.RemoveEntity(InEntity);  // Implicitly returns GRECS::Entity by Gauntlet::Entity impl
+    m_Registry.destroy(entity);  // Implicitly returns entt::entity by Gauntlet::Entity impl
 }
 
-void Scene::OnUpdate(const float DeltaTime)
+void Scene::OnUpdate(const float deltaTime)
 {
-    for (GRECS::Entity ent : GRECS::SceneView(m_Registry))
+    for (auto entityID : m_Registry.view<TagComponent>())
     {
-        Entity entity{ent, this};
+        Entity entity{entityID, this};
 
         if (entity.HasComponent<TransformComponent>())
         {

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
-#include "Gauntlet/ECS/GRECS.h"
 #include "Scene.h"
 
 namespace Gauntlet
@@ -14,28 +13,34 @@ class Entity final
     Entity()  = default;
     ~Entity() = default;
 
-    Entity(GRECS::Entity InEntityHandle, Scene* InScene);
+    Entity(entt::entity entity, Scene* scene);
 
-    // TODO: Manage custom params to constructor
-    template <typename T /*, typename... Args*/> T& AddComponent(/*Args&&... InArgs*/)
+    template <typename T> FORCEINLINE bool HasComponent() { return m_Scene->m_Registry.all_of<T>(m_EntityHandle); }
+
+    template <typename T, typename... Args> T& AddComponent(Args&&... args)
     {
         GNT_ASSERT(!HasComponent<T>(), "Entity already has the component!");
 
-        return m_Scene->m_Registry.AssignComponent<T>(m_EntityHandle);
+        return m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
     }
 
     template <typename T> T& GetComponent()
     {
         GNT_ASSERT(HasComponent<T>(), "Entity doesn't have the component!");
 
-        T* Component = m_Scene->m_Registry.GetComponent<T>(m_EntityHandle);
-        return *Component;
+        return m_Scene->m_Registry.get<T>(m_EntityHandle);
     }
-
-    template <typename T> bool HasComponent() { return m_Scene->m_Registry.GetComponent<T>(m_EntityHandle); }
 
     template <typename T> void RemoveComponent()
     {
+        GNT_ASSERT(HasComponent<T>(), "Attempting to delete component that entity doesn't have.");
+
+        if (typeid(T) == typeid(TransformComponent) || typeid(T) == typeid(TagComponent))
+        {
+            LOG_WARN("Attempting to delete transform/tag component! Returning...");
+            return;
+        }
+
         if (typeid(T) == typeid(MeshComponent))
         {
             // Temporary until I move every destroy func in destructor
@@ -43,20 +48,20 @@ class Entity final
             mc.Mesh->Destroy();
         }
 
-        m_Scene->m_Registry.RemoveComponent<T>(m_EntityHandle);
+        m_Scene->m_Registry.remove<T>(m_EntityHandle);
     }
 
     FORCEINLINE operator uint32_t() const { return (uint32_t)m_EntityHandle; }
 
     FORCEINLINE bool operator==(const Entity& that) { return m_EntityHandle == that.m_EntityHandle && m_Scene == that.m_Scene; }
     FORCEINLINE bool operator!=(const Entity& that) { return !(*this == that); }
-    FORCEINLINE operator GRECS::Entity() { return m_EntityHandle; }
+    FORCEINLINE operator entt::entity() { return m_EntityHandle; }
 
-    FORCEINLINE bool IsValid() const { return m_Scene && m_Scene->m_Registry.IsEntityValid(m_EntityHandle); }
+    FORCEINLINE bool IsValid() const { return m_Scene && m_EntityHandle != entt::null; }
 
   private:
-    GRECS::Entity m_EntityHandle{0};
-    Scene* m_Scene = nullptr;  // TODO: Make WeakPtr wrapper
+    entt::entity m_EntityHandle{entt::null};
+    Scene* m_Scene = nullptr;  // TODO: Add WeakPtr
 };
 
 }  // namespace Gauntlet

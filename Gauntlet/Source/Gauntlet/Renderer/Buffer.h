@@ -23,9 +23,9 @@ enum class EShaderDataType : uint8_t
     Bool
 };
 
-static uint32_t ShaderDataTypeSize(EShaderDataType InType)
+static uint32_t ShaderDataTypeSize(EShaderDataType type)
 {
-    switch (InType)
+    switch (type)
     {
         case EShaderDataType::Bool: return 1;
         case EShaderDataType::Int: return 4;
@@ -55,8 +55,7 @@ struct BufferElement
   public:
     BufferElement() = default;
 
-    BufferElement(EShaderDataType InType, const std::string_view& InName)
-        : Name(InName), Type(InType), Size(ShaderDataTypeSize(InType)), Offset(0)
+    BufferElement(EShaderDataType type, const std::string_view& name) : Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0)
     {
     }
 
@@ -102,7 +101,7 @@ class BufferLayout final
     BufferLayout()  = default;
     ~BufferLayout() = default;
 
-    BufferLayout(const std::initializer_list<BufferElement>& InElements) : m_Elements(InElements), m_Stride(0)
+    BufferLayout(const std::initializer_list<BufferElement>& elements) : m_Elements(elements), m_Stride(0)
     {
         CalculateOffsetsAndStride();
     }
@@ -147,8 +146,8 @@ struct BufferInfo final
   public:
     BufferInfo() = default;
 
-    BufferInfo(EBufferUsage InBufferUsage, const uint64_t InSize, const uint64_t InCount, void* InData)
-        : Usage(InBufferUsage), Size(InSize), Count(InCount), Data(InData)
+    BufferInfo(EBufferUsage bufferUsage, const uint64_t size, const uint64_t count, void* data)
+        : Usage(bufferUsage), Size(size), Count(count), Data(data)
     {
     }
 

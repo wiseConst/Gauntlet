@@ -18,7 +18,7 @@ class Texture2D
     virtual void Destroy()                         = 0;
     FORCEINLINE virtual void* GetTextureID() const = 0;
 
-    static Ref<Texture2D> Create(const std::string_view& TextureFilePath, const bool InbCreateTextureID = false);
+    static Ref<Texture2D> Create(const std::string_view& textureFilePath, const bool bCreateTextureID = false);
 };
 
 }  // namespace Gauntlet

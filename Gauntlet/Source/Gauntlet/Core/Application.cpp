@@ -18,19 +18,19 @@ namespace Gauntlet
 {
 Application* Application::s_Instance = nullptr;
 
-Application::Application(const ApplicationSpecification& InApplicationSpec)
-    : m_AppInfo(InApplicationSpec), m_MainThreadID(std::this_thread::get_id())
+Application::Application(const ApplicationSpecification& ApplicationSpec)
+    : m_Specification(ApplicationSpec), m_MainThreadID(std::this_thread::get_id())
 {
     GNT_ASSERT(!s_Instance, "You can't have 2 instances of application!");
     s_Instance = this;
 
     JobSystem::Init();
-    RendererAPI::Init(m_AppInfo.GraphicsAPI);
+    RendererAPI::Init(m_Specification.GraphicsAPI);
 
-    WindowSpecification WindowSpec(InApplicationSpec.AppName, InApplicationSpec.Width, InApplicationSpec.Height);
+    WindowSpecification WindowSpec(m_Specification.AppName, m_Specification.Width, m_Specification.Height);
     m_Window.reset(Window::Create(WindowSpec));
     m_Window->SetWindowCallback(BIND_FN(Application::OnEvent));
-    m_Window->SetWindowLogo(InApplicationSpec.WindowLogoPath);
+    m_Window->SetWindowLogo(m_Specification.WindowLogoPath);
 
     std::string ConfigurationString;
 #if GNT_DEBUG

@@ -6,16 +6,16 @@
 
 namespace Gauntlet
 {
-Skybox::Skybox(const std::vector<std::string>& InFaces)
+Skybox::Skybox(const std::vector<std::string>& faces)
 {
-    Create(InFaces);
+    Create(faces);
 }
 
-void Skybox::Create(const std::vector<std::string>& InFaces)
+void Skybox::Create(const std::vector<std::string>& faces)
 {
     m_Cube = Mesh::CreateCube();
 
-    m_CubeMapTexture = TextureCube::Create(InFaces);
+    m_CubeMapTexture = TextureCube::Create(faces);
 }
 
 void Skybox::Destroy()

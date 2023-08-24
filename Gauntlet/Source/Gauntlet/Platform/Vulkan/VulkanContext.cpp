@@ -16,7 +16,7 @@
 namespace Gauntlet
 {
 
-VulkanContext::VulkanContext(Scoped<Window>& InWindow) : GraphicsContext(InWindow)
+VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
 {
     GNT_ASSERT(!s_Context, "Graphics context already initialized!");
     s_Context = this;
@@ -325,7 +325,7 @@ void VulkanContext::SwapBuffers()
     m_Swapchain->PresentImage(m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()]);
 }
 
-void VulkanContext::SetVSync(bool IsVSync)
+void VulkanContext::SetVSync(bool bIsVSync)
 {
     m_Device->WaitDeviceOnFinish();
 
@@ -368,9 +368,9 @@ void VulkanContext::Destroy()
 #endif
 }
 
-void VulkanContext::AddSwapchainResizeCallback(const std::function<void()>& InResizeCallback)
+void VulkanContext::AddSwapchainResizeCallback(const std::function<void()>& resizeCallback)
 {
-    m_Swapchain->AddResizeCallback(InResizeCallback);
+    m_Swapchain->AddResizeCallback(resizeCallback);
 }
 
 }  // namespace Gauntlet

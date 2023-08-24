@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
-#include "Gauntlet/ECS/GRECS.h"
+#include <entt/entt.hpp>
 #include "Components.h"
 
 namespace Gauntlet
@@ -12,20 +12,21 @@ class SceneHierarchyPanel;
 class Scene final : private Uncopyable, private Unmovable
 {
   public:
-    Scene(const std::string& Name = "Default");
+    Scene(const std::string& name = "Default");
     ~Scene();
 
-    Entity CreateEntity(const std::string& Name = "NONE");
-    void DestroyEntity(Entity InEntity);
+    Entity CreateEntity(const std::string& name = "Entity");
+    void DestroyEntity(Entity entity);
 
-    void OnUpdate(const float DeltaTime);
+    void OnUpdate(const float deltaTime);
 
     FORCEINLINE const auto& GetName() const { return m_Name; }
 
   private:
-    GRECS::Registry m_Registry;
+    entt::registry m_Registry;
     std::string m_Name;
 
+    // Specify classes that have public access to Scene class properties
     friend class Entity;
     friend class SceneHierarchyPanel;
 };

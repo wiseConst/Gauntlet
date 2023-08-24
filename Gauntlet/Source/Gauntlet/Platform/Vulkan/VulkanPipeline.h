@@ -111,7 +111,7 @@ struct PipelineSpecification
 class VulkanPipeline final
 {
   public:
-    VulkanPipeline(const PipelineSpecification& InPipelineSpecification);
+    VulkanPipeline(const PipelineSpecification& pipelineSpecification);
     VulkanPipeline()  = delete;
     ~VulkanPipeline() = default;
 

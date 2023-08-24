@@ -14,12 +14,12 @@ class RendererAPI
         Vulkan
     };
 
-    FORCEINLINE static void Init(EAPI InGraphicsAPI)
+    FORCEINLINE static void Init(EAPI graphicsAPI)
     {
-        if (InGraphicsAPI == s_API && s_API != EAPI::None) return;
+        if (graphicsAPI == s_API && s_API != EAPI::None) return;
 
         GNT_ASSERT(s_API == EAPI::None, "You can't initalize RHI twice!");
-        s_API = InGraphicsAPI;
+        s_API = graphicsAPI;
     }
 
     static EAPI Get() { return s_API; }

@@ -7,13 +7,13 @@
 
 namespace Gauntlet
 {
-Ref<TextureCube> TextureCube::Create(const std::vector<std::string>& InFaces)
+Ref<TextureCube> TextureCube::Create(const std::vector<std::string>& faces)
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            return Ref<VulkanTextureCube>(new VulkanTextureCube(InFaces));
+            return Ref<VulkanTextureCube>(new VulkanTextureCube(faces));
         }
         case RendererAPI::EAPI::None: GNT_ASSERT(false, "RendererAPI is None!"); return nullptr;
     }

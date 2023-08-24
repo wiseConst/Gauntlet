@@ -1,6 +1,6 @@
 #pragma once
 
-// Should be inherited as private.
+// Should be always inherited as private.
 
 namespace Gauntlet
 {

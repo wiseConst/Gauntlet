@@ -14,36 +14,36 @@
 
 namespace Gauntlet
 {
-Ref<Mesh> Mesh::Create(const std::string& InFilePath)
+Ref<Mesh> Mesh::Create(const std::string& filePath)
 {
-    return Ref<Mesh>(new Mesh(InFilePath));
+    return Ref<Mesh>(new Mesh(filePath));
 }
 
-Mesh::Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices)
+Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
     JobSystem::Submit(
-        [this, InVertices, InIndices]
+        [this, vertices, indices]
         {
             BufferInfo VertexBufferInfo = {};
             VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
             VertexBufferInfo.Layout     = {{EShaderDataType::Vec3, "InPosition"}};
-            VertexBufferInfo.Count      = InVertices.size();
+            VertexBufferInfo.Count      = vertices.size();
 
             Ref<Gauntlet::VertexBuffer> VertexBuffer(Gauntlet::VertexBuffer::Create(VertexBufferInfo));
-            VertexBuffer->SetData(InVertices.data(), InVertices.size() * sizeof(InVertices[0]));
+            VertexBuffer->SetData(vertices.data(), vertices.size() * sizeof(vertices[0]));
             m_VertexBuffers.emplace_back(VertexBuffer);
 
             BufferInfo IndexBufferInfo = {};
             IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
-            IndexBufferInfo.Count      = InIndices.size();
-            IndexBufferInfo.Data       = (void*)InIndices.data();
-            IndexBufferInfo.Size       = InIndices.size() * sizeof(InIndices[0]);
+            IndexBufferInfo.Count      = indices.size();
+            IndexBufferInfo.Data       = (void*)indices.data();
+            IndexBufferInfo.Size       = indices.size() * sizeof(indices[0]);
 
             m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(IndexBufferInfo));
         });
 }
 
-Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
+Mesh::Mesh(const std::string& meshPath) : m_Directory(meshPath)
 {
     JobSystem::Submit(
         [this]
@@ -84,10 +84,10 @@ Mesh::Mesh(const std::string& InMeshPath) : m_Directory(InMeshPath)
         });
 }
 
-void Mesh::LoadMesh(const std::string& InMeshPath)
+void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(InMeshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
+    const aiScene* scene = importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
                                                                     aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
@@ -97,7 +97,7 @@ void Mesh::LoadMesh(const std::string& InMeshPath)
         return;
     }
 
-    m_Directory = std::string(InMeshPath.substr(0, InMeshPath.find_last_of('/'))) + std::string("/");
+    m_Directory = std::string(meshPath.substr(0, meshPath.find_last_of('/'))) + std::string("/");
     ProcessNode(scene->mRootNode, scene);
 }
 

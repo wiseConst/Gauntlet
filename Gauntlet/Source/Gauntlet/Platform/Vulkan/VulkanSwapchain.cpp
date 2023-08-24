@@ -13,12 +13,12 @@
 
 namespace Gauntlet
 {
-VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& InDevice, VkSurfaceKHR& InSurface) : m_Device(InDevice), m_Surface(InSurface)
+VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& device, VkSurfaceKHR& surface) : m_Device(device), m_Surface(surface)
 {
     Invalidate();
 }
 
-void VulkanSwapchain::BeginRenderPass(const VkCommandBuffer& InCommandBuffer)
+void VulkanSwapchain::BeginRenderPass(const VkCommandBuffer& commandBuffer)
 {
     std::vector<VkClearValue> ClearValues(2);
     ClearValues[0].color        = {m_ClearColor};
@@ -36,13 +36,13 @@ void VulkanSwapchain::BeginRenderPass(const VkCommandBuffer& InCommandBuffer)
     RenderArea.extent              = m_SwapchainImageExtent;
     RenderPassBeginInfo.renderArea = RenderArea;
 
-    vkCmdBeginRenderPass(InCommandBuffer, &RenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &RenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSemaphore, const VkFence& InFence)
+bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& imageAcquiredSemaphore, const VkFence& fence)
 {
     const auto result =
-        vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain, UINT64_MAX, InImageAcquiredSemaphore, InFence, &m_ImageIndex);
+        vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain, UINT64_MAX, imageAcquiredSemaphore, fence, &m_ImageIndex);
     if (result == VK_SUCCESS) return true;
 
     if (result != VK_SUBOPTIMAL_KHR || result != VK_ERROR_OUT_OF_DATE_KHR)
@@ -56,12 +56,12 @@ bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& InImageAcquiredSema
     return false;
 }
 
-void VulkanSwapchain::PresentImage(const VkSemaphore& InRenderFinishedSemaphore)
+void VulkanSwapchain::PresentImage(const VkSemaphore& renderFinishedSemaphore)
 {
     VkPresentInfoKHR PresentInfo   = {};
     PresentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     PresentInfo.waitSemaphoreCount = 1;
-    PresentInfo.pWaitSemaphores    = &InRenderFinishedSemaphore;
+    PresentInfo.pWaitSemaphores    = &renderFinishedSemaphore;
     PresentInfo.pImageIndices      = &m_ImageIndex;
     PresentInfo.swapchainCount     = 1;
     PresentInfo.pSwapchains        = &m_Swapchain;

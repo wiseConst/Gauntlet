@@ -9,9 +9,9 @@
 namespace Gauntlet
 {
 
-VulkanDescriptorAllocator::VulkanDescriptorAllocator(Scoped<VulkanDevice>& InDevice) : m_Device(InDevice) {}
+VulkanDescriptorAllocator::VulkanDescriptorAllocator(Scoped<VulkanDevice>& device) : m_Device(device) {}
 
-bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDescriptorSetLayout InDescriptorSetLayout)
+bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* outDescriptorSet, VkDescriptorSetLayout descriptorSetLayout)
 {
     GRAPHICS_GUARD_LOCK;
 
@@ -30,10 +30,10 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
         }
     }
 
-    const auto CurrentDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
+    const auto CurrentDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &descriptorSetLayout);
 
     // Try to allocate the descriptor set
-    auto AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &CurrentDescriptorSetAllocateInfo, InDescriptorSet);
+    auto AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &CurrentDescriptorSetAllocateInfo, outDescriptorSet);
     if (AllocationResult == VK_SUCCESS)
     {
         ++m_AllocatedDescriptorSets;
@@ -49,8 +49,8 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
         m_CurrentPoolSizeMultiplier *= 1.3f;
 
         // If it still fails then we have big issues
-        const auto NewDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &InDescriptorSetLayout);
-        AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &NewDescriptorSetAllocateInfo, InDescriptorSet);
+        const auto NewDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &descriptorSetLayout);
+        AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &NewDescriptorSetAllocateInfo, outDescriptorSet);
         if (AllocationResult == VK_SUCCESS)
         {
             ++m_AllocatedDescriptorSets;
@@ -63,18 +63,18 @@ bool VulkanDescriptorAllocator::Allocate(VkDescriptorSet* InDescriptorSet, VkDes
     return false;
 }
 
-VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t InCount, VkDescriptorPoolCreateFlags InDescriptorPoolCreateFlags)
+VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t count, VkDescriptorPoolCreateFlags descriptorPoolCreateFlags)
 {
     std::vector<VkDescriptorPoolSize> PoolSizes(m_DefaultPoolSizes.size());
 
     for (uint32_t i = 0; i < PoolSizes.size(); ++i)
     {
         PoolSizes[i].type            = m_DefaultPoolSizes[i].first;
-        PoolSizes[i].descriptorCount = m_DefaultPoolSizes[i].second * InCount;
+        PoolSizes[i].descriptorCount = m_DefaultPoolSizes[i].second * count;
     }
 
-    const auto DescriptorPoolCreateInfo = Utility::GetDescriptorPoolCreateInfo(static_cast<uint32_t>(PoolSizes.size()), InCount,
-                                                                               PoolSizes.data(), InDescriptorPoolCreateFlags);
+    const auto DescriptorPoolCreateInfo =
+        Utility::GetDescriptorPoolCreateInfo(static_cast<uint32_t>(PoolSizes.size()), count, PoolSizes.data(), descriptorPoolCreateFlags);
 
     VkDescriptorPool NewDescriptorPool = VK_NULL_HANDLE;
     VK_CHECK(vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &NewDescriptorPool),

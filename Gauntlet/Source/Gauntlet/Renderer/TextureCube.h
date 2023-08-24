@@ -14,6 +14,6 @@ class TextureCube : private Uncopyable, private Unmovable
 
     virtual void Destroy() = 0;
 
-    static Ref<TextureCube> Create(const std::vector<std::string>& InFaces);
+    static Ref<TextureCube> Create(const std::vector<std::string>& faces);
 };
 }  // namespace Gauntlet

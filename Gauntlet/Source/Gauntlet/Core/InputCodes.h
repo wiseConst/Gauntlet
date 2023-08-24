@@ -2,6 +2,8 @@
 
 // From glfw3.h
 
+// TODO: Replace with enums
+
 /*----------Keyboard----------*/
 
 /* The unknown key */

@@ -9,7 +9,7 @@ class Skybox final
 {
   public:
     Skybox() = delete;
-    Skybox(const std::vector<std::string>& InFaces);
+    Skybox(const std::vector<std::string>& faces);
     ~Skybox() = default;
 
     FORCEINLINE const auto& GetCubeMesh() const { return m_Cube; }
@@ -21,7 +21,7 @@ class Skybox final
     Ref<TextureCube> m_CubeMapTexture;
     Ref<Mesh> m_Cube;
 
-    void Create(const std::vector<std::string>& InFaces);
+    void Create(const std::vector<std::string>& faces);
 };
 
 }  // namespace Gauntlet

@@ -29,20 +29,20 @@ class Mesh final
     FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
 
     FORCEINLINE const uint32_t GetSubmeshCount() const { return static_cast<uint32_t>(m_MeshesData.size()); }
-    FORCEINLINE const auto& GetSubmeshName(const uint32_t InMeshIndex) { return m_MeshesData[InMeshIndex].Name; }
+    FORCEINLINE const auto& GetSubmeshName(const uint32_t meshIndex) { return m_MeshesData[meshIndex].Name; }
 
-    FORCEINLINE const Ref<Gauntlet::Material>& GetMaterial(const uint32_t InMeshIndex) { return m_MeshesData[InMeshIndex].Material; }
+    FORCEINLINE const Ref<Gauntlet::Material>& GetMaterial(const uint32_t meshIndex) { return m_MeshesData[meshIndex].Material; }
 
-    static Ref<Mesh> Create(const std::string& InModelPath);
+    static Ref<Mesh> Create(const std::string& modelPath);
     static Ref<Mesh> CreateCube();
 
   private:
     // Actual submesh
     struct MeshData
     {
-        MeshData(const std::string& InName, std::vector<MeshVertex>& InVertices, const std::vector<uint32_t>& InIndices,
-                 const Ref<Gauntlet::Material>& InMaterial)
-            : Name(InName), Vertices(InVertices), Indices(InIndices), Material(InMaterial)
+        MeshData(const std::string& InName, std::vector<MeshVertex>& vertices, const std::vector<uint32_t>& indices,
+                 const Ref<Gauntlet::Material>& material)
+            : Name(InName), Vertices(vertices), Indices(indices), Material(material)
         {
         }
 
@@ -61,10 +61,10 @@ class Mesh final
     std::vector<Ref<VertexBuffer>> m_VertexBuffers;
     std::vector<Ref<IndexBuffer>> m_IndexBuffers;
 
-    Mesh(const std::vector<Vertex>& InVertices, const std::vector<uint32_t>& InIndices);
-    Mesh(const std::string& InMeshPath);
+    Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+    Mesh(const std::string& meshPath);
 
-    void LoadMesh(const std::string& InMeshPath);
+    void LoadMesh(const std::string& meshPath);
 
     void ProcessNode(aiNode* node, const aiScene* scene);
     MeshData ProcessMeshData(aiMesh* mesh, const aiScene* scene);

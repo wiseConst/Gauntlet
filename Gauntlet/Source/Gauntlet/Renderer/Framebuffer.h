@@ -31,17 +31,19 @@ struct FramebufferSpecification
     ELoadOp DepthLoadOp   = ELoadOp::DONT_CARE;
     EStoreOp DepthStoreOp = EStoreOp::DONT_CARE;
 
-    uint32_t Width  = 0;
-    uint32_t Height = 0;
+    uint32_t Width   = 0;
+    uint32_t Height  = 0;
+    std::string Name = "None";
 };
 
 class Framebuffer : private Uncopyable, private Unmovable
 {
   public:
     FORCEINLINE virtual FramebufferSpecification& GetSpec() = 0;
-    static Ref<Framebuffer> Create(const FramebufferSpecification& InFramebufferSpecification);
+    static Ref<Framebuffer> Create(const FramebufferSpecification& framebufferSpecification);
 
-    virtual void Destroy() = 0;
+    virtual void Destroy()                               = 0;
+    virtual void Resize(uint32_t width, uint32_t height) = 0;
 
     virtual const uint32_t GetWidth() const  = 0;
     virtual const uint32_t GetHeight() const = 0;

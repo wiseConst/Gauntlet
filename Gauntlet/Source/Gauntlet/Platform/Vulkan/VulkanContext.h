@@ -24,14 +24,14 @@ class VulkanContext final : public GraphicsContext
 
   public:
     VulkanContext() = delete;
-    VulkanContext(Scoped<Window>& InWindow);
+    VulkanContext(Scoped<Window>& window);
     ~VulkanContext() = default;
 
     void BeginRender() final override;
     void EndRender() final override;
 
     void SwapBuffers() final override;
-    void SetVSync(bool IsVSync) final override;
+    void SetVSync(bool bIsVSync) final override;
     void Destroy() final override;
 
     FORCEINLINE const auto& GetInstance() const { return m_Instance; }
@@ -55,7 +55,7 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetDescriptorAllocator() const { return m_DescriptorAllocator; }
     FORCEINLINE auto& GetDescriptorAllocator() { return m_DescriptorAllocator; }
 
-    void AddSwapchainResizeCallback(const std::function<void()>& InResizeCallback);
+    void AddSwapchainResizeCallback(const std::function<void()>& resizeCallback);
 
   private:
     VkInstance m_Instance                     = VK_NULL_HANDLE;

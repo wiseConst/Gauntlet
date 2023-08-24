@@ -24,12 +24,12 @@ class VulkanVertexBuffer final : public VertexBuffer
 {
   public:
     VulkanVertexBuffer() = delete;
-    VulkanVertexBuffer(BufferInfo& InBufferInfo);
+    VulkanVertexBuffer(BufferInfo& bufferInfo);
     ~VulkanVertexBuffer() = default;
 
     FORCEINLINE const BufferLayout& GetLayout() const final override { return m_Layout; }
-    FORCEINLINE void SetLayout(const BufferLayout& InLayout) final override { m_Layout = InLayout; }
-    void SetData(const void* InData, const size_t InDataSize) final override;
+    FORCEINLINE void SetLayout(const BufferLayout& layout) final override { m_Layout = layout; }
+    void SetData(const void* data, const size_t size) final override;
 
     FORCEINLINE uint64_t GetCount() const final override { return m_VertexCount; }
     void Destroy() final override;
@@ -37,7 +37,7 @@ class VulkanVertexBuffer final : public VertexBuffer
     FORCEINLINE const auto& Get() const { return m_AllocatedBuffer.Buffer; }
     FORCEINLINE auto& Get() { return m_AllocatedBuffer.Buffer; }
 
-    void SetStagedData(const AllocatedBuffer& InStagingBuffer, const VkDeviceSize InBufferDataSize);
+    void SetStagedData(const AllocatedBuffer& stagingBuffer, const VkDeviceSize stagingBufferDataSize);
 
   private:
     AllocatedBuffer m_AllocatedBuffer;
@@ -51,7 +51,7 @@ class VulkanIndexBuffer final : public IndexBuffer
 {
   public:
     VulkanIndexBuffer() = delete;
-    VulkanIndexBuffer(BufferInfo& InBufferInfo);
+    VulkanIndexBuffer(BufferInfo& bufferInfo);
     ~VulkanIndexBuffer() = default;
 
     uint64_t GetCount() const final override { return m_IndicesCount; }
@@ -67,16 +67,16 @@ class VulkanIndexBuffer final : public IndexBuffer
 
 namespace BufferUtils
 {
-VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage InBufferUsage);
+VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage bufferUsage);
 
-void CreateBuffer(const EBufferUsage InBufferUsage, const VkDeviceSize InSize, AllocatedBuffer& InOutAllocatedBuffer,
-                  VmaMemoryUsage InMemoryUsage = VMA_MEMORY_USAGE_AUTO);
+void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, AllocatedBuffer& outAllocatedBuffer,
+                  VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_AUTO);
 
-void CopyBuffer(const VkBuffer& InSourceBuffer, VkBuffer& InDestBuffer, const VkDeviceSize InSize);
+void CopyBuffer(const VkBuffer& sourceBuffer, VkBuffer& destBuffer, const VkDeviceSize size);
 
-void DestroyBuffer(AllocatedBuffer& InBuffer);
+void DestroyBuffer(AllocatedBuffer& buffer);
 
-void CopyDataToBuffer(AllocatedBuffer& InBuffer, const VkDeviceSize InDataSize, const void* InData);
+void CopyDataToBuffer(AllocatedBuffer& buffer, const VkDeviceSize dataSize, const void* data);
 
 }  // namespace BufferUtils
 

@@ -3,6 +3,6 @@
 
 namespace Gauntlet
 {
-Entity::Entity(GRECS::Entity InEntityHandle, Scene* InScene) : m_EntityHandle(InEntityHandle), m_Scene(InScene) {}
+Entity::Entity(entt::entity entity, Scene* scene) : m_EntityHandle(entity), m_Scene(scene) {}
 
 }  // namespace Gauntlet

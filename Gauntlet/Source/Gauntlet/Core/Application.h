@@ -37,7 +37,7 @@ class Application : private Uncopyable, private Unmovable
 {
   public:
     Application() = delete;
-    Application(const ApplicationSpecification& InApplicationSpec = ApplicationSpecification());
+    Application(const ApplicationSpecification& ApplicationSpec = ApplicationSpecification());
     virtual ~Application();
 
     void Run();
@@ -47,8 +47,8 @@ class Application : private Uncopyable, private Unmovable
 
     FORCEINLINE auto& GetGUILayer() { return m_ImGuiLayer; }
 
-    FORCEINLINE const auto& GetSpecification() const { return m_AppInfo; }
-    FORCEINLINE auto& GetSpecification() { return m_AppInfo; }
+    FORCEINLINE const auto& GetSpecification() const { return m_Specification; }
+    FORCEINLINE auto& GetSpecification() { return m_Specification; }
 
     FORCEINLINE const auto& GetWindow() const { return m_Window; }
     FORCEINLINE auto& GetWindow() { return m_Window; }
@@ -60,7 +60,7 @@ class Application : private Uncopyable, private Unmovable
 
   private:
     static Application* s_Instance;
-    ApplicationSpecification m_AppInfo;
+    ApplicationSpecification m_Specification;
 
     Scoped<Window> m_Window;
     Scoped<GraphicsContext> m_Context;

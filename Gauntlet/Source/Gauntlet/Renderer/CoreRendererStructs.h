@@ -10,11 +10,11 @@ namespace Gauntlet
 
 struct QuadVertex
 {
-    glm::vec3 Position;
-    glm::vec3 Normal;
-    glm::vec4 Color;
-    glm::vec2 TexCoord;
-    float TextureId;
+    glm::vec3 Position{0.0f};
+    glm::vec3 Normal{0.0f};
+    glm::vec4 Color{1.0f};
+    glm::vec2 TexCoord{0.0f};
+    float TextureId{0.0f};
 };
 
 struct MeshVertex

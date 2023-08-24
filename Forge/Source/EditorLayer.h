@@ -16,9 +16,9 @@ class EditorLayer final : public Layer
 
     void OnDetach() final override;
 
-    void OnUpdate(const float DeltaTime) final override;
+    void OnUpdate(const float deltaTime) final override;
 
-    void OnEvent(Event& InEvent) final override;
+    void OnEvent(Event& event) final override;
 
     void OnImGuiRender() final override;
 

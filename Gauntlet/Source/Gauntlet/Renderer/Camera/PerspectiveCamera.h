@@ -11,36 +11,36 @@ class PerspectiveCamera : public Camera
 {
   public:
     // If AspectRatio eq 0.0f it's gonna be calculated based on window size.
-    PerspectiveCamera(const float InAspectRatio = 0.0f, const float InFOV = 90.0f) : Camera(InAspectRatio), m_FOV(InFOV)
+    PerspectiveCamera(const float aspectRatio = 0.0f, const float fov = 90.0f) : Camera(aspectRatio), m_FOV(fov)
     {
         SetProjection(0.1f, 1000.0f);
         m_CameraTranslationSpeed = 2.0f;
     }
     ~PerspectiveCamera() = default;
 
-    FORCEINLINE static Ref<PerspectiveCamera> Create(const float InAspectRatio = 0.0f, const float InFOV = 90.0f)
+    FORCEINLINE static Ref<PerspectiveCamera> Create(const float aspectRatio = 0.0f, const float fov = 90.0f)
     {
-        return Ref<PerspectiveCamera>(new PerspectiveCamera(InAspectRatio, InFOV));
+        return Ref<PerspectiveCamera>(new PerspectiveCamera(aspectRatio, fov));
     }
 
     FORCEINLINE const auto GetFOV() const { return m_FOV; }
 
-    void OnUpdate(const float DeltaTime) override
+    void OnUpdate(const float deltaTime) override
     {
         if (Input::IsKeyPressed(GNT_KEY_W))
-            m_Position += m_Front * m_CameraTranslationSpeed * DeltaTime;
+            m_Position += m_Front * m_CameraTranslationSpeed * deltaTime;
         else if (Input::IsKeyPressed(GNT_KEY_S))
-            m_Position -= m_Front * m_CameraTranslationSpeed * DeltaTime;
+            m_Position -= m_Front * m_CameraTranslationSpeed * deltaTime;
 
         if (Input::IsKeyPressed(GNT_KEY_A))
-            m_Position -= m_Right * m_CameraTranslationSpeed * DeltaTime;
+            m_Position -= m_Right * m_CameraTranslationSpeed * deltaTime;
         else if (Input::IsKeyPressed(GNT_KEY_D))
-            m_Position += m_Right * m_CameraTranslationSpeed * DeltaTime;
+            m_Position += m_Right * m_CameraTranslationSpeed * deltaTime;
 
         if (Input::IsKeyPressed(GNT_KEY_SPACE))
-            m_Position += m_Up * m_CameraTranslationSpeed * DeltaTime;
+            m_Position += m_Up * m_CameraTranslationSpeed * deltaTime;
         else if (Input::IsKeyPressed(GNT_KEY_C))
-            m_Position -= m_Up * m_CameraTranslationSpeed * DeltaTime;
+            m_Position -= m_Up * m_CameraTranslationSpeed * deltaTime;
 
         if (Input::IsKeyPressed(GNT_KEY_LEFT_SHIFT))
             m_CameraTranslationSpeed = 50.0f;
@@ -55,15 +55,15 @@ class PerspectiveCamera : public Camera
         m_ProjectionMatrix = glm::perspective(glm::radians(m_FOV), m_AspectRatio, zNear, zFar);
     }
 
-    void OnEvent(Event& InEvent) override
+    void OnEvent(Event& event) override
     {
-        EventDispatcher dispatcher(InEvent);
+        EventDispatcher dispatcher(event);
         dispatcher.Dispatch<WindowResizeEvent>(BIND_FN(PerspectiveCamera::OnWindowResized));
         dispatcher.Dispatch<MouseScrolledEvent>(BIND_FN(PerspectiveCamera::OnMouseScrolled));
         dispatcher.Dispatch<MouseMovedEvent>(BIND_FN(PerspectiveCamera::OnMouseMoved));
     }
 
-    FORCEINLINE void SetSensitivity(const float InSensitivity = 0.1f) { m_Sensitivity = InSensitivity; }
+    FORCEINLINE void SetSensitivity(const float sensitivity = 0.1f) { m_Sensitivity = sensitivity; }
 
   private:
     float m_FOV         = 90.0f;
@@ -81,34 +81,34 @@ class PerspectiveCamera : public Camera
 
     bool m_FirstMouse{true};
 
-    void OnWindowResized(WindowResizeEvent& InEvent)
+    void OnWindowResized(WindowResizeEvent& event)
     {
-        m_AspectRatio = InEvent.GetAspectRatio();
+        m_AspectRatio = event.GetAspectRatio();
         SetProjection();
     }
 
-    void OnMouseScrolled(MouseScrolledEvent& InEvent)
+    void OnMouseScrolled(MouseScrolledEvent& event)
     {
-        m_FOV -= InEvent.GetOffsetY();
+        m_FOV -= event.GetOffsetY();
         m_FOV = std::clamp(m_FOV, 45.0f, 110.0f);
 
         SetProjection();
     }
 
-    void OnMouseMoved(MouseMovedEvent& InEvent)
+    void OnMouseMoved(MouseMovedEvent& event)
     {
         if (m_FirstMouse)
         {
-            m_LastMouseX = (float)InEvent.GetOffsetX();
-            m_LastMouseY = (float)InEvent.GetOffsetY();
+            m_LastMouseX = (float)event.GetOffsetX();
+            m_LastMouseY = (float)event.GetOffsetY();
             m_FirstMouse = false;
         }
 
-        const float DiffX = InEvent.GetOffsetX() - m_LastMouseX;
-        const float DiffY = m_LastMouseY - InEvent.GetOffsetY();
+        const float DiffX = event.GetOffsetX() - m_LastMouseX;
+        const float DiffY = m_LastMouseY - event.GetOffsetY();
 
-        m_LastMouseX = static_cast<float>(InEvent.GetOffsetX());
-        m_LastMouseY = static_cast<float>(InEvent.GetOffsetY());
+        m_LastMouseX = static_cast<float>(event.GetOffsetX());
+        m_LastMouseY = static_cast<float>(event.GetOffsetY());
 
         if (!Input::IsMouseButtonPressed(GNT_MOUSE_BUTTON_1)) return;
 

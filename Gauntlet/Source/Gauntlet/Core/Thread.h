@@ -27,11 +27,11 @@ class Thread final : private Uncopyable, private Unmovable
         if (m_Handle.joinable()) m_Handle.join();
     }
 
-    FORCEINLINE void Submit(const std::function<void()>& InJob)
+    FORCEINLINE void Submit(const std::function<void()>& job)
     {
         {
             std::unique_lock<std::mutex> Lock(m_QueueMutex);
-            m_Jobs.push(InJob);
+            m_Jobs.push(job);
         }
 
         m_CondVar.notify_one();
@@ -52,6 +52,6 @@ class Thread final : private Uncopyable, private Unmovable
     friend class JobSystem;
 
     // Should be called only once on init
-    void SetThreadAffinity(const uint32_t InThreadID);
+    void SetThreadAffinity(const uint32_t threadID);
 };
 }  // namespace Gauntlet

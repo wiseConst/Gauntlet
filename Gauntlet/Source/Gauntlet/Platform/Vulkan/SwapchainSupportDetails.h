@@ -8,47 +8,47 @@ namespace Gauntlet
 struct SwapchainSupportDetails final
 {
   public:
-    static SwapchainSupportDetails QuerySwapchainSupportDetails(const VkPhysicalDevice& InPhysicalDevice, const VkSurfaceKHR& InSurface)
+    static SwapchainSupportDetails QuerySwapchainSupportDetails(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface)
     {
         SwapchainSupportDetails Details = {};
         {
-            const auto result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(InPhysicalDevice, InSurface, &Details.SurfaceCapabilities);
+            const auto result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &Details.SurfaceCapabilities);
             GNT_ASSERT(result == VK_SUCCESS, "Failed to query surface capabilities.");
         }
 
         uint32_t SurfaceFormatNum{0};
         {
-            const auto result = vkGetPhysicalDeviceSurfaceFormatsKHR(InPhysicalDevice, InSurface, &SurfaceFormatNum, nullptr);
+            const auto result = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &SurfaceFormatNum, nullptr);
             GNT_ASSERT(result == VK_SUCCESS && SurfaceFormatNum != 0, "Failed to query number of surface formats.");
         }
 
         {
             Details.ImageFormats.resize(SurfaceFormatNum);
             const auto result =
-                vkGetPhysicalDeviceSurfaceFormatsKHR(InPhysicalDevice, InSurface, &SurfaceFormatNum, Details.ImageFormats.data());
+                vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &SurfaceFormatNum, Details.ImageFormats.data());
             GNT_ASSERT(result == VK_SUCCESS && SurfaceFormatNum != 0, "Failed to query surface formats.");
         }
 
         uint32_t PresentModeCount{0};
         {
-            const auto result = vkGetPhysicalDeviceSurfacePresentModesKHR(InPhysicalDevice, InSurface, &PresentModeCount, nullptr);
+            const auto result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &PresentModeCount, nullptr);
             GNT_ASSERT(result == VK_SUCCESS && PresentModeCount != 0, "Failed to query number of present modes.");
         }
 
         {
             Details.PresentModes.resize(PresentModeCount);
             const auto result =
-                vkGetPhysicalDeviceSurfacePresentModesKHR(InPhysicalDevice, InSurface, &PresentModeCount, Details.PresentModes.data());
+                vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &PresentModeCount, Details.PresentModes.data());
             GNT_ASSERT(result == VK_SUCCESS && PresentModeCount != 0, "Failed to query present modes.");
         }
 
         return Details;
     }
 
-    static VkSurfaceFormatKHR ChooseBestSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& AvailableFormats)
+    static VkSurfaceFormatKHR ChooseBestSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
     {
         // If Vulkan returned an unknown format, then just force what we want.
-        if (AvailableFormats.size() == 1 && AvailableFormats[0].format == VK_FORMAT_UNDEFINED)
+        if (availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED)
         {
             VkSurfaceFormatKHR Format = {};
             // ImGui uses VK_FORMAT_B8G8R8A8_UNORM
@@ -57,7 +57,7 @@ struct SwapchainSupportDetails final
             return Format;
         }
 
-        for (const auto& Format : AvailableFormats)
+        for (const auto& Format : availableFormats)
         {
             // ImGui uses VK_FORMAT_B8G8R8A8_UNORM
             if (Format.format == VK_FORMAT_B8G8R8A8_UNORM /*VK_FORMAT_B8G8R8A8_SRGB*/ &&
@@ -68,14 +68,14 @@ struct SwapchainSupportDetails final
         }
 
         LOG_WARN("Failed to choose best swapchain surface format.");
-        return AvailableFormats[0];
+        return availableFormats[0];
     }
 
-    static VkPresentModeKHR ChooseBestPresentMode(const std::vector<VkPresentModeKHR>& AvailablePresentModes, bool bIsVSync)
+    static VkPresentModeKHR ChooseBestPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes, bool bIsVSync)
     {
         if (bIsVSync) return VK_PRESENT_MODE_FIFO_KHR;
 
-        for (const auto& PresentMode : AvailablePresentModes)
+        for (const auto& PresentMode : availablePresentModes)
         {
             if (PresentMode == VK_PRESENT_MODE_MAILBOX_KHR) return PresentMode;  // Battery-drain mode on mobile devices
         }
@@ -83,11 +83,11 @@ struct SwapchainSupportDetails final
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    static VkExtent2D ChooseBestExtent(const VkSurfaceCapabilitiesKHR& SurfaceCapabilities, GLFWwindow* window)
+    static VkExtent2D ChooseBestExtent(const VkSurfaceCapabilitiesKHR& surfaceCapabilities, GLFWwindow* window)
     {
-        if (SurfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
         {
-            return SurfaceCapabilities.currentExtent;
+            return surfaceCapabilities.currentExtent;
         }
 
         int32_t Width{0}, Height{0};
@@ -95,9 +95,9 @@ struct SwapchainSupportDetails final
 
         VkExtent2D ActualExtent = {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height)};
         ActualExtent.width =
-            std::clamp(ActualExtent.width, SurfaceCapabilities.minImageExtent.width, SurfaceCapabilities.maxImageExtent.width);
+            std::clamp(ActualExtent.width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
         ActualExtent.height =
-            std::clamp(ActualExtent.height, SurfaceCapabilities.minImageExtent.height, SurfaceCapabilities.maxImageExtent.height);
+            std::clamp(ActualExtent.height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
 
         return ActualExtent;
     }

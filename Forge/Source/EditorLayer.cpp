@@ -10,18 +10,18 @@ void EditorLayer::OnAttach()
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 
     {
-        auto Square                                          = m_ActiveScene->CreateEntity("WhiteSquare");
-        Square.AddComponent<SpriteRendererComponent>().Color = glm::vec4{1.0f};
-        auto& tc                                             = Square.GetComponent<TransformComponent>();
-        tc.Translation                                       = glm::vec3(50.0f, 50.0f, 0.0f);
-        tc.Scale                                             = glm::vec3(1.0f);
+        auto Square = m_ActiveScene->CreateEntity("WhiteSquare");
+        Square.AddComponent<SpriteRendererComponent>(glm::vec4{1.0f});
+
+        auto& tc       = Square.GetComponent<TransformComponent>();
+        tc.Translation = glm::vec3(50.0f, 50.0f, 0.0f);
     }
 
     {
-        auto Cerberus                               = m_ActiveScene->CreateEntity("Cerberus");
-        Cerberus.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf");
-        auto& tc                                    = Cerberus.GetComponent<TransformComponent>();
+        auto Cerberus = m_ActiveScene->CreateEntity("Cerberus");
+        Cerberus.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf"));
 
+        auto& tc       = Cerberus.GetComponent<TransformComponent>();
         tc.Translation = glm::vec3(0, -5.0f, 10.0f);
         tc.Scale       = glm::vec3(0.1f);
     }
@@ -55,18 +55,26 @@ void EditorLayer::OnAttach()
     }*/
 
     {
-        auto Sphere                               = m_ActiveScene->CreateEntity("Sphere");
-        Sphere.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Sphere.gltf");
-        auto& tc                                  = Sphere.GetComponent<TransformComponent>();
+        auto Sphere = m_ActiveScene->CreateEntity("Sphere");
+        Sphere.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Sphere.gltf"));
+        auto& tc = Sphere.GetComponent<TransformComponent>();
 
         tc.Scale         = glm::vec3(150.0f);
         tc.Translation.y = 0.15f;
     }
 
     {
-        auto rhetorician                               = m_ActiveScene->CreateEntity("rhetorician");
-        rhetorician.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/rhetorician/scene.gltf");
-        auto& tc                                       = rhetorician.GetComponent<TransformComponent>();
+        auto Plane = m_ActiveScene->CreateEntity("Plane");
+        Plane.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Plane.gltf"));
+        auto& tc = Plane.GetComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(0.0f, -10.0f, 0.0f);
+    }
+
+    {
+        auto rhetorician = m_ActiveScene->CreateEntity("rhetorician");
+        rhetorician.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/rhetorician/scene.gltf"));
+        auto& tc = rhetorician.GetComponent<TransformComponent>();
 
         tc.Scale       = glm::vec3(2.0f);
         tc.Translation = glm::vec3(0.0f, 0.0f, -40.0f);
@@ -74,8 +82,7 @@ void EditorLayer::OnAttach()
 
     {
         auto handgun_animation = m_ActiveScene->CreateEntity("handgun_animation");
-        handgun_animation.AddComponent<MeshComponent>().Mesh =
-            Mesh::Create(std::string(ASSETS_PATH) + "Models/handgun_animation/scene.gltf");
+        handgun_animation.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/handgun_animation/scene.gltf"));
         auto& tc = handgun_animation.GetComponent<TransformComponent>();
 
         tc.Scale       = glm::vec3(15.0f);
@@ -83,11 +90,12 @@ void EditorLayer::OnAttach()
     }
 
     {
-        auto PointLight                                          = m_ActiveScene->CreateEntity("PointLight");
-        PointLight.AddComponent<SpriteRendererComponent>().Color = glm::vec4{0.2f};
-        auto& tc                                                 = PointLight.GetComponent<TransformComponent>();
-        tc.Scale                                                 = glm::vec3(1.5f);
-        tc.Translation                                           = glm::vec3(10.0f, 10.0f, -10.0f);
+        auto PointLight = m_ActiveScene->CreateEntity("PointLight");
+        PointLight.AddComponent<SpriteRendererComponent>(glm::vec4{0.2f});
+
+        auto& tc       = PointLight.GetComponent<TransformComponent>();
+        tc.Scale       = glm::vec3(1.5f);
+        tc.Translation = glm::vec3(10.0f, 10.0f, -10.0f);
 
         auto& plc                      = PointLight.AddComponent<PointLightComponent>();
         plc.Color                      = glm::vec4(0.2f);
@@ -99,8 +107,7 @@ void EditorLayer::OnAttach()
 
     {
         auto DirectionalLight = m_ActiveScene->CreateEntity("DirectionalLight");
-        auto& src             = DirectionalLight.AddComponent<SpriteRendererComponent>();
-        src.Color             = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+        DirectionalLight.AddComponent<SpriteRendererComponent>(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
 
         auto& tc       = DirectionalLight.GetComponent<TransformComponent>();
         tc.Scale       = glm::vec3(2.5f);
@@ -116,9 +123,9 @@ void EditorLayer::OnAttach()
 
     /*{
         auto Sponza                               = m_ActiveScene->CreateEntity("Sponza");
-        Sponza.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/Sponza/sponza.gltf");
-        auto& tc                                  = Sponza.GetComponent<TransformComponent>();
+        Sponza.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Sponza/sponza.gltf"));
 
+        auto& tc                                  = Sponza.GetComponent<TransformComponent>();
         tc.Translation = glm::vec3(60.0, 60.0f, -60.0f);
         tc.Scale       = glm::vec3(0.5f);
     }*/
@@ -142,18 +149,20 @@ void EditorLayer::OnDetach()
     m_WiseTreeTexture->Destroy();
 }
 
-void EditorLayer::OnUpdate(const float DeltaTime)
+void EditorLayer::OnUpdate(const float deltaTime)
 {
-    if (m_bIsViewportFocused) m_EditorCamera->OnUpdate(DeltaTime);
+    if (m_bIsViewportFocused) m_EditorCamera->OnUpdate(deltaTime);
 
     Renderer::BeginScene(*m_EditorCamera);
 
-    m_ActiveScene->OnUpdate(DeltaTime);
+    m_ActiveScene->OnUpdate(deltaTime);
+
+    Renderer::EndScene();
 }
 
-void EditorLayer::OnEvent(Event& InEvent)
+void EditorLayer::OnEvent(Event& event)
 {
-    if (m_bIsViewportHovered) m_EditorCamera->OnEvent(InEvent);
+    if (m_bIsViewportHovered) m_EditorCamera->OnEvent(event);
 }
 
 void EditorLayer::OnImGuiRender()
@@ -297,6 +306,7 @@ void EditorLayer::UpdateViewportSize()
 
     if (bNeedViewportResize && bIsViewportValid)
     {
+        Renderer::ResizeFramebuffers((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
         m_EditorCamera->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
     }
 }

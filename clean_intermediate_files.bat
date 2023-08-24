@@ -1,4 +1,4 @@
-::@echo off
+@echo off
 
 set dirsToRemove=*.vs Intermediate Binaries
 set filesToRemove=*.sln *.vcxproj *.vcxproj.user *.vcxproj.filters

@@ -23,7 +23,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
     void BeginRender() final override;
     void EndRender() final override;
 
-    void OnUpdate(const float DeltaTime) final override {}
+    void OnUpdate(const float deltaTime) final override {}
     void OnEvent(Event& event) final override;
     void OnImGuiRender() final override {}
 

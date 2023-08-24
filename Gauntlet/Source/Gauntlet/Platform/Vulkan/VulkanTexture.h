@@ -19,8 +19,8 @@ struct TextureCreateInfo
 class VulkanTexture2D final : public Texture2D
 {
   public:
-    VulkanTexture2D(const std::string_view& TextureFilePath, const bool InbCreateTextureID = false);
-    VulkanTexture2D(const void* InData, const size_t InDataSize, const uint32_t InImageWidth, const uint32_t InImageHeight);
+    VulkanTexture2D(const std::string_view& textureFilePath, const bool bCreateTextureID = false);
+    VulkanTexture2D(const void* data, const size_t size, const uint32_t imageWidth, const uint32_t imageHeight);
     VulkanTexture2D() = default;
 
     ~VulkanTexture2D() = default;
@@ -40,7 +40,7 @@ class VulkanTexture2D final : public Texture2D
   private:
     Ref<VulkanImage> m_Image;
 
-    void Create(const TextureCreateInfo& InTextureCreateInfo);
+    void Create(const TextureCreateInfo& textureCreateInfo);
 };
 
 }  // namespace Gauntlet

@@ -12,9 +12,9 @@
 
 namespace Gauntlet
 {
-static VkAttachmentLoadOp GauntletLoadOpToVulkan(ELoadOp InLoadOp)
+static VkAttachmentLoadOp GauntletLoadOpToVulkan(ELoadOp loadOp)
 {
-    switch (InLoadOp)
+    switch (loadOp)
     {
         case ELoadOp::CLEAR: return VK_ATTACHMENT_LOAD_OP_CLEAR;
         case ELoadOp::DONT_CARE: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -25,9 +25,9 @@ static VkAttachmentLoadOp GauntletLoadOpToVulkan(ELoadOp InLoadOp)
     return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 }
 
-static VkAttachmentStoreOp GauntletStoreOpToVulkan(EStoreOp InStoreOp)
+static VkAttachmentStoreOp GauntletStoreOpToVulkan(EStoreOp storeOp)
 {
-    switch (InStoreOp)
+    switch (storeOp)
     {
         case EStoreOp::DONT_CARE: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
         case EStoreOp::STORE: return VK_ATTACHMENT_STORE_OP_STORE;
@@ -37,8 +37,7 @@ static VkAttachmentStoreOp GauntletStoreOpToVulkan(EStoreOp InStoreOp)
     return VK_ATTACHMENT_STORE_OP_DONT_CARE;
 }
 
-VulkanFramebuffer::VulkanFramebuffer(const FramebufferSpecification& InFramebufferSpecification)
-    : m_Specification(InFramebufferSpecification)
+VulkanFramebuffer::VulkanFramebuffer(const FramebufferSpecification& framebufferSpecification) : m_Specification(framebufferSpecification)
 {
     if (m_Specification.Width == 0 || m_Specification.Height == 0)
     {
@@ -56,7 +55,6 @@ void VulkanFramebuffer::Invalidate()
 
     const auto& Swapchain     = Context.GetSwapchain();
     const auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
-    const auto ImageExtent    = VkExtent2D{m_Specification.Width, m_Specification.Height};
     const bool bHasDepth      = m_Specification.DepthLoadOp != ELoadOp::DONT_CARE || m_Specification.DepthStoreOp != EStoreOp::DONT_CARE;
 
     if (m_ColorAttachments.empty())
@@ -64,8 +62,8 @@ void VulkanFramebuffer::Invalidate()
         for (uint32_t i = 0; i < Swapchain->GetImageCount(); ++i)
         {
             ImageSpecification ImageSpec = {};
-            ImageSpec.Width              = ImageExtent.width;
-            ImageSpec.Height             = ImageExtent.height;
+            ImageSpec.Width              = m_Specification.Width;
+            ImageSpec.Height             = m_Specification.Height;
             ImageSpec.Format             = EImageFormat::RGBA;
             ImageSpec.Usage              = EImageUsage::Attachment;
             ImageSpec.CreateTextureID    = true;
@@ -76,8 +74,8 @@ void VulkanFramebuffer::Invalidate()
         if (bHasDepth)
         {
             ImageSpecification DepthImageSpec = {};
-            DepthImageSpec.Width              = ImageExtent.width;
-            DepthImageSpec.Height             = ImageExtent.height;
+            DepthImageSpec.Width              = m_Specification.Width;
+            DepthImageSpec.Height             = m_Specification.Height;
             DepthImageSpec.Format             = EImageFormat::DEPTH32F;
             DepthImageSpec.Usage              = EImageUsage::Attachment;
             DepthImageSpec.CreateTextureID    = false;  // TODO: Should I also craete texture id for depth image to display it sooner?
@@ -93,16 +91,16 @@ void VulkanFramebuffer::Invalidate()
 
         for (uint32_t i = 0; i < Swapchain->GetImageCount(); ++i)
         {
-            m_ColorAttachments[i]->Destroy();
-            m_ColorAttachments[i]->SetExtent(ImageExtent);
-            m_ColorAttachments[i]->Create();
+            m_ColorAttachments[i]->GetSpecification().Width  = m_Specification.Width;
+            m_ColorAttachments[i]->GetSpecification().Height = m_Specification.Height;
+            m_ColorAttachments[i]->Invalidate();
         }
 
         if (bHasDepth)
         {
-            m_DepthAttachment->Destroy();
-            m_DepthAttachment->SetExtent(ImageExtent);
-            m_DepthAttachment->Create();
+            m_DepthAttachment->GetSpecification().Width  = m_Specification.Width;
+            m_DepthAttachment->GetSpecification().Height = m_Specification.Height;
+            m_DepthAttachment->Invalidate();
         }
     }
 
@@ -220,8 +218,8 @@ void VulkanFramebuffer::Invalidate()
     FramebufferCreateInfo.layers                  = 1;
     FramebufferCreateInfo.pAttachments            = Attachments;
     FramebufferCreateInfo.attachmentCount         = bHasDepth ? 2 : 1;
-    FramebufferCreateInfo.height                  = ImageExtent.height;
-    FramebufferCreateInfo.width                   = ImageExtent.width;
+    FramebufferCreateInfo.height                  = m_Specification.Height;
+    FramebufferCreateInfo.width                   = m_Specification.Width;
 
     m_Framebuffers.resize(Swapchain->GetImageCount());
     for (uint32_t i = 0; i < m_Framebuffers.size(); ++i)
@@ -232,7 +230,7 @@ void VulkanFramebuffer::Invalidate()
     }
 }
 
-void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& InCommandBuffer)
+void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
@@ -261,7 +259,7 @@ void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& InCommandBuffer)
     RenderArea.extent              = VkExtent2D{m_Specification.Width, m_Specification.Height};
     RenderPassBeginInfo.renderArea = RenderArea;
 
-    vkCmdBeginRenderPass(InCommandBuffer, &RenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &RenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void VulkanFramebuffer::Destroy()

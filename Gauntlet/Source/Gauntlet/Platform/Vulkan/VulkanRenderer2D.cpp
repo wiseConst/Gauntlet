@@ -23,6 +23,8 @@ VulkanRenderer2D::VulkanRenderer2D() : m_Context((VulkanContext&)VulkanContext::
 
 void VulkanRenderer2D::Create()
 {
+    // TODO: Apply normals in 2D
+
     // Vertex buffer creation
     {
         s_Data2D.VertexBufferLayout = {
@@ -106,7 +108,7 @@ void VulkanRenderer2D::Create()
         {
             ShaderAttributeDescriptions[i] = Utility::GetShaderAttributeDescription(
                 0, Utility::GauntletShaderDataTypeToVulkan(s_Data2D.VertexBufferLayout.GetElements()[i].Type), i,
-                (uint32_t)s_Data2D.VertexBufferLayout.GetElements()[i].Offset);
+                s_Data2D.VertexBufferLayout.GetElements()[i].Offset);
         }
 
         PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
@@ -133,7 +135,7 @@ void VulkanRenderer2D::Create()
     Scoped<VulkanStagingStorage::StagingBuffer> QuadVertexStagingBuffer(new VulkanStagingStorage::StagingBuffer());
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data2D.DefaultVertexBufferSize, (*QuadVertexStagingBuffer).Buffer);
     QuadVertexStagingBuffer->Capacity = s_Data2D.DefaultVertexBufferSize;
-    s_Data2D.StagingStorage.StagingBuffers.push_back(std::move(QuadVertexStagingBuffer));
+    s_Data2D.StagingStorage.StagingBuffers.emplace_back(std::move(QuadVertexStagingBuffer));
     ++Renderer::GetStats().StagingVertexBuffers;
 }
 
@@ -155,13 +157,13 @@ void VulkanRenderer2D::BeginImpl()
     s_Data2D.StagingStorage.CurrentStagingBufferIndex = 0;
 }
 
-void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec4& InColor)
+void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
 {
-    DrawRotatedQuadImpl(InPosition, InSize, glm::vec3(0.0f), InColor);
+    DrawRotatedQuadImpl(position, size, glm::vec3(0.0f), color);
 }
 
-void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
-                                    const Ref<Texture2D>& InTexture, const glm::vec4& InColor)
+void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                                    const Ref<Texture2D>& texture, const glm::vec4& color)
 {
     if (s_Data2D.QuadIndexCount >= s_Data2D.MaxIndices)
     {
@@ -169,9 +171,9 @@ void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2
     }
 
     float TextureId = 0.0f;
-    for (uint32_t i = 0; i < s_Data2D.CurrentTextureSlotIndex; ++i)
+    for (uint32_t i = 1; i < s_Data2D.CurrentTextureSlotIndex; ++i)
     {
-        if (s_Data2D.TextureSlots[i] == InTexture)
+        if (s_Data2D.TextureSlots[i] == texture)
         {
             TextureId = (float)i;
             break;
@@ -185,31 +187,16 @@ void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& InPosition, const glm::vec2
             FlushAndReset();
         }
 
-        const auto VulkanTexture                                = std::static_pointer_cast<VulkanTexture2D>(InTexture);
+        const auto VulkanTexture                                = std::static_pointer_cast<VulkanTexture2D>(texture);
         s_Data2D.TextureSlots[s_Data2D.CurrentTextureSlotIndex] = VulkanTexture;
         TextureId                                               = (float)s_Data2D.CurrentTextureSlotIndex;
         ++s_Data2D.CurrentTextureSlotIndex;
     }
 
-    const auto TransformMatrix = glm::translate(glm::mat4(1.0f), InPosition) *
-                                 glm::rotate(glm::mat4(1.0f), glm::radians(InRotation.z), glm::vec3(0, 0, 1)) *
-                                 glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
-
-    for (uint32_t i = 0; i < 4; ++i)
-    {
-        s_Data2D.QuadVertexBufferPtr->Position  = TransformMatrix * s_Data2D.QuadVertexPositions[i];
-        s_Data2D.QuadVertexBufferPtr->Color     = InColor;
-        s_Data2D.QuadVertexBufferPtr->TexCoord  = VulkanRenderer2DStorage::TextureCoords[i];
-        s_Data2D.QuadVertexBufferPtr->TextureId = TextureId;
-        ++s_Data2D.QuadVertexBufferPtr;
-    }
-
-    s_Data2D.QuadIndexCount += 6;
-
-    s_Data2D.PushConstants.TransformMatrix = s_Data2D.CameraProjectionMatrix;
-    s_Data2D.PushConstants.Color           = InColor;
-
-    ++Renderer::GetStats().QuadCount;
+    const auto Transform = glm::translate(glm::mat4(1.0f), position) *
+                           glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), glm::vec3(0, 0, 1)) *
+                           glm::scale(glm::mat4(1.0f), {size.x, size.y, 1.0f});
+    DrawQuadInternal(Transform, color, TextureId);
 }
 
 void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
@@ -222,7 +209,7 @@ void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const gl
     DrawQuadImpl(Transform, InColor);
 }
 
-void VulkanRenderer2D::DrawQuadImpl(const glm::mat4& InTransform, const glm::vec4& InColor)
+void VulkanRenderer2D::DrawQuadImpl(const glm::mat4& transform, const glm::vec4& color)
 {
     if (s_Data2D.QuadIndexCount >= s_Data2D.MaxIndices)
     {
@@ -230,26 +217,11 @@ void VulkanRenderer2D::DrawQuadImpl(const glm::mat4& InTransform, const glm::vec
     }
 
     const float TextureId = 0.0f;  // White by default
-
-    for (uint32_t i = 0; i < 4; ++i)
-    {
-        s_Data2D.QuadVertexBufferPtr->Position  = InTransform * s_Data2D.QuadVertexPositions[i];
-        s_Data2D.QuadVertexBufferPtr->Color     = InColor;
-        s_Data2D.QuadVertexBufferPtr->TexCoord  = VulkanRenderer2DStorage::TextureCoords[i];
-        s_Data2D.QuadVertexBufferPtr->TextureId = TextureId;
-        ++s_Data2D.QuadVertexBufferPtr;
-    }
-
-    s_Data2D.QuadIndexCount += 6;
-
-    s_Data2D.PushConstants.TransformMatrix = s_Data2D.CameraProjectionMatrix;
-    s_Data2D.PushConstants.Color           = InColor;
-
-    ++Renderer::GetStats().QuadCount;
+    DrawQuadInternal(transform, color, TextureId);
 }
 
-void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
-                                            const glm::vec4& InBlendColor)
+void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture,
+                                            const glm::vec4& blendColor)
 {
     if (s_Data2D.QuadIndexCount >= s_Data2D.MaxIndices)
     {
@@ -259,7 +231,7 @@ void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& InPosition, const g
     float TextureId = 0.0f;
     for (uint32_t i = 0; i < s_Data2D.CurrentTextureSlotIndex; ++i)
     {
-        if (s_Data2D.TextureSlots[i] == InTexture)
+        if (s_Data2D.TextureSlots[i] == texture)
         {
             TextureId = (float)i;
             break;
@@ -273,27 +245,31 @@ void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& InPosition, const g
             FlushAndReset();
         }
 
-        const auto VulkanTexture                                = std::static_pointer_cast<VulkanTexture2D>(InTexture);
+        const auto VulkanTexture                                = std::static_pointer_cast<VulkanTexture2D>(texture);
         s_Data2D.TextureSlots[s_Data2D.CurrentTextureSlotIndex] = VulkanTexture;
         TextureId                                               = (float)s_Data2D.CurrentTextureSlotIndex;
         ++s_Data2D.CurrentTextureSlotIndex;
     }
 
-    const auto TransformMatrix = glm::translate(glm::mat4(1.0f), InPosition) * glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
+    const auto Transform = glm::translate(glm::mat4(1.0f), position) * glm::scale(glm::mat4(1.0f), {size.x, size.y, 1.0f});
+    DrawQuadInternal(Transform, blendColor, TextureId);
+}
 
+void VulkanRenderer2D::DrawQuadInternal(const glm::mat4& transform, const glm::vec4& blendColor, const float textureID)
+{
     for (uint32_t i = 0; i < 4; ++i)
     {
-        s_Data2D.QuadVertexBufferPtr->Position  = TransformMatrix * s_Data2D.QuadVertexPositions[i];
-        s_Data2D.QuadVertexBufferPtr->Color     = InBlendColor;
+        s_Data2D.QuadVertexBufferPtr->Position  = transform * s_Data2D.QuadVertexPositions[i];
+        s_Data2D.QuadVertexBufferPtr->Color     = blendColor;
         s_Data2D.QuadVertexBufferPtr->TexCoord  = VulkanRenderer2DStorage::TextureCoords[i];
-        s_Data2D.QuadVertexBufferPtr->TextureId = TextureId;
+        s_Data2D.QuadVertexBufferPtr->TextureId = textureID;
         ++s_Data2D.QuadVertexBufferPtr;
     }
 
     s_Data2D.QuadIndexCount += 6;
 
     s_Data2D.PushConstants.TransformMatrix = s_Data2D.CameraProjectionMatrix;
-    s_Data2D.PushConstants.Color           = InBlendColor;
+    s_Data2D.PushConstants.Color           = blendColor;
 
     ++Renderer::GetStats().QuadCount;
 }
@@ -304,7 +280,7 @@ void VulkanRenderer2D::FlushAndReset()
 
     for (uint32_t i = 1; i < s_Data2D.TextureSlots.size(); ++i)
     {
-        s_Data2D.TextureSlots[i] = nullptr;  // Potential memory leak?
+        s_Data2D.TextureSlots[i] = nullptr;
     }
 
     s_Data2D.CurrentTextureSlotIndex = 1;

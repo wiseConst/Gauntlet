@@ -13,8 +13,8 @@ namespace Gauntlet
 {
 namespace ImageUtils
 {
-void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t InHeight, VkImageUsageFlags InImageUsageFlags,
-                 VkFormat InFormat, VkImageTiling InImageTiling, const uint32_t InMipLevels, const uint32_t InArrayLayers)
+void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t height, VkImageUsageFlags imageUsageFlags, VkFormat format,
+                 VkImageTiling imageTiling, const uint32_t mipLevels, const uint32_t arrayLayers)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
@@ -23,14 +23,14 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
     ImageCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ImageCreateInfo.imageType         = VK_IMAGE_TYPE_2D;
 
-    ImageCreateInfo.extent.width  = InWidth;
-    ImageCreateInfo.extent.height = InHeight;
+    ImageCreateInfo.extent.width  = width;
+    ImageCreateInfo.extent.height = height;
     ImageCreateInfo.extent.depth  = 1;
 
-    ImageCreateInfo.mipLevels   = InMipLevels;
-    ImageCreateInfo.arrayLayers = InArrayLayers;
-    ImageCreateInfo.format      = InFormat;
-    ImageCreateInfo.flags       = InArrayLayers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+    ImageCreateInfo.mipLevels   = mipLevels;
+    ImageCreateInfo.arrayLayers = arrayLayers;
+    ImageCreateInfo.format      = format;
+    ImageCreateInfo.flags       = arrayLayers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
     /*
      * The tiling field can have one of two values:
@@ -43,7 +43,7 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
      *
      * The way I understand it: It defines image texel layout in binded memory
      */
-    ImageCreateInfo.tiling = InImageTiling;
+    ImageCreateInfo.tiling = imageTiling;
 
     /*
      * There are only two possible values for the initialLayout of an image:
@@ -58,31 +58,31 @@ void CreateImage(AllocatedImage* InImage, const uint32_t InWidth, const uint32_t
      */
     ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    ImageCreateInfo.usage       = InImageUsageFlags;
+    ImageCreateInfo.usage       = imageUsageFlags;
     ImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ImageCreateInfo.samples     = VK_SAMPLE_COUNT_1_BIT;
 
-    InImage->Allocation = Context.GetAllocator()->CreateImage(ImageCreateInfo, &InImage->Image);
+    image->Allocation = Context.GetAllocator()->CreateImage(ImageCreateInfo, &image->Image);
 }
 
-void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageView* InImageView, VkFormat InFormat,
-                     VkImageAspectFlags InAspectFlags, VkImageViewType InImageViewType)
+void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* imageView, VkFormat format, VkImageAspectFlags aspectFlags,
+                     VkImageViewType imageViewType)
 {
     VkImageViewCreateInfo ImageViewCreateInfo = {};
     ImageViewCreateInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    ImageViewCreateInfo.viewType              = InImageViewType;
+    ImageViewCreateInfo.viewType              = imageViewType;
 
-    ImageViewCreateInfo.image  = InImage;
-    ImageViewCreateInfo.format = InFormat;
+    ImageViewCreateInfo.image  = image;
+    ImageViewCreateInfo.format = format;
 
     // It determines what is affected by your image operation. (In example you are using this image for depth then you set
     // VK_IMAGE_ASPECT_DEPTH_BIT)
-    ImageViewCreateInfo.subresourceRange.aspectMask = InAspectFlags;
+    ImageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
 
     ImageViewCreateInfo.subresourceRange.baseMipLevel   = 0;
     ImageViewCreateInfo.subresourceRange.levelCount     = 1;
     ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount     = InImageViewType == VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
+    ImageViewCreateInfo.subresourceRange.layerCount     = imageViewType == VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
 
     // We don't need to swizzle ( swap around ) any of the
     // color channels
@@ -91,7 +91,7 @@ void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageVi
     ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
     ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
 
-    VK_CHECK(vkCreateImageView(InDevice, &ImageViewCreateInfo, nullptr, InImageView), "Failed to create an image view!");
+    VK_CHECK(vkCreateImageView(device, &ImageViewCreateInfo, nullptr, imageView), "Failed to create an image view!");
 }
 
 /* Why surface has BGRA && images that we're rendering have RGBA:
@@ -101,9 +101,9 @@ void CreateImageView(const VkDevice& InDevice, const VkImage& InImage, VkImageVi
  *
  * Also vulkan handles transition from RGBA to BGRA behind the scenes.
  */
-VkFormat GauntletImageFormatToVulkan(EImageFormat InImageFormat)
+VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
 {
-    switch (InImageFormat)
+    switch (imageFormat)
     {
         case EImageFormat::NONE:
         {
@@ -121,7 +121,7 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat InImageFormat)
     return (VkFormat)0;
 }
 
-void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageLayout InNewLayout, const bool InIsCubeMap)
+void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
 
@@ -129,14 +129,14 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
 
     VkImageSubresourceRange SubresourceRange = {};
     SubresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
-    SubresourceRange.layerCount              = InIsCubeMap ? 6 : 1;
+    SubresourceRange.layerCount              = bIsCubeMap ? 6 : 1;
     SubresourceRange.levelCount              = 1;
 
     VkImageMemoryBarrier ImageMemoryBarrier = {};
     ImageMemoryBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    ImageMemoryBarrier.image                = InImage;
-    ImageMemoryBarrier.oldLayout            = InOldLayout;
-    ImageMemoryBarrier.newLayout            = InNewLayout;
+    ImageMemoryBarrier.image                = image;
+    ImageMemoryBarrier.oldLayout            = oldLayout;
+    ImageMemoryBarrier.newLayout            = newLayout;
     ImageMemoryBarrier.subresourceRange     = SubresourceRange;
 
     // Ownership things...
@@ -146,7 +146,7 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
     VkPipelineStageFlags PipelineSourceStageFlags      = 0;
     VkPipelineStageFlags PipelineDestinationStageFlags = 0;
 
-    if (InOldLayout == VK_IMAGE_LAYOUT_UNDEFINED && InNewLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
         PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
         PipelineDestinationStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -155,7 +155,7 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
         ImageMemoryBarrier.srcAccessMask = 0;
         ImageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     }
-    else if (InOldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && InNewLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
     {
         PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TRANSFER_BIT;
         PipelineDestinationStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -187,27 +187,27 @@ void TransitionImageLayout(VkImage& InImage, VkImageLayout InOldLayout, VkImageL
         Context.GetDevice()->GetLogicalDevice());
 }
 
-void CopyBufferDataToImage(const VkBuffer& InSourceBuffer, VkImage& InDestinationImage, const VkExtent3D& InImageExtent,
-                           const bool InIsCubeMap)
+void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent,
+                           const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
     auto& Context      = (VulkanContext&)VulkanContext::Get();
     auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
 
     VkBufferImageCopy CopyRegion           = {};
-    CopyRegion.imageSubresource.layerCount = InIsCubeMap ? 6 : 1;
+    CopyRegion.imageSubresource.layerCount = bIsCubeMap ? 6 : 1;
     CopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    CopyRegion.imageExtent                 = InImageExtent;
+    CopyRegion.imageExtent                 = imageExtent;
 
-    vkCmdCopyBufferToImage(CommandBuffer, InSourceBuffer, InDestinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &CopyRegion);
+    vkCmdCopyBufferToImage(CommandBuffer, sourceBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &CopyRegion);
 
     Utility::EndSingleTimeCommands(CommandBuffer, Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetTransferQueue(),
                                    Context.GetDevice()->GetLogicalDevice());
 }
 
-VkFilter GauntletTextureFilterToVulkan(ETextureFilter InTextureFilter)
+VkFilter GauntletTextureFilterToVulkan(ETextureFilter textureFilter)
 {
-    switch (InTextureFilter)
+    switch (textureFilter)
     {
         case ETextureFilter::LINEAR: return VK_FILTER_LINEAR;
         case ETextureFilter::NEAREST: return VK_FILTER_NEAREST;
@@ -216,9 +216,9 @@ VkFilter GauntletTextureFilterToVulkan(ETextureFilter InTextureFilter)
     return VK_FILTER_NEAREST;
 }
 
-VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap InTextureWrap)
+VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap textureWrap)
 {
-    switch (InTextureWrap)
+    switch (textureWrap)
     {
         case ETextureWrap::REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
         case ETextureWrap::CLAMP: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -230,13 +230,18 @@ VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap InTextureWrap)
 
 }  // namespace ImageUtils
 
-VulkanImage::VulkanImage(const ImageSpecification& InImageSecification) : m_Specification(InImageSecification)
+VulkanImage::VulkanImage(const ImageSpecification& imageSecification) : m_Specification(imageSecification)
 {
-    Create();
+    Invalidate();
 }
 
-void VulkanImage::Create()
+void VulkanImage::Invalidate()
 {
+    if (m_Image.Image)
+    {
+        Destroy();
+    }
+
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 

@@ -82,6 +82,7 @@ void VulkanRenderer::Create()
     PostProcessFramebufferSpec.ColorLoadOp              = ELoadOp::CLEAR;  // Should it be LOAD?
     PostProcessFramebufferSpec.ColorStoreOp             = EStoreOp::STORE;
     PostProcessFramebufferSpec.DepthLoadOp              = ELoadOp::CLEAR;
+    PostProcessFramebufferSpec.Name                     = "PostProcess";
 
     s_Data.PostProcessFramebuffer.reset(new VulkanFramebuffer(PostProcessFramebufferSpec));
 
@@ -91,7 +92,7 @@ void VulkanRenderer::Create()
     PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
     PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
     PipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    PipelineSpec.CullMode              = ECullMode::CULL_MODE_NONE;  // BACK?
+    PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
     PipelineSpec.bDepthTest            = VK_TRUE;
     PipelineSpec.bDepthWrite           = VK_TRUE;
     PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -117,15 +118,6 @@ void VulkanRenderer::Create()
 
     PipelineSpec.DescriptorSetLayouts = {s_Data.MeshDescriptorSetLayout};
     s_Data.MeshPipeline.reset(new VulkanPipeline(PipelineSpec));
-    m_Context.AddSwapchainResizeCallback(
-        [this]
-        {
-            s_Data.PostProcessFramebuffer->GetSpec().Width  = m_Context.GetSwapchain()->GetImageExtent().width;
-            s_Data.PostProcessFramebuffer->GetSpec().Height = m_Context.GetSwapchain()->GetImageExtent().height;
-            s_Data.PostProcessFramebuffer->Invalidate();
-            LOG_INFO("PostProcessFramebuffer Resize: (%u, %u)", s_Data.PostProcessFramebuffer->GetSpec().Width,
-                     s_Data.PostProcessFramebuffer->GetSpec().Height);
-        });
 
     PipelineSpec.Name        = "Mesh3D-Wireframe";
     PipelineSpec.PolygonMode = EPolygonMode::POLYGON_MODE_LINE;
@@ -156,24 +148,31 @@ void VulkanRenderer::Create()
     }
 }
 
-void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& InCamera)
+void VulkanRenderer::BeginSceneImpl(const PerspectiveCamera& camera)
 {
-    s_Data.MeshCameraDataBuffer.Projection = InCamera.GetProjectionMatrix();
-    s_Data.MeshCameraDataBuffer.View       = InCamera.GetViewMatrix();
-    s_Data.MeshCameraDataBuffer.Position   = InCamera.GetPosition();
+    s_Data.MeshCameraDataBuffer.Projection = camera.GetProjectionMatrix();
+    s_Data.MeshCameraDataBuffer.View       = camera.GetViewMatrix();
+    s_Data.MeshCameraDataBuffer.Position   = camera.GetPosition();
 
     memcpy(s_Data.MappedUniformCameraDataBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshCameraDataBuffer,
            sizeof(CameraDataBuffer));
 
-    VulkanRenderer2D::GetStorageData().CameraProjectionMatrix = InCamera.GetViewProjectionMatrix();
+    VulkanRenderer2D::GetStorageData().CameraProjectionMatrix = camera.GetViewProjectionMatrix();
     s_Data.SkyboxPushConstants.TransformMatrix =
-        InCamera.GetProjectionMatrix() *
-        glm::mat4(glm::mat3(InCamera.GetViewMatrix()));  // Removing 4th column of view martix which contains translation;
+        camera.GetProjectionMatrix() *
+        glm::mat4(glm::mat3(camera.GetViewMatrix()));  // Removing 4th column of view martix which contains translation;
 }
 
 void VulkanRenderer::BeginImpl()
 {
     Renderer::GetStats().DrawCalls = 0;
+
+    if (s_Data.bFramebuffersNeedResize)
+    {
+        m_Context.GetDevice()->WaitDeviceOnFinish();
+        s_Data.PostProcessFramebuffer->Resize(s_Data.NewFramebufferSize.x, s_Data.NewFramebufferSize.y);
+        s_Data.bFramebuffersNeedResize = false;
+    }
 
     s_Data.CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
@@ -196,7 +195,7 @@ void VulkanRenderer::BeginImpl()
     s_Data.CurrentPointLightIndex = 0;
 }
 
-void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& InTransformMatrix)
+void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& mesh, const glm::mat4& transform)
 {
     const auto& Swapchain = m_Context.GetSwapchain();
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
@@ -204,15 +203,15 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
     s_Data.CurrentCommandBuffer->BindPipeline(Renderer::GetSettings().ShowWireframes ? s_Data.MeshWireframePipeline : s_Data.MeshPipeline);
 
     MeshPushConstants PushConstants = {};
-    PushConstants.TransformMatrix   = InTransformMatrix;
+    PushConstants.TransformMatrix   = transform;
 
     s_Data.CurrentCommandBuffer->BindPushConstants(s_Data.MeshPipeline->GetLayout(),
                                                    s_Data.MeshPipeline->GetPushConstantsShaderStageFlags(), 0,
                                                    s_Data.MeshPipeline->GetPushConstantsSize(), &PushConstants);
 
-    for (uint32_t i = 0; i < InMesh->GetSubmeshCount(); ++i)
+    for (uint32_t i = 0; i < mesh->GetSubmeshCount(); ++i)
     {
-        const auto VulkanMaterial = static_pointer_cast<Gauntlet::VulkanMaterial>(InMesh->GetMaterial(i));
+        const auto VulkanMaterial = static_pointer_cast<Gauntlet::VulkanMaterial>(mesh->GetMaterial(i));
         GNT_ASSERT(VulkanMaterial, "Failed to retrieve mesh material!");
         auto MaterialDescriptorSet = VulkanMaterial->GetDescriptorSet();
 
@@ -220,23 +219,23 @@ void VulkanRenderer::SubmitMeshImpl(const Ref<Mesh>& InMesh, const glm::mat4& In
 
         VkDeviceSize Offset = 0;
         s_Data.CurrentCommandBuffer->BindVertexBuffers(
-            0, 1, &std::static_pointer_cast<VulkanVertexBuffer>(InMesh->GetVertexBuffers()[i])->Get(), &Offset);
+            0, 1, &std::static_pointer_cast<VulkanVertexBuffer>(mesh->GetVertexBuffers()[i])->Get(), &Offset);
 
         Ref<Gauntlet::VulkanIndexBuffer> VulkanIndexBuffer =
-            std::static_pointer_cast<Gauntlet::VulkanIndexBuffer>(InMesh->GetIndexBuffers()[i]);
+            std::static_pointer_cast<Gauntlet::VulkanIndexBuffer>(mesh->GetIndexBuffers()[i]);
         s_Data.CurrentCommandBuffer->BindIndexBuffer(VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
         s_Data.CurrentCommandBuffer->DrawIndexed(static_cast<uint32_t>(VulkanIndexBuffer->GetCount()));
         ++Renderer::GetStats().DrawCalls;
     }
 }
 
-void VulkanRenderer::AddPointLightImpl(const glm::vec3& Position, const glm::vec3& Color, const glm::vec3& AmbientSpecularShininess,
+void VulkanRenderer::AddPointLightImpl(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
                                        const glm::vec3& CLQ)
 {
     if (s_Data.CurrentPointLightIndex >= s_MAX_POINT_LIGHTS) return;
 
-    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Position = glm::vec4(Position, 0.0f);
-    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Color    = glm::vec4(Color, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Position = glm::vec4(position, 0.0f);
+    s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].Color    = glm::vec4(color, 0.0f);
     s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].AmbientSpecularShininess =
         glm::vec4(AmbientSpecularShininess, 0.0f);
     s_Data.MeshLightingModelBuffer.PointLights[s_Data.CurrentPointLightIndex].CLQ = glm::vec4(CLQ, 0.0f);
@@ -246,12 +245,12 @@ void VulkanRenderer::AddPointLightImpl(const glm::vec3& Position, const glm::vec
     ++s_Data.CurrentPointLightIndex;
 }
 
-void VulkanRenderer::AddDirectionalLightImpl(const glm::vec3& Color, const glm::vec3& Direction, const glm::vec3& AmbientSpecularShininess)
+void VulkanRenderer::AddDirectionalLightImpl(const glm::vec3& color, const glm::vec3& direction, const glm::vec3& AmbientSpecularShininess)
 {
     s_Data.MeshLightingModelBuffer.Gamma = s_RendererSettings.Gamma;
 
-    s_Data.MeshLightingModelBuffer.DirLight.Color                    = glm::vec4(Color, 0.0f);
-    s_Data.MeshLightingModelBuffer.DirLight.Direction                = glm::vec4(Direction, 0.0f);
+    s_Data.MeshLightingModelBuffer.DirLight.Color                    = glm::vec4(color, 0.0f);
+    s_Data.MeshLightingModelBuffer.DirLight.Direction                = glm::vec4(direction, 0.0f);
     s_Data.MeshLightingModelBuffer.DirLight.AmbientSpecularShininess = glm::vec4(AmbientSpecularShininess, 0.0f);
 
     memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
@@ -373,12 +372,23 @@ void VulkanRenderer::DestroySkybox()
     s_Data.DefaultSkybox->Destroy();
 }
 
-void VulkanRenderer::FlushImpl()
+void VulkanRenderer::EndSceneImpl()
 {
     DrawSkybox();
+}
+void VulkanRenderer::FlushImpl()
+{
 
     s_Data.PostProcessFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
     s_Data.CurrentCommandBuffer->EndDebugLabel();
+}
+
+void VulkanRenderer::ResizeFramebuffersImpl(uint32_t width, uint32_t height)
+{
+    // Resize all framebuffers
+    s_Data.bFramebuffersNeedResize = true;
+    s_Data.NewFramebufferSize      = {width, height};
+    // s_Data.PostProcessFramebuffer->Resize(Width, Height); // Immediate resize sucks because of image presentation
 }
 
 const Ref<Image> VulkanRenderer::GetFinalImageImpl()

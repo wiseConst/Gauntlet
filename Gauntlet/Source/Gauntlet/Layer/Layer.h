@@ -9,10 +9,10 @@ class Layer : private Uncopyable, private Unmovable
 {
   public:
     Layer() = default;
-    Layer(const std::string_view& LayerName) : m_LayerName(LayerName) {}
+    Layer(const std::string_view& layerName) : m_LayerName(layerName) {}
     virtual ~Layer() = default;
 
-    virtual void OnUpdate(const float DeltaTime) = 0;
+    virtual void OnUpdate(const float deltaTime) = 0;
     virtual void OnEvent(Event& event)           = 0;
 
     virtual void OnImGuiRender() = 0;

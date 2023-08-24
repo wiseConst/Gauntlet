@@ -13,18 +13,26 @@ class VulkanRenderPass;
 class VulkanFramebuffer final : public Framebuffer
 {
   public:
-    VulkanFramebuffer(const FramebufferSpecification& InFramebufferSpecification);
+    VulkanFramebuffer(const FramebufferSpecification& framebufferSpecification);
     ~VulkanFramebuffer() = default;
 
     FORCEINLINE const auto& GetRenderPass() const { return m_RenderPass; }
     FORCEINLINE const auto& GetColorAttachments() const { return m_ColorAttachments; }
     FORCEINLINE const auto& GetDepthAttachment() const { return m_DepthAttachment; }
-    FORCEINLINE virtual FramebufferSpecification& GetSpec() final override { return m_Specification; }
+    FORCEINLINE FramebufferSpecification& GetSpec() final override { return m_Specification; }
 
-    FORCEINLINE void SetClearColor(const glm::vec4& InClearColor) { m_Specification.ClearColor = InClearColor; }
+    FORCEINLINE void SetClearColor(const glm::vec4& clearColor) { m_Specification.ClearColor = clearColor; }
 
-    void BeginRenderPass(const VkCommandBuffer& InCommandBuffer);
-    FORCEINLINE void EndRenderPass(const VkCommandBuffer& InCommandBuffer) { vkCmdEndRenderPass(InCommandBuffer); }
+    void BeginRenderPass(const VkCommandBuffer& commandBuffer);
+    FORCEINLINE void EndRenderPass(const VkCommandBuffer& commandBuffer) { vkCmdEndRenderPass(commandBuffer); }
+
+    FORCEINLINE void Resize(uint32_t width, uint32_t height)
+    {
+        m_Specification.Width  = width;
+        m_Specification.Height = height;
+        Invalidate();
+        LOG_INFO("Framebuffer <%s> resized (%u, %u).", m_Specification.Name.data(), width, height);
+    }
 
     void Invalidate();
     void Destroy() final override;
