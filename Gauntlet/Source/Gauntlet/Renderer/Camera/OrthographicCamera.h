@@ -12,7 +12,7 @@ namespace Gauntlet
 class OrthographicCamera final : public Camera
 {
   public:
-    OrthographicCamera(const float aspectRatio = 0.0f, const float cameraWidth = 8.0f) : Camera(aspectRatio), m_CameraWidth(cameraWidth)
+    OrthographicCamera(const float aspectRatio = 0.0f, const float cameraWidth = 10.0f) : Camera(aspectRatio), m_CameraWidth(cameraWidth)
     {
         GNT_ASSERT(aspectRatio >= 0.0f && cameraWidth > 0.0f, "Camera width && aspect ratio can only be positive!");
         SetProjection(m_AspectRatio * -m_CameraWidth, m_AspectRatio * m_CameraWidth, -m_CameraWidth, m_CameraWidth, -m_CameraWidth,
@@ -63,7 +63,7 @@ class OrthographicCamera final : public Camera
 
   private:
     float m_ZoomLevel         = 1.5f;
-    const float m_CameraWidth = 8.0f;
+    const float m_CameraWidth = 10.0f;
 
     void OnWindowResized(WindowResizeEvent& event)
     {

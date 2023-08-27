@@ -14,6 +14,7 @@ layout(location = 3) out vec3 OutTangent;
 layout(location = 4) out vec3 OutBitangent;
 layout(location = 5) out vec3 OutViewVector;
 layout(location = 6) out vec3 OutFragmentPosition;
+layout(location = 7) out vec4 OutLightSpaceFragPos;
 
 layout( push_constant ) uniform PushConstants
 {	
@@ -27,6 +28,11 @@ layout(set = 0, binding = 4) uniform CameraDataBuffer
 	mat4 View;
 	vec3 Position;
 } InCameraDataBuffer;
+
+layout(set = 0, binding = 7) uniform ShadowsBuffer
+{
+	mat4 LightSpaceMatrix;
+} InShadowsBuffer;
 
 void main()
 {
@@ -42,6 +48,7 @@ void main()
 	OutBitangent = OutBitangent;
 	OutViewVector = normalize(VertexWorldPosition.xyz - InCameraDataBuffer.Position);
 	OutFragmentPosition = VertexWorldPosition.xyz;
+	OutLightSpaceFragPos = InShadowsBuffer.LightSpaceMatrix * vec4(OutFragmentPosition, 1.0);
 
 // Converting to camera space
 //	const vec3 T =  normalize((CameraViewProjectionMatrix * vec4(InTangent, 0.0f)).rgb);

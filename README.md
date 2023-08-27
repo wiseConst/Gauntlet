@@ -1,1 +1,6 @@
-![Gauntlet](./Assets/Logo/Gauntlet.png)
+# **Gauntlet**
+
+![Gauntlet](./Resources/Logo/Gauntlet.png)
+
+# **Progress**
+![Gauntlet](./Resources/Showcases/summer_progress.png)

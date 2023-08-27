@@ -31,6 +31,7 @@ class VulkanRenderer2D final : public Renderer2D
 
     struct VulkanRenderer2DStorage
     {
+        // Compile-time constants
         static constexpr uint32_t MaxQuads          = 2500;
         static constexpr uint32_t MaxVertices       = MaxQuads * 4;
         static constexpr uint32_t MaxIndices        = MaxQuads * 6;
@@ -52,17 +53,14 @@ class VulkanRenderer2D final : public Renderer2D
         std::vector<Ref<VulkanVertexBuffer>> QuadVertexBuffers;
         uint32_t CurrentQuadVertexBufferIndex = 0;
 
-        // Quad2D Base
+        // Quad2D Base Stuff
         BufferLayout VertexBufferLayout;
         QuadVertex* QuadVertexBufferBase = nullptr;
         QuadVertex* QuadVertexBufferPtr  = nullptr;
 
+        Ref<VulkanPipeline> QuadPipeline;
         Ref<VulkanIndexBuffer> QuadIndexBuffer;
         uint32_t QuadIndexCount = 0;
-
-        Ref<VulkanPipeline> QuadPipeline;
-        Ref<VulkanShader> VertexShader;
-        Ref<VulkanShader> FragmentShader;
 
         // Textures && descriptors
         VkDescriptorSetLayout QuadDescriptorSetLayout;
@@ -70,8 +68,7 @@ class VulkanRenderer2D final : public Renderer2D
         uint32_t CurrentDescriptorSetIndex = 0;
 
         std::array<Ref<VulkanTexture2D>, MaxTextureSlots> TextureSlots;
-        Ref<VulkanTexture2D> QuadWhiteTexture;  // Texture Slot 0 = white tex
-        uint32_t CurrentTextureSlotIndex = 1;   // 0 slot already tied with white texture
+        uint32_t CurrentTextureSlotIndex = 1;  // 0 slot already tied with white texture
 
         // Uniform related stuff
         glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);

@@ -69,12 +69,23 @@ struct LightingModelBuffer
     alignas(16) float Gamma;
 };
 
+struct ShadowsBuffer
+{
+    glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);
+};
+
 // PUSH CONSTANTS
 
 struct alignas(16) MeshPushConstants
 {
     glm::mat4 TransformMatrix;
     glm::vec4 Color;
+};
+
+struct alignas(16) LightPushConstants
+{
+    glm::mat4 Model;
+    glm::mat4 LightSpaceProjection;
 };
 
 }  // namespace Gauntlet

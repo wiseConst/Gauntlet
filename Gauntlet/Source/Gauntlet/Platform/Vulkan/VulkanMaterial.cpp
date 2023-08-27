@@ -116,9 +116,36 @@ void VulkanMaterial::Invalidate()
 
         Writes.push_back(PhongModelBufferWriteSet);
 
+        // Shadows
+        if (auto ShadowMapImage = RendererStorageData.ShadowMapFramebuffer->GetDepthAttachment())
+        {
+            auto ShadowMapImageInfo = ShadowMapImage->GetDescriptorInfo();
+            const auto ShadowMapTextureWriteSet =
+                Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6, m_DescriptorSet, 1, &ShadowMapImageInfo);
+
+            Writes.push_back(ShadowMapTextureWriteSet);
+        }
+        else
+        {
+            WhiteTextureWriteSet.dstBinding = 6;
+            Writes.push_back(WhiteTextureWriteSet);
+        }
+
+        VkDescriptorBufferInfo ShadowsBufferInfo = {};
+        ShadowsBufferInfo.buffer                 = RendererStorageData.UniformShadowsBuffers[CurrentFrameIndex].Buffer;
+        ShadowsBufferInfo.range                  = sizeof(ShadowsBuffer);
+        ShadowsBufferInfo.offset                 = 0;
+
+        // Shadows
+        auto ShadowsBufferWriteSet =
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, m_DescriptorSet, 1, &ShadowsBufferInfo);
+        Writes.push_back(ShadowsBufferWriteSet);
+
         vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
                                VK_NULL_HANDLE);
 
+        Writes.pop_back();
+        Writes.pop_back();
         Writes.pop_back();
         Writes.pop_back();
     }

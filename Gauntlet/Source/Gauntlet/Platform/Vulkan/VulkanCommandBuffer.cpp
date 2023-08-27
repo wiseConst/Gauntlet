@@ -11,25 +11,24 @@ void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags command
 {
     VkCommandBufferBeginInfo CommandBufferBeginInfo = {};
     CommandBufferBeginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    CommandBufferBeginInfo.flags                    = commandBufferUsageFlags;
+    CommandBufferBeginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | commandBufferUsageFlags;
 
     VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &CommandBufferBeginInfo), "Failed to begin command buffer recording!");
 }
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const
 {
-    if (s_bEnableValidationLayers)
-    {
-        VkDebugUtilsLabelEXT CommandBufferLabelEXT = {};
-        CommandBufferLabelEXT.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;
-        CommandBufferLabelEXT.color[0]             = labelColor.r;
-        CommandBufferLabelEXT.color[1]             = labelColor.g;
-        CommandBufferLabelEXT.color[2]             = labelColor.b;
-        CommandBufferLabelEXT.color[3]             = labelColor.a;
+    if (!s_bEnableValidationLayers) return;
 
-        vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
-    }
+    VkDebugUtilsLabelEXT CommandBufferLabelEXT = {};
+    CommandBufferLabelEXT.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;
+    CommandBufferLabelEXT.color[0]             = labelColor.r;
+    CommandBufferLabelEXT.color[1]             = labelColor.g;
+    CommandBufferLabelEXT.color[2]             = labelColor.b;
+    CommandBufferLabelEXT.color[3]             = labelColor.a;
+
+    vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
 }
 
 void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint) const

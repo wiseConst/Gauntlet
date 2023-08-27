@@ -69,11 +69,7 @@ void VulkanRenderer2D::Create()
         delete[] QuadIndices;
     }
 
-    // Default white texture
-    uint32_t WhiteTextureData = 0xffffffff;
-    s_Data2D.QuadWhiteTexture.reset(new VulkanTexture2D(&WhiteTextureData, sizeof(uint32_t), 1, 1));
-
-    s_Data2D.TextureSlots[0] = s_Data2D.QuadWhiteTexture;
+    s_Data2D.TextureSlots[0] = VulkanRenderer::GetStorageData().MeshWhiteTexture;
 
     // Setting up things all the things that related to uniforms in shader
     const auto TextureBinding = Utility::GetDescriptorSetLayoutBinding(
@@ -115,15 +111,15 @@ void VulkanRenderer2D::Create()
 
         PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
 
-        s_Data2D.VertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Shaders/FlatColor.vert.spv"));
-        s_Data2D.FragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Shaders/FlatColor.frag.spv"));
+        auto VertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Shaders/FlatColor.vert.spv"));
+        auto FragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Shaders/FlatColor.frag.spv"));
 
         std::vector<PipelineSpecification::ShaderStage> ShaderStages(2);
         ShaderStages[0].Stage  = EShaderStage::SHADER_STAGE_VERTEX;
-        ShaderStages[0].Shader = s_Data2D.VertexShader;
+        ShaderStages[0].Shader = VertexShader;
 
         ShaderStages[1].Stage  = EShaderStage::SHADER_STAGE_FRAGMENT;
-        ShaderStages[1].Shader = s_Data2D.FragmentShader;
+        ShaderStages[1].Shader = FragmentShader;
 
         PipelineSpec.ShaderStages       = ShaderStages;
         PipelineSpec.PushConstantRanges = {Utility::GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(MeshPushConstants))};
@@ -131,6 +127,9 @@ void VulkanRenderer2D::Create()
         PipelineSpec.DescriptorSetLayouts = {s_Data2D.QuadDescriptorSetLayout};
 
         s_Data2D.QuadPipeline.reset(new VulkanPipeline(PipelineSpec));
+
+        VertexShader->Destroy();
+        FragmentShader->Destroy();
     }
 
     // Initially 1 staging buffer
@@ -148,7 +147,7 @@ void VulkanRenderer2D::Create()
         s_Data2D.QuadDescriptorSets.push_back(QuadSamplerDescriptorSet);
     }
 
-    VkDescriptorImageInfo WhiteImageInfo = s_Data2D.QuadWhiteTexture->GetImageDescriptorInfo();
+    VkDescriptorImageInfo WhiteImageInfo = s_Data2D.TextureSlots[0]->GetImageDescriptorInfo();
     const auto TextureWriteSet           = Utility::GetWriteDescriptorSet(
                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex], 1, &WhiteImageInfo);
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
@@ -379,28 +378,27 @@ void VulkanRenderer2D::FlushImpl()
         vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
     }
 
-    const auto& Swapchain = m_Context.GetSwapchain();
-    auto& CommandBuffer   = m_Context.GetGraphicsCommandPool()->GetCommandBuffer(Swapchain->GetCurrentFrameIndex());
+    auto& GeneralStorageData = VulkanRenderer::GetStorageData();
+    GeneralStorageData.CurrentCommandBuffer->BeginDebugLabel("2D-Batch", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+    GeneralStorageData.GeometryFramebuffer->BeginRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
 
-    /*auto& GeneralStorageData = VulkanRenderer::GetStorageData();
-    CommandBuffer.BeginDebugLabel("2D-Batch", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-    GeneralStorageData.GeometryFramebuffer->BeginRenderPass(CommandBuffer.Get());*/
-
-    CommandBuffer.BindPipeline(s_Data2D.QuadPipeline);
+    GeneralStorageData.CurrentCommandBuffer->BindPipeline(s_Data2D.QuadPipeline);
 
     VkDeviceSize Offset = 0;
-    CommandBuffer.BindVertexBuffers(0, 1, &s_Data2D.QuadVertexBuffers[s_Data2D.CurrentQuadVertexBufferIndex]->Get(), &Offset);
-    CommandBuffer.BindIndexBuffer(s_Data2D.QuadIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+    GeneralStorageData.CurrentCommandBuffer->BindVertexBuffers(
+        0, 1, &s_Data2D.QuadVertexBuffers[s_Data2D.CurrentQuadVertexBufferIndex]->Get(), &Offset);
+    GeneralStorageData.CurrentCommandBuffer->BindIndexBuffer(s_Data2D.QuadIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
 
-    CommandBuffer.BindDescriptorSets(s_Data2D.QuadPipeline->GetLayout(), 0, 1,
-                                     &s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex]);
-    CommandBuffer.BindPushConstants(s_Data2D.QuadPipeline->GetLayout(), s_Data2D.QuadPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                    s_Data2D.QuadPipeline->GetPushConstantsSize(), &s_Data2D.PushConstants);
+    GeneralStorageData.CurrentCommandBuffer->BindDescriptorSets(s_Data2D.QuadPipeline->GetLayout(), 0, 1,
+                                                                &s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex]);
+    GeneralStorageData.CurrentCommandBuffer->BindPushConstants(s_Data2D.QuadPipeline->GetLayout(),
+                                                               s_Data2D.QuadPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                               s_Data2D.QuadPipeline->GetPushConstantsSize(), &s_Data2D.PushConstants);
 
-    CommandBuffer.DrawIndexed(s_Data2D.QuadIndexCount);
+    GeneralStorageData.CurrentCommandBuffer->DrawIndexed(s_Data2D.QuadIndexCount);
 
-    /*GeneralStorageData.GeometryFramebuffer->EndRenderPass(CommandBuffer.Get());
-    CommandBuffer.EndDebugLabel();*/
+    GeneralStorageData.GeometryFramebuffer->EndRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
+    GeneralStorageData.CurrentCommandBuffer->EndDebugLabel();
 
     ++Renderer::GetStats().DrawCalls;
     ++s_Data2D.CurrentDescriptorSetIndex;
@@ -414,11 +412,7 @@ void VulkanRenderer2D::Destroy()
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data2D.QuadDescriptorSetLayout, nullptr);
 
     delete[] s_Data2D.QuadVertexBufferBase;
-    s_Data2D.QuadWhiteTexture->Destroy();
     s_Data2D.QuadPipeline->Destroy();
-    s_Data2D.VertexShader->Destroy();
-    s_Data2D.FragmentShader->Destroy();
-
     s_Data2D.QuadIndexBuffer->Destroy();
 
     for (auto& QuadVertexBuffer : s_Data2D.QuadVertexBuffers)

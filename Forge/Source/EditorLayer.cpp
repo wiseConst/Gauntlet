@@ -12,7 +12,6 @@ void EditorLayer::OnAttach()
     GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
 #endif
 
-
 #if 0
     m_ActiveScene = MakeRef<Scene>("TestBed");
 
@@ -140,7 +139,6 @@ void EditorLayer::OnUpdate(const float deltaTime)
     Renderer::BeginScene(*m_EditorCamera);
 
     m_ActiveScene->OnUpdate(deltaTime);
-
 
     Renderer::EndScene();
 }

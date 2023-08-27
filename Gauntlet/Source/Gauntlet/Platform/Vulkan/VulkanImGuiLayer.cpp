@@ -144,7 +144,7 @@ void VulkanImGuiLayer::BeginRender()
     m_CurrentCommandBuffer = &m_ImGuiCommandPool->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
     GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve imgui command buffer!");
 
-    m_CurrentCommandBuffer->BeginRecording(VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+    m_CurrentCommandBuffer->BeginRecording();
     m_CurrentCommandBuffer->BeginDebugLabel("Swapchain + UI Pass", glm::vec4(0.0f, 0.0f, 0.8f, 1.0f));
 
     m_Context.GetSwapchain()->BeginRenderPass(m_CurrentCommandBuffer->Get());

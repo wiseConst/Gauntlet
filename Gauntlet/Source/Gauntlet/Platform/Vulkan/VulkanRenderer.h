@@ -35,19 +35,17 @@ class VulkanRenderer final : public Renderer
     {
         // Framebuffers && RenderPasses
         Ref<VulkanFramebuffer> GeometryFramebuffer{nullptr};
-        Ref<VulkanFramebuffer> DepthPrePassFramebuffer{nullptr};
+        Ref<VulkanFramebuffer> ShadowMapFramebuffer{nullptr};
         Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};
 
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {0, 0};
 
         // Pipelines
-        Ref<VulkanPipeline> DepthPrePassPipeline = nullptr;
-        Ref<VulkanPipeline> GeometryPipeline     = nullptr;
+        Ref<VulkanPipeline> ShadowMapPipeline = nullptr;
+        Ref<VulkanPipeline> GeometryPipeline  = nullptr;
 
         // Mesh
-        Ref<VulkanShader> MeshVertexShader    = nullptr;
-        Ref<VulkanShader> MeshFragmentShader  = nullptr;
         Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
 
         BufferLayout MeshVertexBufferLayout;
@@ -58,11 +56,14 @@ class VulkanRenderer final : public Renderer
         std::vector<void*> MappedUniformCameraDataBuffers;
         CameraDataBuffer MeshCameraDataBuffer;
 
+        // Shadows UBO
+        std::vector<AllocatedBuffer> UniformShadowsBuffers;
+        std::vector<void*> MappedUniformShadowsBuffers;
+        ShadowsBuffer MeshShadowsBuffer;
+
         // Skybox
-        Ref<Skybox> DefaultSkybox              = nullptr;
-        Ref<VulkanPipeline> SkyboxPipeline     = nullptr;
-        Ref<VulkanShader> SkyboxVertexShader   = nullptr;
-        Ref<VulkanShader> SkyboxFragmentShader = nullptr;
+        Ref<Skybox> DefaultSkybox          = nullptr;
+        Ref<VulkanPipeline> SkyboxPipeline = nullptr;
 
         BufferLayout SkyboxVertexBufferLayout;
         VkDescriptorSetLayout SkyboxDescriptorSetLayout = VK_NULL_HANDLE;
@@ -76,13 +77,13 @@ class VulkanRenderer final : public Renderer
         VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         Ref<VulkanPipeline> MeshWireframePipeline = nullptr;
 
-        // Light
+        std::vector<GeometryData> SortedGeometry;
+
+        // Light UBO
         std::vector<AllocatedBuffer> UniformPhongModelBuffers;
         std::vector<void*> MappedUniformPhongModelBuffers;
         LightingModelBuffer MeshLightingModelBuffer;
         uint32_t CurrentPointLightIndex = 0;
-
-        std::vector<GeometryData> SortedGeometry;
     };
 
   public:

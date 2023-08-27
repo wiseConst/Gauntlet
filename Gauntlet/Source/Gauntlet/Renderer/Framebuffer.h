@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
+#include "Image.h"
 
 #include <glm/glm.hpp>
 
 namespace Gauntlet
 {
 
-// Currently unused class
 enum class ELoadOp : uint8_t
 {
     CLEAR = 0,
@@ -21,20 +21,26 @@ enum class EStoreOp : uint8_t
     DONT_CARE
 };
 
+struct FramebufferAttachmentSpecification
+{
+  public:
+    FramebufferAttachmentSpecification() = default;
+
+    EImageFormat Format  = EImageFormat::NONE;
+    glm::vec4 ClearColor = glm::vec4(1.0f);
+    ELoadOp LoadOp       = ELoadOp::CLEAR;
+    EStoreOp StoreOp     = EStoreOp::STORE;
+};
+
 struct FramebufferSpecification
 {
   public:
-    glm::vec4 ClearColor  = glm::vec4(1.0f);
-    ELoadOp ColorLoadOp   = ELoadOp::CLEAR;
-    EStoreOp ColorStoreOp = EStoreOp::STORE;
-
-    ELoadOp DepthLoadOp   = ELoadOp::DONT_CARE;
-    EStoreOp DepthStoreOp = EStoreOp::DONT_CARE;
+    std::vector<FramebufferAttachmentSpecification> Attachments;
+    std::vector<Ref<Image>> AliveAttachments;
 
     uint32_t Width   = 0;
     uint32_t Height  = 0;
     std::string Name = "None";
-    bool bCreateRenderPass{false};
 };
 
 class Framebuffer : private Uncopyable, private Unmovable

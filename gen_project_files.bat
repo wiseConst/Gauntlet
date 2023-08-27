@@ -7,5 +7,5 @@ IF %ERRORLEVEL% NEQ 0 (
     PAUSE
 ) 
 
-cd Assets/Shaders
+cd Forge/Resources/Shaders
 call CompileShaders.bat

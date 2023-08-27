@@ -55,36 +55,61 @@ void VulkanFramebuffer::Invalidate()
 
     const auto& swapchain     = Context.GetSwapchain();
     const auto& logicalDevice = Context.GetDevice()->GetLogicalDevice();
-    const bool bHasColor      = m_Specification.ColorLoadOp != ELoadOp::DONT_CARE || m_Specification.ColorStoreOp != EStoreOp::DONT_CARE;
-    const bool bHasDepth      = m_Specification.DepthLoadOp != ELoadOp::DONT_CARE || m_Specification.DepthStoreOp != EStoreOp::DONT_CARE;
 
-    if (m_ColorAttachments.empty() && !m_DepthAttachment)
+    FramebufferAttachmentSpecification framebufferColorAttachment = {};
+    FramebufferAttachmentSpecification framebufferDepthAttachment = {};
+    for (auto& attachment : m_Specification.Attachments)
     {
-        if (bHasColor)
+        GNT_ASSERT(m_Specification.AliveAttachments.empty(), "You got alive attachments and you want to create a new one?");
+        if (!ImageUtils::IsDepthFormat(attachment.Format))
         {
-            for (uint32_t i = 0; i < swapchain->GetImageCount(); ++i)
+            if (m_ColorAttachments.empty())
             {
                 ImageSpecification ImageSpec = {};
                 ImageSpec.Width              = m_Specification.Width;
                 ImageSpec.Height             = m_Specification.Height;
-                ImageSpec.Format             = EImageFormat::RGBA;
+                ImageSpec.Format             = attachment.Format;
                 ImageSpec.Usage              = EImageUsage::Attachment;
                 ImageSpec.CreateTextureID    = true;
-
-                m_ColorAttachments.emplace_back(new VulkanImage(ImageSpec));
+                for (uint32_t i = 0; i < swapchain->GetImageCount(); ++i)
+                    m_ColorAttachments.emplace_back(new VulkanImage(ImageSpec));
             }
+
+            framebufferColorAttachment = attachment;
         }
 
-        if (bHasDepth)
+        if (ImageUtils::IsDepthFormat(attachment.Format))
         {
-            ImageSpecification DepthImageSpec = {};
-            DepthImageSpec.Width              = m_Specification.Width;
-            DepthImageSpec.Height             = m_Specification.Height;
-            DepthImageSpec.Format             = EImageFormat::DEPTH32F;
-            DepthImageSpec.Usage              = EImageUsage::Attachment;
-            DepthImageSpec.CreateTextureID    = false;  // TODO: Should I also craete texture id for depth image to display it sooner?
+            if (!m_DepthAttachment)
+            {
+                ImageSpecification DepthImageSpec = {};
+                DepthImageSpec.Width              = m_Specification.Width;
+                DepthImageSpec.Height             = m_Specification.Height;
+                DepthImageSpec.Format             = attachment.Format;
+                DepthImageSpec.Usage              = EImageUsage::Attachment;
+                DepthImageSpec.CreateTextureID    = false;  // TODO: Should I also craete texture id for depth image to display it sooner?
 
-            m_DepthAttachment.reset(new VulkanImage(DepthImageSpec));
+                m_DepthAttachment.reset(new VulkanImage(DepthImageSpec));
+            }
+
+            framebufferDepthAttachment = attachment;
+        }
+    }
+
+    if (m_ColorAttachments.empty() && !m_DepthAttachment)
+    {
+        for (auto& attachment : m_Specification.AliveAttachments)
+        {
+            GNT_ASSERT(m_Specification.Attachments.empty(), "You got attachments to create and you want to use a new one?");
+            Ref<VulkanImage> vulkanImage = std::static_pointer_cast<VulkanImage>(attachment);
+
+            if (!m_DepthAttachment && ImageUtils::IsDepthFormat(vulkanImage->GetSpecification().Format))
+            {
+                m_DepthAttachment = vulkanImage;
+                continue;
+            }
+
+            m_ColorAttachments.push_back(vulkanImage);
         }
     }
 
@@ -93,21 +118,24 @@ void VulkanFramebuffer::Invalidate()
         for (auto& Framebuffer : m_Framebuffers)
             vkDestroyFramebuffer(logicalDevice, Framebuffer, nullptr);
 
-        if (bHasColor)
+        if (m_Specification.AliveAttachments.empty())
         {
-            for (uint32_t i = 0; i < swapchain->GetImageCount(); ++i)
+            if (!m_ColorAttachments.empty())
             {
-                m_ColorAttachments[i]->GetSpecification().Width  = m_Specification.Width;
-                m_ColorAttachments[i]->GetSpecification().Height = m_Specification.Height;
-                m_ColorAttachments[i]->Invalidate();
+                for (uint32_t i = 0; i < swapchain->GetImageCount(); ++i)
+                {
+                    m_ColorAttachments[i]->GetSpecification().Width  = m_Specification.Width;
+                    m_ColorAttachments[i]->GetSpecification().Height = m_Specification.Height;
+                    m_ColorAttachments[i]->Invalidate();
+                }
             }
-        }
 
-        if (bHasDepth)
-        {
-            m_DepthAttachment->GetSpecification().Width  = m_Specification.Width;
-            m_DepthAttachment->GetSpecification().Height = m_Specification.Height;
-            m_DepthAttachment->Invalidate();
+            if (m_DepthAttachment)
+            {
+                m_DepthAttachment->GetSpecification().Width  = m_Specification.Width;
+                m_DepthAttachment->GetSpecification().Height = m_Specification.Height;
+                m_DepthAttachment->Invalidate();
+            }
         }
     }
 
@@ -116,15 +144,15 @@ void VulkanFramebuffer::Invalidate()
     {
         std::vector<VkAttachmentDescription> attachments;
         // Color Attachment
-        if (bHasColor)
+        if (!m_ColorAttachments.empty())
         {
             VkAttachmentDescription colorAttachment = {};
             colorAttachment.format                  = m_ColorAttachments[0]->GetFormat();
             colorAttachment.samples                 = VK_SAMPLE_COUNT_1_BIT;
-            colorAttachment.loadOp                  = GauntletLoadOpToVulkan(m_Specification.ColorLoadOp);
-            colorAttachment.storeOp                 = GauntletStoreOpToVulkan(m_Specification.ColorStoreOp);
+            colorAttachment.loadOp                  = GauntletLoadOpToVulkan(framebufferColorAttachment.LoadOp);
+            colorAttachment.storeOp                 = GauntletStoreOpToVulkan(framebufferColorAttachment.StoreOp);
             colorAttachment.initialLayout =
-                m_Specification.ColorLoadOp == ELoadOp::LOAD ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+                framebufferColorAttachment.LoadOp == ELoadOp::LOAD ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
             colorAttachment.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -132,17 +160,17 @@ void VulkanFramebuffer::Invalidate()
         }
 
         // Depth Attachment
-        if (bHasDepth)
+        if (m_DepthAttachment)
         {
             VkAttachmentDescription depthAttachment = {};
             depthAttachment.format                  = m_DepthAttachment->GetFormat();
             depthAttachment.samples                 = VK_SAMPLE_COUNT_1_BIT;
-            depthAttachment.loadOp                  = GauntletLoadOpToVulkan(m_Specification.DepthLoadOp);
-            depthAttachment.storeOp                 = GauntletStoreOpToVulkan(m_Specification.DepthStoreOp);
+            depthAttachment.loadOp                  = GauntletLoadOpToVulkan(framebufferDepthAttachment.LoadOp);
+            depthAttachment.storeOp                 = GauntletStoreOpToVulkan(framebufferDepthAttachment.StoreOp);
 
             depthAttachment.initialLayout =
-                m_Specification.DepthLoadOp == ELoadOp::LOAD ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-            depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                framebufferDepthAttachment.LoadOp == ELoadOp::LOAD ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+            depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -154,7 +182,7 @@ void VulkanFramebuffer::Invalidate()
 
         uint32_t currentAttachment = 0;
         std::vector<VkAttachmentReference> attachmentRefs;
-        if (bHasColor)
+        if (!m_ColorAttachments.empty())
         {
             attachmentRefs.emplace_back(currentAttachment, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
             subpassDesc.colorAttachmentCount = 1;
@@ -162,13 +190,13 @@ void VulkanFramebuffer::Invalidate()
             ++currentAttachment;
         }
 
-        if (bHasDepth)
+        if (m_DepthAttachment)
         {
             attachmentRefs.emplace_back(currentAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
             subpassDesc.pDepthStencilAttachment = &attachmentRefs[currentAttachment];
 
             // After vector emplace_back everything is messed up, this way we fix it
-            if (bHasColor) subpassDesc.pColorAttachments = &attachmentRefs[currentAttachment - 1];
+            if (!m_ColorAttachments.empty()) subpassDesc.pColorAttachments = &attachmentRefs[currentAttachment - 1];
             ++currentAttachment;
         }
 
@@ -199,7 +227,7 @@ void VulkanFramebuffer::Invalidate()
          */
         std::vector<VkSubpassDependency> dependencies;
 
-        if (bHasColor)
+        if (!m_ColorAttachments.empty())
         {
             // Color dependency
 
@@ -214,7 +242,7 @@ void VulkanFramebuffer::Invalidate()
         }
 
         // Depth dependency
-        if (bHasDepth)
+        if (m_DepthAttachment)
         {
             VkSubpassDependency depthDependency = {};
             depthDependency.srcSubpass          = 0;
@@ -241,8 +269,8 @@ void VulkanFramebuffer::Invalidate()
 
     // Framebuffers creation
     std::vector<VkImageView> attachments;
-    if (bHasColor) attachments.push_back(m_ColorAttachments[0]->GetView());
-    if (bHasDepth) attachments.push_back(m_DepthAttachment->GetView());
+    if (!m_ColorAttachments.empty()) attachments.push_back(m_ColorAttachments[0]->GetView());
+    if (m_DepthAttachment) attachments.push_back(m_DepthAttachment->GetView());
 
     VkFramebufferCreateInfo framebufferCreateInfo = {};
     framebufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -251,84 +279,34 @@ void VulkanFramebuffer::Invalidate()
     framebufferCreateInfo.pAttachments            = attachments.data();
 
     framebufferCreateInfo.attachmentCount = attachments.size();
-    framebufferCreateInfo.height          = m_Specification.Height;
     framebufferCreateInfo.width           = m_Specification.Width;
+    framebufferCreateInfo.height          = m_Specification.Height;
 
     m_Framebuffers.resize(swapchain->GetImageCount());
     for (uint32_t i = 0; i < m_Framebuffers.size(); ++i)
     {
-        if (bHasColor) attachments[0] = m_ColorAttachments[i]->GetView();
+        if (!m_ColorAttachments.empty()) attachments[0] = m_ColorAttachments[i]->GetView();
         VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[i]), "Failed to create framebuffer!");
     }
 
-    if (!m_ColorAttachments.empty())
+    if (!m_ColorAttachments.empty() && m_ClearValues.size() < 2)
     {
-        VkClearColorValue clearColor = {m_Specification.ClearColor.r, m_Specification.ClearColor.g, m_Specification.ClearColor.b,
-                                        m_Specification.ClearColor.a};
+        VkClearColorValue clearColor = {framebufferColorAttachment.ClearColor.r, framebufferColorAttachment.ClearColor.g,
+                                        framebufferColorAttachment.ClearColor.b, framebufferColorAttachment.ClearColor.a};
         VkClearValue clearValue      = {};
         clearValue.color             = clearColor;
         m_ClearValues.push_back(clearValue);
     }
 
-    if (m_DepthAttachment)
+    if (m_DepthAttachment && m_ClearValues.size() < 2)
     {
-        VkClearDepthStencilValue depthStencil = {1.0f, 0};
+        VkClearDepthStencilValue depthStencil = {framebufferDepthAttachment.ClearColor.x, 0};
 
         VkClearValue clearValue{};
         clearValue.depthStencil = depthStencil;
 
         m_ClearValues.push_back(clearValue);
     }
-}
-
-void VulkanFramebuffer::ClearAttachments(const VkCommandBuffer& commandBuffer)
-{
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
-
-    std::vector<VkClearAttachment> attachments;
-    std::vector<VkClearRect> rects;
-
-    if (!m_ColorAttachments.empty())
-    {
-        VkClearAttachment attachment = {};
-        attachment.aspectMask        = VK_IMAGE_ASPECT_COLOR_BIT;
-        attachment.colorAttachment   = 0;
-        attachment.clearValue        = m_ClearValues[0];
-
-        attachments.push_back(attachment);
-
-        VkClearRect rect = {};
-
-        rect.layerCount     = 1;
-        rect.baseArrayLayer = 0;
-        rect.rect.offset    = {0, 0};
-
-        rect.rect.extent = {m_ColorAttachments[Context.GetSwapchain()->GetCurrentImageIndex()]->GetWidth(),
-                            m_ColorAttachments[Context.GetSwapchain()->GetCurrentImageIndex()]->GetHeight()};
-        rects.push_back(rect);
-    }
-
-    if (m_DepthAttachment)
-    {
-        VkClearAttachment attachment = {};
-        attachment.aspectMask        = VK_IMAGE_ASPECT_DEPTH_BIT;
-        attachment.colorAttachment   = attachments.size();
-        attachment.clearValue        = m_ColorAttachments.empty() ? m_ClearValues[0] : m_ClearValues[1];
-
-        attachments.push_back(attachment);
-
-        VkClearRect rect = {};
-
-        rect.layerCount     = 1;
-        rect.baseArrayLayer = 0;
-        rect.rect.offset    = {0, 0};
-
-        rect.rect.extent = {m_DepthAttachment->GetWidth(), m_DepthAttachment->GetHeight()};
-        rects.push_back(rect);
-    }
-
-    vkCmdClearAttachments(commandBuffer, attachments.size(), attachments.data(), attachments.size(), rects.data());
 }
 
 void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer)
@@ -353,10 +331,13 @@ void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer)
 
 void VulkanFramebuffer::Destroy()
 {
-    for (auto& colorAttachment : m_ColorAttachments)
-        colorAttachment->Destroy();
+    if (m_Specification.AliveAttachments.empty())
+    {
+        for (auto& colorAttachment : m_ColorAttachments)
+            colorAttachment->Destroy();
 
-    if (m_DepthAttachment) m_DepthAttachment->Destroy();
+        if (m_DepthAttachment) m_DepthAttachment->Destroy();
+    }
 
     auto& context           = (VulkanContext&)VulkanContext::Get();
     VkDevice& logicalDevice = context.GetDevice()->GetLogicalDevice();

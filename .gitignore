@@ -42,3 +42,6 @@ Intermediate/
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
+
+# RenderDoc files
+*.cap
