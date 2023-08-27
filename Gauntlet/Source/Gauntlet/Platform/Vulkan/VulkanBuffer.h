@@ -8,7 +8,8 @@
 namespace Gauntlet
 {
 
-struct AllocatedBuffer /*: private Uncopyable, private Unmovable*/
+// TODO: Should this class allow copying/moving itself??
+struct AllocatedBuffer /*: private Uncopyable, private Unmovable */
 {
   public:
     AllocatedBuffer() : Allocation(VK_NULL_HANDLE), Buffer(VK_NULL_HANDLE) {}

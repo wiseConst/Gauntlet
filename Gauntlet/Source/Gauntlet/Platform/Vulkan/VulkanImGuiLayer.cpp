@@ -94,9 +94,9 @@ void VulkanImGuiLayer::OnAttach()
 
     // Load default font
     {
-        auto FontPath  = std::string(ASSETS_PATH) + std::string("Fonts/Tektur/Tektur-Regular.ttf");
+        auto FontPath  = std::string("../Resources/Fonts/Tektur/Tektur-Regular.ttf");
         io.FontDefault = io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
-        FontPath       = std::string(ASSETS_PATH) + std::string("Fonts/Tektur/Tektur-Bold.ttf");
+        FontPath       = std::string("../Resources/Fonts/Tektur/Tektur-Bold.ttf");
         io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
 
         auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Device->GetLogicalDevice());

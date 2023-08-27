@@ -1,4 +1,5 @@
 #include "EditorLayer.h"
+#include "Gauntlet/Scene/SceneSerializer.h"
 
 EditorLayer::EditorLayer() : Layer("EditorLayer"), m_GUILayer(Application::Get().GetGUILayer()) {}
 
@@ -6,74 +7,63 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
+#if 1
+    SceneSerializer serializer(m_ActiveScene);
+    GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
+#endif
+
+
+#if 0
     m_ActiveScene = MakeRef<Scene>("TestBed");
-    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-
-    {
-        auto Square = m_ActiveScene->CreateEntity("WhiteSquare");
-        Square.AddComponent<SpriteRendererComponent>(glm::vec4{1.0f});
-
-        auto& tc       = Square.GetComponent<TransformComponent>();
-        tc.Translation = glm::vec3(50.0f, 50.0f, 0.0f);
-    }
 
     {
         auto Cerberus = m_ActiveScene->CreateEntity("Cerberus");
-        Cerberus.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Cerberus/scene.gltf"));
+        Cerberus.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Cerberus/scene.gltf"));
 
         auto& tc       = Cerberus.GetComponent<TransformComponent>();
         tc.Translation = glm::vec3(0, -5.0f, 10.0f);
         tc.Scale       = glm::vec3(0.1f);
     }
 
-    /*{
-        auto Omen                               = m_ActiveScene->CreateEntity("Omen");
-        Omen.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/omen/scene.gltf");
-        auto& tc                                = Omen.GetComponent<TransformComponent>();
+    {
+        auto CyberPunkRevolver = m_ActiveScene->CreateEntity("CyberPunkRevolver");
+        CyberPunkRevolver.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/cyberpunk_revolver/scene.gltf"));
+        auto& tc = CyberPunkRevolver.GetComponent<TransformComponent>();
+
+        tc.Translation = glm::vec3(55.0f, 55.0f, 0.0f);
+        tc.Scale       = glm::vec3(0.05f);
+    }
+
+    {
+        auto VikingRoom = m_ActiveScene->CreateEntity("VikingRoom");
+        VikingRoom.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/VikingRoom/viking_room.gltf"));
+        auto& tc = VikingRoom.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(-10.0f, -10.0f, 0.0f);
-        tc.Scale       = glm::vec3(10.0f);
-    }*/
-
-    /* {
-         auto CyberPunkRevolver = m_ActiveScene->CreateEntity("CyberPunkRevolver");
-         CyberPunkRevolver.AddComponent<MeshComponent>().Mesh =
-             Mesh::Create(std::string(ASSETS_PATH) + "Models/cyberpunk_revolver/scene.gltf");
-         auto& tc = CyberPunkRevolver.GetComponent<TransformComponent>();
-
-         tc.Translation = glm::vec3(55.0f, 55.0f, 0.0f);
-         tc.Scale       = glm::vec3(0.05f);
-     }*/
-
-    /*{
-        auto VikingRoom                               = m_ActiveScene->CreateEntity("VikingRoom");
-        VikingRoom.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/VikingRoom/viking_room.gltf");
-        auto& tc                                      = VikingRoom.GetComponent<TransformComponent>();
-
-        tc.Translation = glm::vec3(-20.0f, -20.0f, 0.0f);
-        tc.Scale       = glm::vec3(10.0f);
-    }*/
+        tc.Scale       = glm::vec3(4.0f);
+    }
 
     {
         auto Sphere = m_ActiveScene->CreateEntity("Sphere");
-        Sphere.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Sphere.gltf"));
+        Sphere.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Default/Sphere.gltf"));
         auto& tc = Sphere.GetComponent<TransformComponent>();
 
         tc.Scale         = glm::vec3(150.0f);
-        tc.Translation.y = 0.15f;
+        tc.Translation.y = 5.0f;
     }
 
     {
         auto Plane = m_ActiveScene->CreateEntity("Plane");
-        Plane.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Default/Plane.gltf"));
+        Plane.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Default/Plane.gltf"));
         auto& tc = Plane.GetComponent<TransformComponent>();
 
         tc.Translation = glm::vec3(0.0f, -10.0f, 0.0f);
+        tc.Scale       = glm::vec3(4.0f, 1.0f, 4.0f);
     }
 
     {
         auto rhetorician = m_ActiveScene->CreateEntity("rhetorician");
-        rhetorician.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/rhetorician/scene.gltf"));
+        rhetorician.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/rhetorician/scene.gltf"));
         auto& tc = rhetorician.GetComponent<TransformComponent>();
 
         tc.Scale       = glm::vec3(2.0f);
@@ -82,7 +72,7 @@ void EditorLayer::OnAttach()
 
     {
         auto handgun_animation = m_ActiveScene->CreateEntity("handgun_animation");
-        handgun_animation.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/handgun_animation/scene.gltf"));
+        handgun_animation.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/handgun_animation/scene.gltf"));
         auto& tc = handgun_animation.GetComponent<TransformComponent>();
 
         tc.Scale       = glm::vec3(15.0f);
@@ -129,23 +119,17 @@ void EditorLayer::OnAttach()
         tc.Translation = glm::vec3(60.0, 60.0f, -60.0f);
         tc.Scale       = glm::vec3(0.5f);
     }*/
+#endif
 
-    /*
-    {
-        auto Car                               = m_ActiveScene->CreateEntity("old_rusty_car");
-        Car.AddComponent<MeshComponent>().Mesh = Mesh::Create(std::string(ASSETS_PATH) + "Models/old_rusty_car/scene.gltf");
-        auto& tc                               = Car.GetComponent<TransformComponent>();
-
-        tc.Translation = glm::vec3(-90.0f, -90.0f, 90.0f);
-        tc.Scale       = glm::vec3(0.15f);
-    }
-    */
-
-    m_WiseTreeTexture = Texture2D::Create(std::string(ASSETS_PATH) + "Textures/WiseTree.jpg", true);
+    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+    m_WiseTreeTexture = Texture2D::Create("Resources/Textures/WiseTree.jpg", true);
 }
 
 void EditorLayer::OnDetach()
 {
+    SceneSerializer serializer(m_ActiveScene);
+    serializer.Serialize("Resources/Scenes/" + m_ActiveScene->GetName() + ".gntlt");
+
     m_WiseTreeTexture->Destroy();
 }
 
@@ -156,6 +140,7 @@ void EditorLayer::OnUpdate(const float deltaTime)
     Renderer::BeginScene(*m_EditorCamera);
 
     m_ActiveScene->OnUpdate(deltaTime);
+
 
     Renderer::EndScene();
 }

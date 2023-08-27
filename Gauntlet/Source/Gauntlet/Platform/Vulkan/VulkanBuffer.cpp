@@ -36,8 +36,7 @@ VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage bufferUsage)
     return BufferUsageFlags;
 }
 
-void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, AllocatedBuffer& outAllocatedBuffer,
-                  VmaMemoryUsage memoryUsage)
+void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, AllocatedBuffer& outAllocatedBuffer, VmaMemoryUsage memoryUsage)
 {
     VkBufferCreateInfo BufferCreateInfo = {};
     BufferCreateInfo.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -45,7 +44,7 @@ void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, Alloc
     BufferCreateInfo.size               = size;
     BufferCreateInfo.sharingMode        = VK_SHARING_MODE_EXCLUSIVE;
 
-    auto& Context                   = (VulkanContext&)VulkanContext::Get();
+    auto& Context                 = (VulkanContext&)VulkanContext::Get();
     outAllocatedBuffer.Allocation = Context.GetAllocator()->CreateBuffer(BufferCreateInfo, &outAllocatedBuffer.Buffer, memoryUsage);
 }
 
@@ -129,8 +128,7 @@ void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& stagingBuffer, con
     if (!m_AllocatedBuffer.Buffer)
     {
         BufferUtils::CreateBuffer(EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST, stagingBufferDataSize,
-                                  m_AllocatedBuffer,
-                                  VMA_MEMORY_USAGE_GPU_ONLY);
+                                  m_AllocatedBuffer, VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
     // Special case if created buffer above has less size than we need to put into it.
@@ -143,8 +141,7 @@ void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& stagingBuffer, con
     {
         BufferUtils::DestroyBuffer(m_AllocatedBuffer);
         BufferUtils::CreateBuffer(EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST, stagingBufferDataSize,
-                                  m_AllocatedBuffer,
-                                  VMA_MEMORY_USAGE_GPU_ONLY);
+                                  m_AllocatedBuffer, VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
     BufferUtils::CopyBuffer(stagingBuffer.Buffer, m_AllocatedBuffer.Buffer, stagingBufferDataSize);
@@ -155,8 +152,7 @@ void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& stagingBuffer, con
 VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& bufferInfo) : IndexBuffer(bufferInfo), m_IndicesCount(bufferInfo.Count)
 {
     AllocatedBuffer StagingBuffer = {};
-    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, bufferInfo.Size, StagingBuffer,
-                              VMA_MEMORY_USAGE_CPU_ONLY);
+    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, bufferInfo.Size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
     BufferUtils::CopyDataToBuffer(StagingBuffer, bufferInfo.Size, bufferInfo.Data);
 
     BufferUtils::CreateBuffer(bufferInfo.Usage | EBufferUsageFlags::TRANSFER_DST, bufferInfo.Size, m_AllocatedBuffer,

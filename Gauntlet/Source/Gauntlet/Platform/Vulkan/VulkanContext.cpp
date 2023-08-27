@@ -299,8 +299,7 @@ void VulkanContext::EndRender()
     m_CurrentCommandBuffer->EndRecording();
 
     std::vector<VkPipelineStageFlags> WaitStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSubmitInfo SubmitInfo       = {};
-    SubmitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo SubmitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers    = &m_CurrentCommandBuffer->Get();
     SubmitInfo.waitSemaphoreCount = 1;

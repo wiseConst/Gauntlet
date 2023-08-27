@@ -33,9 +33,9 @@ cd ../
 
 cd ../../
 
-cd Assets
+cd Forge/Resources/
 ClearCache.bat
-cd ../
+cd ../../
 
-echo %cd%
+::echo %cd%
 ::PAUSE

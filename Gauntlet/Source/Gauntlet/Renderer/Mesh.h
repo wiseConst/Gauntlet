@@ -30,6 +30,7 @@ class Mesh final
 
     FORCEINLINE const uint32_t GetSubmeshCount() const { return static_cast<uint32_t>(m_MeshesData.size()); }
     FORCEINLINE const auto& GetSubmeshName(const uint32_t meshIndex) { return m_MeshesData[meshIndex].Name; }
+    FORCEINLINE const auto& GetMeshNameWithDirectory() { return m_Name; }
 
     FORCEINLINE const Ref<Gauntlet::Material>& GetMaterial(const uint32_t meshIndex) { return m_MeshesData[meshIndex].Material; }
 
@@ -52,6 +53,7 @@ class Mesh final
         std::string Name;
     };
 
+    std::string m_Name{"None"};
     std::string m_Directory;
     std::vector<MeshData> m_MeshesData;  // Is it submeshes?
 

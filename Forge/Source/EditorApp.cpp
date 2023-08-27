@@ -19,7 +19,7 @@ Gauntlet::Scoped<Gauntlet::Application> Gauntlet::CreateApplication()
     Gauntlet::ApplicationSpecification AppSpec = {};
     AppSpec.AppName                            = "Gauntlet Editor";
 
-    const auto WindowLogoPath  = std::string(ASSETS_PATH) + std::string("Logo/Gauntlet.png");
+    const auto WindowLogoPath  = std::string("../Resources/Logo/Gauntlet.png");
     AppSpec.WindowLogoPath     = WindowLogoPath.data();
     AppSpec.GraphicsAPI        = Gauntlet::RendererAPI::EAPI::Vulkan;
     AppSpec.bUseCustomTitleBar = false;

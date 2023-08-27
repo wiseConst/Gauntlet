@@ -22,7 +22,7 @@ class Camera : private Uncopyable, private Unmovable
     Camera() = default;
 
     virtual void OnUpdate(const float deltaTime) = 0;
-    virtual void OnEvent(Event& event)         = 0;
+    virtual void OnEvent(Event& event)           = 0;
 
     FORCEINLINE const auto& GetPosition() const { return m_Position; }
     FORCEINLINE const auto& GetViewMatrix() const { return m_ViewMatrix; }

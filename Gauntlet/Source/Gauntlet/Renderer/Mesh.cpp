@@ -43,14 +43,12 @@ Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& ind
         });
 }
 
-Mesh::Mesh(const std::string& meshPath) : m_Directory(meshPath)
+Mesh::Mesh(const std::string& meshPath)
 {
     JobSystem::Submit(
-        [this]
+        [this, meshPath]
         {
-            LOG_TRACE("Loaded mesh: %s", m_Directory.data());
-
-            LoadMesh(m_Directory);
+            LoadMesh(meshPath);
 
             BufferInfo VertexBufferInfo = {};
             VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
@@ -88,7 +86,7 @@ void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
-                                                                    aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes);
+                                                                  aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -98,6 +96,16 @@ void Mesh::LoadMesh(const std::string& meshPath)
     }
 
     m_Directory = std::string(meshPath.substr(0, meshPath.find_last_of('/'))) + std::string("/");
+    {
+        uint32_t i = 0;
+        for (i = 2; i < meshPath.size(); ++i)
+        {
+            if (meshPath[i - 2] == 'l' && meshPath[i - 1] == 's' && meshPath[i] == '/') break;
+        }
+        m_Name = std::string(meshPath.substr(i + 1, meshPath.size() - i + 1));
+    }
+
+    LOG_TRACE("Loading mesh: %s...", m_Name.data());
     ProcessNode(scene->mRootNode, scene);
 }
 

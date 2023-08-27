@@ -35,7 +35,7 @@ void main()
 	gl_Position = CameraViewProjectionMatrix * VertexWorldPosition;
 
 	OutColor = InColor;
-	// We also have to take in consideration that normals can change in case we did some rotation, but they aren't affected by model translation
+	// We also have to take in consideration that normals can change in case we did some rotation, but they aren't affected by model translation that's why we take mat3
 	OutNormal = mat3(transpose(inverse(MeshPushConstants.TransformMatrix))) * InNormal;
 	OutTexCoord = InTexCoord;
 	OutTangent = InTangent;

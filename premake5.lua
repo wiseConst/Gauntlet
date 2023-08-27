@@ -5,8 +5,6 @@ flags { "MultiProcessorCompile" }
 configurations { "Debug", "Release", "RelWithDebInfo"}
 
 VULKAN_PATH = os.getenv("VULKAN_SDK")
-local CURRENT_WORKING_DIRECTORY = os.getcwd()
-
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 IncludeDir = {}
@@ -87,8 +85,7 @@ project "Gauntlet"
 			"GLFW_INCLUDE_NONE",
 			"_CRT_SECURE_NO_WARNINGS",
 			"GLM_FORCE_RADIANS",
-			"GLM_FORCE_DEPTH_ZERO_TO_ONE",
-		    "ASSETS_PATH=\"".. CURRENT_WORKING_DIRECTORY .. "/Assets/\""
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE"
 		}
 
     filter "configurations:Debug"
@@ -145,8 +142,7 @@ project "Forge"
 		{
 			"_CRT_SECURE_NO_WARNINGS",
 			"GLM_FORCE_RADIANS",
-			"GLM_FORCE_DEPTH_ZERO_TO_ONE",
-		    "ASSETS_PATH=\"".. CURRENT_WORKING_DIRECTORY .. "/Assets/\""
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE"
 		}
 
     filter "configurations:Debug"

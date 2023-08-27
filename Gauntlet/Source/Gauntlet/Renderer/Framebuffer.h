@@ -34,6 +34,7 @@ struct FramebufferSpecification
     uint32_t Width   = 0;
     uint32_t Height  = 0;
     std::string Name = "None";
+    bool bCreateRenderPass{false};
 };
 
 class Framebuffer : private Uncopyable, private Unmovable

@@ -66,7 +66,7 @@ struct SpriteRendererComponent
 struct CameraComponent
 {
     Ref<Gauntlet::Camera> Camera{nullptr};
-    bool bIsPrimary = true;
+    bool bIsActive = true;
 
     CameraComponent()                       = default;
     CameraComponent(const CameraComponent&) = default;

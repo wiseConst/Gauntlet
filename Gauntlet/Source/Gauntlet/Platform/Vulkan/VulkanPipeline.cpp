@@ -127,7 +127,7 @@ void VulkanPipeline::CreatePipeline()
     // Creating pipeline cache
     {
         std::vector<uint8_t> CacheData =
-            Utility::LoadPipelineCacheFromDisk(std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cache");
+            Utility::LoadPipelineCacheFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
 
         VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
         PipelineCacheCreateInfo.initialDataSize           = CacheData.size();
@@ -287,8 +287,8 @@ void VulkanPipeline::Destroy()
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
     auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
 
-    GNT_ASSERT(Utility::DropPipelineCacheToDisk(
-                   LogicalDevice, m_Cache, std::string(ASSETS_PATH) + "Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
+    GNT_ASSERT(Utility::DropPipelineCacheToDisk(LogicalDevice, m_Cache, "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") ==
+                   VK_TRUE,
                "Failed to save pipeline cache to disk!");
 
     vkDestroyPipelineCache(LogicalDevice, m_Cache, nullptr);

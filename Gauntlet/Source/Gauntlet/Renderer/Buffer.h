@@ -55,9 +55,7 @@ struct BufferElement
   public:
     BufferElement() = default;
 
-    BufferElement(EShaderDataType type, const std::string_view& name) : Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0)
-    {
-    }
+    BufferElement(EShaderDataType type, const std::string_view& name) : Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0) {}
 
     ~BufferElement() = default;
 
@@ -101,10 +99,7 @@ class BufferLayout final
     BufferLayout()  = default;
     ~BufferLayout() = default;
 
-    BufferLayout(const std::initializer_list<BufferElement>& elements) : m_Elements(elements), m_Stride(0)
-    {
-        CalculateOffsetsAndStride();
-    }
+    BufferLayout(const std::initializer_list<BufferElement>& elements) : m_Elements(elements), m_Stride(0) { CalculateOffsetsAndStride(); }
 
     FORCEINLINE auto GetStride() const { return m_Stride; }
     FORCEINLINE const auto& GetElements() const { return m_Elements; }

@@ -7,6 +7,8 @@
 namespace Gauntlet
 {
 
+// TODO: Refactor; Attachment(depth32f,rgba) like this?
+
 class VulkanImage;
 class VulkanRenderPass;
 
@@ -22,6 +24,7 @@ class VulkanFramebuffer final : public Framebuffer
     FORCEINLINE FramebufferSpecification& GetSpec() final override { return m_Specification; }
 
     FORCEINLINE void SetClearColor(const glm::vec4& clearColor) { m_Specification.ClearColor = clearColor; }
+    void ClearAttachments(const VkCommandBuffer& commandBuffer);
 
     void BeginRenderPass(const VkCommandBuffer& commandBuffer);
     FORCEINLINE void EndRenderPass(const VkCommandBuffer& commandBuffer) { vkCmdEndRenderPass(commandBuffer); }
@@ -42,7 +45,7 @@ class VulkanFramebuffer final : public Framebuffer
 
   private:
     FramebufferSpecification m_Specification;
-    std::array<VkClearValue, 2> m_ClearValues;  // First one is for color, the second is for depth/stencil
+    std::vector<VkClearValue> m_ClearValues;  // First one is for color, the second is for depth/stencil
 
     VkRenderPass m_RenderPass = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> m_Framebuffers;

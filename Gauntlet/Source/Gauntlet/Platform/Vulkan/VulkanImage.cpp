@@ -146,6 +146,14 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
     VkPipelineStageFlags PipelineSourceStageFlags      = 0;
     VkPipelineStageFlags PipelineDestinationStageFlags = 0;
 
+    /*
+     * The way I understand it right now:
+     * You specify srcAccessMask(operation that gonna occur), source pipeline stage(from what stage of pipeline your srcAccessMask should
+     * occur) and destination pipeline stage(until which stage srcAccessMask should occur)
+     *
+     * Then you specify dstAccessMask(operation that gonna occur after source pipeline stage) and destination pipeline stage(from what stage
+     * should occur dstAccessMask until the end of pipeline)
+     */
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
         PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
@@ -177,6 +185,11 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
                                                                                               : Context.GetTransferCommandPool()->Get(),
                                                           Context.GetDevice()->GetLogicalDevice());
 
+    /*
+     * PipelineBarrier
+     * Second parameter specifies in which pipeline stage the operations occur that should happen before the barrier.
+     * Third parameter specifies in which pipeline stage the operations occur that should wait on the barrier.
+     */
     vkCmdPipelineBarrier(CommandBuffer, PipelineSourceStageFlags, PipelineDestinationStageFlags, 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1,
                          &ImageMemoryBarrier);
 
@@ -187,8 +200,7 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
         Context.GetDevice()->GetLogicalDevice());
 }
 
-void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent,
-                           const bool bIsCubeMap)
+void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent, const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
     auto& Context      = (VulkanContext&)VulkanContext::Get();

@@ -16,20 +16,36 @@ class VulkanPipeline;
 class VulkanShader;
 class VulkanTexture2D;
 class VulkanCommandBuffer;
+class VulkanMaterial;
 class Skybox;
 
 class VulkanRenderer final : public Renderer
 {
   private:
+    struct GeometryData
+    {
+        std::string TestName = "None";
+        Ref<Gauntlet::VulkanMaterial> Material;
+        Ref<Gauntlet::VulkanVertexBuffer> VulkanVertexBuffer;
+        Ref<Gauntlet::VulkanIndexBuffer> VulkanIndexBuffer;
+        glm::mat4 Transform;
+    };
+
     struct VulkanRendererStorage
     {
         // Framebuffers && RenderPasses
-        Ref<VulkanFramebuffer> PostProcessFramebuffer = nullptr;
-        bool bFramebuffersNeedResize                  = {false};
-        glm::vec2 NewFramebufferSize                  = {0.0f, 0.0f};
+        Ref<VulkanFramebuffer> GeometryFramebuffer{nullptr};
+        Ref<VulkanFramebuffer> DepthPrePassFramebuffer{nullptr};
+        Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};
+
+        bool bFramebuffersNeedResize  = {false};
+        glm::uvec2 NewFramebufferSize = {0, 0};
+
+        // Pipelines
+        Ref<VulkanPipeline> DepthPrePassPipeline = nullptr;
+        Ref<VulkanPipeline> GeometryPipeline     = nullptr;
 
         // Mesh
-        Ref<VulkanPipeline> MeshPipeline      = nullptr;
         Ref<VulkanShader> MeshVertexShader    = nullptr;
         Ref<VulkanShader> MeshFragmentShader  = nullptr;
         Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
@@ -65,6 +81,8 @@ class VulkanRenderer final : public Renderer
         std::vector<void*> MappedUniformPhongModelBuffers;
         LightingModelBuffer MeshLightingModelBuffer;
         uint32_t CurrentPointLightIndex = 0;
+
+        std::vector<GeometryData> SortedGeometry;
     };
 
   public:

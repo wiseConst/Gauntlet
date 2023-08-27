@@ -22,12 +22,11 @@ struct AllocatedImage
 namespace ImageUtils
 {
 
-void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t height, VkImageUsageFlags imageUsageFlags,
-                 VkFormat format, VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL, const uint32_t mipLevels = 1,
-                 const uint32_t arrayLayers = 1);
+void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t height, VkImageUsageFlags imageUsageFlags, VkFormat format,
+                 VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL, const uint32_t mipLevels = 1, const uint32_t arrayLayers = 1);
 
-void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* imageView, VkFormat format,
-                     VkImageAspectFlags aspectFlags, VkImageViewType imageViewType = VK_IMAGE_VIEW_TYPE_2D);
+void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* imageView, VkFormat format, VkImageAspectFlags aspectFlags,
+                     VkImageViewType imageViewType = VK_IMAGE_VIEW_TYPE_2D);
 
 VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat);
 

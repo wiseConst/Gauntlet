@@ -29,6 +29,7 @@ class Scene final : private Uncopyable, private Unmovable
     // Specify classes that have public access to Scene class properties
     friend class Entity;
     friend class SceneHierarchyPanel;
+    friend class SceneSerializer;
 };
 
 }  // namespace Gauntlet

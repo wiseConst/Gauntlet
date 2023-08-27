@@ -32,14 +32,14 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
     void BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags = 0) const;
     FORCEINLINE void EndRecording() const { VK_CHECK(vkEndCommandBuffer(m_CommandBuffer), "Failed to end recording command buffer"); }
 
-    FORCEINLINE void BindPushConstants(VkPipelineLayout pipelineLayout, const VkShaderStageFlags shaderStageFlags,
-                                       const uint32_t offset, const uint32_t size, const void* values = VK_NULL_HANDLE) const
+    FORCEINLINE void BindPushConstants(VkPipelineLayout pipelineLayout, const VkShaderStageFlags shaderStageFlags, const uint32_t offset,
+                                       const uint32_t size, const void* values = VK_NULL_HANDLE) const
     {
         vkCmdPushConstants(m_CommandBuffer, pipelineLayout, shaderStageFlags, offset, size, values);
     }
 
-    FORCEINLINE void BindDescriptorSets(VkPipelineLayout pipelineLayout, const uint32_t firstSet = 0,
-                                        const uint32_t descriptorCount = 0, VkDescriptorSet* descriptorSets = VK_NULL_HANDLE,
+    FORCEINLINE void BindDescriptorSets(VkPipelineLayout pipelineLayout, const uint32_t firstSet = 0, const uint32_t descriptorCount = 0,
+                                        VkDescriptorSet* descriptorSets       = VK_NULL_HANDLE,
                                         VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
                                         const uint32_t dynamicOffsetCount = 0, uint32_t* dynamicOffsets = nullptr) const
     {
@@ -47,8 +47,7 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
                                 dynamicOffsetCount, dynamicOffsets);
     }
 
-    void BindPipeline(const Ref<VulkanPipeline>& pipeline,
-                      VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
+    void BindPipeline(const Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
 
     FORCEINLINE void DrawIndexed(const uint32_t indexCount, const uint32_t instanceCount = 1, const uint32_t firstIndex = 0,
                                  const int32_t vertexOffset = 0, const uint32_t firstInstance = 0) const
@@ -62,8 +61,8 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         vkCmdDraw(m_CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
-    FORCEINLINE void BindVertexBuffers(const uint32_t firstBinding = 0, const uint32_t bindingCount = 1,
-                                       VkBuffer* buffers = VK_NULL_HANDLE, VkDeviceSize* offsets = VK_NULL_HANDLE) const
+    FORCEINLINE void BindVertexBuffers(const uint32_t firstBinding = 0, const uint32_t bindingCount = 1, VkBuffer* buffers = VK_NULL_HANDLE,
+                                       VkDeviceSize* offsets = VK_NULL_HANDLE) const
     {
         vkCmdBindVertexBuffers(m_CommandBuffer, firstBinding, bindingCount, buffers, offsets);
     }
