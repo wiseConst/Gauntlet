@@ -3,6 +3,7 @@
 #include "Gauntlet/Renderer/Material.h"
 
 #include <volk/volk.h>
+#include "VulkanDescriptors.h"
 
 namespace Gauntlet
 {
@@ -15,9 +16,9 @@ class VulkanMaterial final : public Material
     void Invalidate() final override;
     void Destroy();
 
-    FORCEINLINE const auto& GetDescriptorSet() const { return m_DescriptorSet; }
+    FORCEINLINE const auto& GetDescriptorSet() const { return m_DescriptorSet.Handle; }
 
   private:
-    VkDescriptorSet m_DescriptorSet = VK_NULL_HANDLE;
+    DescriptorSet m_DescriptorSet;
 };
 }  // namespace Gauntlet

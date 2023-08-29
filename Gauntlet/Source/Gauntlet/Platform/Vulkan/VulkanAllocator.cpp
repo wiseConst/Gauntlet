@@ -99,7 +99,10 @@ void VulkanAllocator::DestroyBuffer(VkBuffer& buffer, VmaAllocation& allocation)
     QueryAllocationInfo(AllocationInfo, allocation);
 
     auto& RendererStats = Renderer::GetStats();
-    if ((Context.GetDevice()->GetMemoryProperties().memoryHeaps[AllocationInfo.memoryType - 1].flags &
+    if ((Context.GetDevice()
+             ->GetMemoryProperties()
+             .memoryHeaps[AllocationInfo.memoryType > 0 ? AllocationInfo.memoryType - 1 : AllocationInfo.memoryType]
+             .flags &
          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     {
         RendererStats.GPUMemoryAllocated -= AllocationInfo.size;

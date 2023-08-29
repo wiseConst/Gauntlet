@@ -3,7 +3,6 @@
 
 #include "VulkanContext.h"
 #include "VulkanSwapchain.h"
-#include "VulkanDescriptors.h"
 #include "VulkanRenderer.h"
 #include "VulkanTexture.h"
 #include "VulkanTextureCube.h"
@@ -23,22 +22,22 @@ void VulkanMaterial::Invalidate()
     auto& Context                   = (VulkanContext&)VulkanContext::Get();
     const auto& RendererStorageData = VulkanRenderer::GetStorageData();
 
-    if (!m_DescriptorSet)
+    if (!m_DescriptorSet.Handle)
     {
-        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, RendererStorageData.MeshDescriptorSetLayout),
+        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, RendererStorageData.MeshDescriptorSetLayout),
                    "Failed to allocate descriptor sets!");
     }
 
     auto WhiteImageInfo = RendererStorageData.MeshWhiteTexture->GetImageDescriptorInfo();
     auto WhiteTextureWriteSet =
-        Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet, 1, &WhiteImageInfo);
+        Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet.Handle, 1, &WhiteImageInfo);
 
     std::vector<VkWriteDescriptorSet> Writes;
     if (!m_DiffuseTextures.empty())
     {
         auto DiffuseImageInfo = std::static_pointer_cast<VulkanTexture2D>(m_DiffuseTextures[0])->GetImageDescriptorInfo();
         const auto DiffuseTextureWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet, 1, &DiffuseImageInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet.Handle, 1, &DiffuseImageInfo);
 
         Writes.push_back(DiffuseTextureWriteSet);
     }
@@ -52,7 +51,7 @@ void VulkanMaterial::Invalidate()
     {
         auto NormalMapImageInfo = std::static_pointer_cast<VulkanTexture2D>(m_NormalMapTextures[0])->GetImageDescriptorInfo();
         const auto NormalTextureWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, m_DescriptorSet, 1, &NormalMapImageInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, m_DescriptorSet.Handle, 1, &NormalMapImageInfo);
 
         Writes.push_back(NormalTextureWriteSet);
     }
@@ -66,7 +65,7 @@ void VulkanMaterial::Invalidate()
     {
         auto EmissiveImageInfo = std::static_pointer_cast<VulkanTexture2D>(m_EmissiveTextures[0])->GetImageDescriptorInfo();
         const auto EmissiveTextureWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2, m_DescriptorSet, 1, &EmissiveImageInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2, m_DescriptorSet.Handle, 1, &EmissiveImageInfo);
 
         Writes.push_back(EmissiveTextureWriteSet);
     }
@@ -79,9 +78,9 @@ void VulkanMaterial::Invalidate()
     // Environment Map Texture
     if (auto CubeMapTexture = std::static_pointer_cast<VulkanTextureCube>(RendererStorageData.DefaultSkybox->GetCubeMapTexture()))
     {
-        auto CubeMapTextureImageInfo = CubeMapTexture->GetImage()->GetDescriptorInfo();
-        const auto CubeMapTextureWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3, m_DescriptorSet, 1, &CubeMapTextureImageInfo);
+        auto CubeMapTextureImageInfo      = CubeMapTexture->GetImage()->GetDescriptorInfo();
+        const auto CubeMapTextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
+                                                                           m_DescriptorSet.Handle, 1, &CubeMapTextureImageInfo);
 
         Writes.push_back(CubeMapTextureWriteSet);
     }
@@ -101,7 +100,7 @@ void VulkanMaterial::Invalidate()
 
         // CameraWrite
         auto CameraDataBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4, m_DescriptorSet, 1, &CameraDataBufferInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4, m_DescriptorSet.Handle, 1, &CameraDataBufferInfo);
 
         Writes.push_back(CameraDataBufferWriteSet);
 
@@ -112,16 +111,16 @@ void VulkanMaterial::Invalidate()
 
         // PhongModel
         auto PhongModelBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, m_DescriptorSet, 1, &LightingModelBufferInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, m_DescriptorSet.Handle, 1, &LightingModelBufferInfo);
 
         Writes.push_back(PhongModelBufferWriteSet);
 
         // Shadows
         if (auto ShadowMapImage = RendererStorageData.ShadowMapFramebuffer->GetDepthAttachment())
         {
-            auto ShadowMapImageInfo = ShadowMapImage->GetDescriptorInfo();
-            const auto ShadowMapTextureWriteSet =
-                Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6, m_DescriptorSet, 1, &ShadowMapImageInfo);
+            auto ShadowMapImageInfo             = ShadowMapImage->GetDescriptorInfo();
+            const auto ShadowMapTextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6,
+                                                                                 m_DescriptorSet.Handle, 1, &ShadowMapImageInfo);
 
             Writes.push_back(ShadowMapTextureWriteSet);
         }
@@ -138,7 +137,7 @@ void VulkanMaterial::Invalidate()
 
         // Shadows
         auto ShadowsBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, m_DescriptorSet, 1, &ShadowsBufferInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, m_DescriptorSet.Handle, 1, &ShadowsBufferInfo);
         Writes.push_back(ShadowsBufferWriteSet);
 
         vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
@@ -154,6 +153,9 @@ void VulkanMaterial::Invalidate()
 void VulkanMaterial::Destroy()
 {
     // TODO: Refactor all of this
+
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
 }
 
 }  // namespace Gauntlet

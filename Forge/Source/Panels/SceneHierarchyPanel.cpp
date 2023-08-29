@@ -216,6 +216,30 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
             ImGui::CloseCurrentPopup();
         }
 
+        if (ImGui::MenuItem("Camera"))
+        {
+            m_SelectionContext.AddComponent<CameraComponent>();
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Mesh"))
+        {
+            m_SelectionContext.AddComponent<MeshComponent>();
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Point Light"))
+        {
+            m_SelectionContext.AddComponent<PointLightComponent>();
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Directional Light"))
+        {
+            m_SelectionContext.AddComponent<DirectionalLightComponent>();
+            ImGui::CloseCurrentPopup();
+        }
+
         ImGui::EndPopup();
     }
     ImGui::PopItemWidth();

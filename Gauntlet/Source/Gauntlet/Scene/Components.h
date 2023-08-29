@@ -86,7 +86,7 @@ struct PointLightComponent
 {
     glm::vec3 Color{0.0f};
     glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
-    glm::vec3 CLQ{0.0f};  // Constant Linear Quadratic
+    glm::vec3 CLQ{1.0f, 0.0f, 0.0f};  // Constant Linear Quadratic
 
     PointLightComponent()                           = default;
     PointLightComponent(const PointLightComponent&) = default;

@@ -187,11 +187,12 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
 
     /*
      * PipelineBarrier
-     * Second parameter specifies in which pipeline stage the operations occur that should happen before the barrier.
-     * Third parameter specifies in which pipeline stage the operations occur that should wait on the barrier.
+     * Second parameter specifies in which pipeline stage the operations occur that should happen before the barrier. (stages that should be
+     * completed before barrier) Third parameter specifies in which pipeline stage the operations occur that should wait on the barrier.
+     * (stages that should be completed after barrier)
      */
-    vkCmdPipelineBarrier(CommandBuffer, PipelineSourceStageFlags, PipelineDestinationStageFlags, 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1,
-                         &ImageMemoryBarrier);
+    vkCmdPipelineBarrier(CommandBuffer, PipelineSourceStageFlags, PipelineDestinationStageFlags, VK_DEPENDENCY_BY_REGION_BIT, 0,
+                         VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &ImageMemoryBarrier);
 
     Utility::EndSingleTimeCommands(
         CommandBuffer,
@@ -292,15 +293,14 @@ void VulkanImage::Invalidate()
 
     if (m_Specification.CreateTextureID)
     {
-        if (!m_DescriptorSet)  // Preventing allocating on image resizing, just simply update descriptor set
+        if (!m_DescriptorSet.Handle)  // Preventing allocating on image resizing, just simply update descriptor set
         {
-            VK_CHECK(
-                Context.GetDescriptorAllocator()->Allocate(&m_DescriptorSet, VulkanRenderer::GetStorageData().ImageDescriptorSetLayout),
-                "Failed to allocate texture/image descriptor set!");
+            VK_CHECK(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, VulkanRenderer::GetStorageData().ImageDescriptorSetLayout),
+                     "Failed to allocate texture/image descriptor set!");
         }
 
         auto TextureWriteDescriptorSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet, 1, &m_DescriptorImageInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet.Handle, 1, &m_DescriptorImageInfo);
         vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteDescriptorSet, 0, nullptr);
     }
 }
@@ -352,6 +352,7 @@ void VulkanImage::Destroy()
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
+    Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
     Context.GetDevice()->WaitDeviceOnFinish();
     Context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 

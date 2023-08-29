@@ -331,7 +331,8 @@ void VulkanContext::SetVSync(bool bIsVSync)
     float SwapchainRecreationStartTime = Application::Get().GetTimeNow();
     m_Swapchain->Invalidate();
     float SwapchainRecreationEndTime = Application::Get().GetTimeNow();
-    LOG_INFO("Time took to set vsync(invalidate swapchain): (%f)ms", SwapchainRecreationEndTime - SwapchainRecreationStartTime);
+    LOG_INFO("Time took to set vsync(invalidate swapchain): (%0.2f)ms",
+             (SwapchainRecreationEndTime - SwapchainRecreationStartTime) * 1000.0f);
 }
 
 void VulkanContext::Destroy()

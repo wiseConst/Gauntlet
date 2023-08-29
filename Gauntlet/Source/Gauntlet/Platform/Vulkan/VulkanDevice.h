@@ -139,6 +139,9 @@ class VulkanDevice final : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetTransferQueue() const { return m_GPUInfo.TransferQueue; }
     FORCEINLINE auto& GetTransferQueue() { return m_GPUInfo.TransferQueue; }
 
+    FORCEINLINE const auto& GetComputeQueue() const { return m_GPUInfo.ComputeQueue; }
+    FORCEINLINE auto& GetComputeQueue() { return m_GPUInfo.ComputeQueue; }
+
     FORCEINLINE const auto& GetMemoryProperties() const { return m_GPUInfo.GPUMemoryProperties; }
     FORCEINLINE auto& GetMemoryProperties() { return m_GPUInfo.GPUMemoryProperties; }
 
@@ -167,6 +170,7 @@ class VulkanDevice final : private Uncopyable, private Unmovable
         VkQueue GraphicsQueue                 = VK_NULL_HANDLE;
         VkQueue PresentQueue                  = VK_NULL_HANDLE;
         VkQueue TransferQueue                 = VK_NULL_HANDLE;
+        VkQueue ComputeQueue                  = VK_NULL_HANDLE;
 
         VkPhysicalDeviceProperties GPUProperties             = {};
         VkPhysicalDeviceFeatures GPUFeatures                 = {};

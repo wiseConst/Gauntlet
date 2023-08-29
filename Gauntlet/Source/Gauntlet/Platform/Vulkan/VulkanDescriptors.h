@@ -10,13 +10,20 @@ namespace Gauntlet
 
 class VulkanDevice;
 
+struct DescriptorSet
+{
+    VkDescriptorSet Handle{VK_NULL_HANDLE};  // Actual handle
+    uint32_t PoolID{0};                      // From which pool it is.
+};
+
 class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
 {
   public:
     VulkanDescriptorAllocator(Scoped<VulkanDevice>& device);
     ~VulkanDescriptorAllocator() = default;
 
-    NODISCARD bool Allocate(VkDescriptorSet* outDescriptorSet, VkDescriptorSetLayout descriptorSetLayout);
+    NODISCARD bool Allocate(DescriptorSet& outDescriptorSet, VkDescriptorSetLayout descriptorSetLayout);
+    void ReleaseDescriptorSets(DescriptorSet* descriptorSets, const uint32_t descriptorSetCount);
 
     void Destroy();
     void ResetPools();
@@ -45,6 +52,6 @@ class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f},                //
          {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f}};                    //
 
-    NODISCARD VkDescriptorPool CreatePool(const uint32_t count, VkDescriptorPoolCreateFlags descriptorPoolCreateFlags);
+    NODISCARD VkDescriptorPool CreatePool(const uint32_t count, VkDescriptorPoolCreateFlags descriptorPoolCreateFlags = 0);
 };
 }  // namespace Gauntlet

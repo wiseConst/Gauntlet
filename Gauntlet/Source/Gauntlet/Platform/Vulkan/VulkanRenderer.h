@@ -5,6 +5,7 @@
 #include <volk/volk.h>
 
 #include "VulkanBuffer.h"
+#include "VulkanDescriptors.h"
 #include "Gauntlet/Renderer/CoreRendererStructs.h"
 
 namespace Gauntlet
@@ -67,7 +68,7 @@ class VulkanRenderer final : public Renderer
 
         BufferLayout SkyboxVertexBufferLayout;
         VkDescriptorSetLayout SkyboxDescriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorSet SkyboxDescriptorSet             = VK_NULL_HANDLE;
+        DescriptorSet SkyboxDescriptorSet;
         MeshPushConstants SkyboxPushConstants;
 
         // UI

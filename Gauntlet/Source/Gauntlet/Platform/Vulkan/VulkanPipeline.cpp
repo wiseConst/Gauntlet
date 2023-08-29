@@ -96,7 +96,8 @@ void VulkanPipeline::Invalidate()
     const float PipelineCreationBegin = Application::Get().GetTimeNow();
     CreatePipeline();
     const float PipelineCreationEnd = Application::Get().GetTimeNow();
-    LOG_INFO("Took %0.3f ms to create %s!", (PipelineCreationEnd - PipelineCreationBegin) * 1000.0f, m_Specification.Name.data());
+    LOG_INFO("Took %0.3f ms to create <%s> pipeline!", (PipelineCreationEnd - PipelineCreationBegin) * 1000.0f,
+             m_Specification.Name.data());
 }
 
 void VulkanPipeline::CreatePipelineLayout()
@@ -287,11 +288,13 @@ void VulkanPipeline::Destroy()
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
     auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
 
-    GNT_ASSERT(Utility::DropPipelineCacheToDisk(LogicalDevice, m_Cache, "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") ==
-                   VK_TRUE,
-               "Failed to save pipeline cache to disk!");
+    {
+        GNT_ASSERT(Utility::DropPipelineCacheToDisk(LogicalDevice, m_Cache,
+                                                    "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
+                   "Failed to save pipeline cache to disk!");
 
-    vkDestroyPipelineCache(LogicalDevice, m_Cache, nullptr);
+        vkDestroyPipelineCache(LogicalDevice, m_Cache, nullptr);
+    }
 
     vkDestroyPipelineLayout(LogicalDevice, m_PipelineLayout, nullptr);
     vkDestroyPipeline(LogicalDevice, m_Pipeline, nullptr);

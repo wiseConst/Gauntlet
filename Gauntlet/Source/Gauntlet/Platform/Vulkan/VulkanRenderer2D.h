@@ -2,6 +2,7 @@
 
 #include "Gauntlet/Renderer/Renderer2D.h"
 #include "VulkanBuffer.h"
+#include "VulkanDescriptors.h"
 
 namespace Gauntlet
 {
@@ -64,7 +65,7 @@ class VulkanRenderer2D final : public Renderer2D
 
         // Textures && descriptors
         VkDescriptorSetLayout QuadDescriptorSetLayout;
-        std::vector<VkDescriptorSet> QuadDescriptorSets;
+        std::vector<DescriptorSet> QuadDescriptorSets;
         uint32_t CurrentDescriptorSetIndex = 0;
 
         std::array<Ref<VulkanTexture2D>, MaxTextureSlots> TextureSlots;

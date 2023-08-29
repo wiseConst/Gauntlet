@@ -9,7 +9,6 @@
 #include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
 #include "VulkanPipeline.h"
-#include "VulkanDescriptors.h"
 #include "VulkanFramebuffer.h"
 
 #include "VulkanRenderer2D.h"
@@ -405,7 +404,7 @@ void VulkanRenderer::SetupSkybox()
     SkyboxVertexShader->Destroy();
     SkyboxFragmentShader->Destroy();
 
-    GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(&s_Data.SkyboxDescriptorSet, s_Data.SkyboxDescriptorSetLayout),
+    GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(s_Data.SkyboxDescriptorSet, s_Data.SkyboxDescriptorSetLayout),
                "Failed to allocate descriptor sets!");
 
     VkWriteDescriptorSet SkyboxWriteDescriptorSet = {};
@@ -413,8 +412,8 @@ void VulkanRenderer::SetupSkybox()
     GNT_ASSERT(CubeMapTexture, "Skybox image is not valid!");
 
     auto CubeMapTextureImageInfo = CubeMapTexture->GetImage()->GetDescriptorInfo();
-    SkyboxWriteDescriptorSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.SkyboxDescriptorSet, 1,
-                                                              &CubeMapTextureImageInfo);
+    SkyboxWriteDescriptorSet     = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
+                                                                  s_Data.SkyboxDescriptorSet.Handle, 1, &CubeMapTextureImageInfo);
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &SkyboxWriteDescriptorSet, 0, VK_NULL_HANDLE);
 }
 
@@ -434,7 +433,7 @@ void VulkanRenderer::DrawSkybox()
                                                    s_Data.SkyboxPipeline->GetPushConstantsSize(), &s_Data.SkyboxPushConstants);
 
     const auto& CubeMesh = s_Data.DefaultSkybox->GetCubeMesh();
-    s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.SkyboxPipeline->GetLayout(), 0, 1, &s_Data.SkyboxDescriptorSet);
+    s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.SkyboxPipeline->GetLayout(), 0, 1, &s_Data.SkyboxDescriptorSet.Handle);
 
     VkDeviceSize Offset = 0;
     s_Data.CurrentCommandBuffer->BindVertexBuffers(
@@ -452,6 +451,7 @@ void VulkanRenderer::DestroySkybox()
 {
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.SkyboxDescriptorSetLayout, nullptr);
 
+    m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&s_Data.SkyboxDescriptorSet, 1);
     s_Data.SkyboxPipeline->Destroy();
     s_Data.DefaultSkybox->Destroy();
 }

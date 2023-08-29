@@ -77,7 +77,7 @@ void Log::Output(ELogLevel logLevel, const char* message, ...)
 
     // Format the time with timezone
     char FormattedTime[MAX_TIME_LENGTH] = {0};
-    std::strftime(FormattedTime, MAX_TIME_LENGTH, "[%Y-%m-%d] [%H:%M:%S]", CurrentLocalTime);
+    std::strftime(FormattedTime, MAX_TIME_LENGTH, "[%d/%m/%Y] [%H:%M:%S]", CurrentLocalTime);
 
     char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
     sprintf(FinalOutMessage, "%s %s%s\n", FormattedTime, LevelStrings[LevelIndex], FormattedMessage);

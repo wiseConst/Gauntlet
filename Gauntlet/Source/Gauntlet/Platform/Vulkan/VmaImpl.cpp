@@ -2,11 +2,13 @@
 
 #include "Gauntlet/Core/Log.h"
 
+// TODO: Fix VMA logger
+
 // using namespace Gauntlet;
 //
 //#ifdef GNT_DEBUG
 //
-//#def   ine  VMA_DEBUG_LOG_FORMAT(format, ...) \
+//#define  VMA_DEBUG_LOG_FORMAT(format, ...) \
 //    do \
 //    { \
 //        LOG_WARN((format), __VA_ARGS__); \

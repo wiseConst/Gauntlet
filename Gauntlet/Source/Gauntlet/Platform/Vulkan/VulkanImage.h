@@ -4,6 +4,7 @@
 
 #include <volk/volk.h>
 #include <vma/vk_mem_alloc.h>
+#include "VulkanDescriptors.h"
 
 namespace Gauntlet
 {
@@ -68,8 +69,8 @@ class VulkanImage final : public Image
     FORCEINLINE const auto& GetDescriptorInfo() const { return m_DescriptorImageInfo; }
     FORCEINLINE void* GetTextureID() const final override
     {
-        if (!m_DescriptorSet) LOG_WARN("Attempting to return NULL image descriptor set!");
-        return m_DescriptorSet;
+        if (!m_DescriptorSet.Handle) LOG_WARN("Attempting to return NULL image descriptor set!");
+        return m_DescriptorSet.Handle;
     }
 
   private:
@@ -78,7 +79,7 @@ class VulkanImage final : public Image
     AllocatedImage m_Image;
     VkSampler m_Sampler = VK_NULL_HANDLE;
     VkDescriptorImageInfo m_DescriptorImageInfo;
-    VkDescriptorSet m_DescriptorSet = VK_NULL_HANDLE;
+    DescriptorSet m_DescriptorSet;
 
     void CreateSampler();
 };

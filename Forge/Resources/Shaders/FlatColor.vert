@@ -8,7 +8,7 @@ layout(location = 4) in float InTextureId;
 
 layout(location = 0) out vec4 OutColor;
 layout(location = 1) out vec2 OutTexCoord;
-layout(location = 2) out float OutTextureId;
+layout(location = 2) out flat float OutTextureId;
 
 layout( push_constant ) uniform PushConstants
 {	

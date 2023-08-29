@@ -7,9 +7,24 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
-#if 1
+#if 0
     SceneSerializer serializer(m_ActiveScene);
     GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
+#endif
+
+#if 1
+#if 0
+    m_ActiveScene = MakeRef<Scene>("SponzaTest");
+
+    {
+        auto Sponza = m_ActiveScene->CreateEntity("Sponza");
+        Sponza.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Sponza/sponza.gltf"));
+    }
+#endif
+
+    SceneSerializer serializer(m_ActiveScene);
+    GNT_ASSERT(serializer.Deserialize("Resources/Scenes/SponzaTest.gntlt"), "Failed to deserialize scene!");
+
 #endif
 
 #if 0
@@ -109,15 +124,6 @@ void EditorLayer::OnAttach()
         dlc.AmbientSpecularShininess.y = 0.6f;
         dlc.AmbientSpecularShininess.z = 32.0f;
     }
-
-    /*{
-        auto Sponza                               = m_ActiveScene->CreateEntity("Sponza");
-        Sponza.AddComponent<MeshComponent>(Mesh::Create(std::string(ASSETS_PATH) + "Models/Sponza/sponza.gltf"));
-
-        auto& tc                                  = Sponza.GetComponent<TransformComponent>();
-        tc.Translation = glm::vec3(60.0, 60.0f, -60.0f);
-        tc.Scale       = glm::vec3(0.5f);
-    }*/
 #endif
 
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
@@ -139,6 +145,8 @@ void EditorLayer::OnUpdate(const float deltaTime)
     Renderer::BeginScene(*m_EditorCamera);
 
     m_ActiveScene->OnUpdate(deltaTime);
+
+    Renderer2D::DrawTexturedQuad({0.0f, 0.0f}, {1.0f, 1.0f}, m_WiseTreeTexture);
 
     Renderer::EndScene();
 }

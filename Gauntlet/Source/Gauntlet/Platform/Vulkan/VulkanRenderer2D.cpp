@@ -141,20 +141,32 @@ void VulkanRenderer2D::Create()
 
     if (s_Data2D.CurrentDescriptorSetIndex >= s_Data2D.QuadDescriptorSets.size())
     {
-        VkDescriptorSet QuadSamplerDescriptorSet = VK_NULL_HANDLE;
-        GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(&QuadSamplerDescriptorSet, s_Data2D.QuadDescriptorSetLayout),
+        DescriptorSet QuadSamplerDescriptorSet;
+        GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(QuadSamplerDescriptorSet, s_Data2D.QuadDescriptorSetLayout),
                    "Failed to allocate descriptor sets!");
         s_Data2D.QuadDescriptorSets.push_back(QuadSamplerDescriptorSet);
     }
 
     VkDescriptorImageInfo WhiteImageInfo = s_Data2D.TextureSlots[0]->GetImageDescriptorInfo();
-    const auto TextureWriteSet           = Utility::GetWriteDescriptorSet(
-                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex], 1, &WhiteImageInfo);
+    const auto TextureWriteSet =
+        Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
+                                       s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex].Handle, 1, &WhiteImageInfo);
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
 }
 
 void VulkanRenderer2D::BeginImpl()
 {
+    // Release unused descriptor sets
+    if (s_Data2D.QuadDescriptorSets.size() > 0 && s_Data2D.CurrentDescriptorSetIndex > 0)
+    {
+        if (s_Data2D.QuadDescriptorSets.size() > s_Data2D.CurrentDescriptorSetIndex)
+        {
+            const uint64_t descriptorSetsToFree = s_Data2D.QuadDescriptorSets.size() - s_Data2D.CurrentDescriptorSetIndex;
+            m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(s_Data2D.QuadDescriptorSets.data() + descriptorSetsToFree,
+                                                                      descriptorSetsToFree);
+        }
+    }
+
     s_Data2D.QuadVertexBufferPtr          = s_Data2D.QuadVertexBufferBase;
     s_Data2D.CurrentQuadVertexBufferIndex = 0;
 
@@ -302,7 +314,7 @@ void VulkanRenderer2D::FlushAndReset()
         auto descriptorInfo = s_Data2D.TextureSlots[0]->GetImageDescriptorInfo();
         const auto TextureWriteSet =
             Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
-                                           s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex], 1, &descriptorInfo);
+                                           s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex].Handle, 1, &descriptorInfo);
         vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
     }
 
@@ -322,8 +334,8 @@ void VulkanRenderer2D::PreallocateRenderStorage()
 {
     if (s_Data2D.CurrentDescriptorSetIndex >= s_Data2D.QuadDescriptorSets.size())
     {
-        VkDescriptorSet QuadSamplerDescriptorSet = VK_NULL_HANDLE;
-        GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(&QuadSamplerDescriptorSet, s_Data2D.QuadDescriptorSetLayout),
+        DescriptorSet QuadSamplerDescriptorSet;
+        GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(QuadSamplerDescriptorSet, s_Data2D.QuadDescriptorSetLayout),
                    "Failed to allocate descriptor sets!");
         s_Data2D.QuadDescriptorSets.push_back(QuadSamplerDescriptorSet);
     }
@@ -373,7 +385,7 @@ void VulkanRenderer2D::FlushImpl()
             ImageInfos.emplace_back(s_Data2D.TextureSlots[i]->GetImageDescriptorInfo());
         }
         const auto TextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
-                                                                    s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex],
+                                                                    s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex].Handle,
                                                                     (uint32_t)ImageInfos.size(), ImageInfos.data());
         vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
     }
@@ -390,7 +402,7 @@ void VulkanRenderer2D::FlushImpl()
     GeneralStorageData.CurrentCommandBuffer->BindIndexBuffer(s_Data2D.QuadIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
 
     GeneralStorageData.CurrentCommandBuffer->BindDescriptorSets(s_Data2D.QuadPipeline->GetLayout(), 0, 1,
-                                                                &s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex]);
+                                                                &s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex].Handle);
     GeneralStorageData.CurrentCommandBuffer->BindPushConstants(s_Data2D.QuadPipeline->GetLayout(),
                                                                s_Data2D.QuadPipeline->GetPushConstantsShaderStageFlags(), 0,
                                                                s_Data2D.QuadPipeline->GetPushConstantsSize(), &s_Data2D.PushConstants);
@@ -410,6 +422,7 @@ void VulkanRenderer2D::Destroy()
     m_Context.GetDevice()->WaitDeviceOnFinish();
 
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data2D.QuadDescriptorSetLayout, nullptr);
+    m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(s_Data2D.QuadDescriptorSets.data(), s_Data2D.QuadDescriptorSets.size());
 
     delete[] s_Data2D.QuadVertexBufferBase;
     s_Data2D.QuadPipeline->Destroy();
