@@ -9,9 +9,6 @@
 namespace Gauntlet
 {
 
-// TODO: Since I set VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT which specifies that I can free individual descriptor sets instead of
-// full pool, I have to add void FreeDescriptorSet func here.
-
 VulkanDescriptorAllocator::VulkanDescriptorAllocator(Scoped<VulkanDevice>& device) : m_Device(device) {}
 
 bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDescriptorSetLayout descriptorSetLayout)
@@ -33,20 +30,42 @@ bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDesc
         }
     }
 
-    const auto CurrentDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &descriptorSetLayout);
+    VkResult AllocationResult = VK_RESULT_MAX_ENUM;
 
-    // Try to allocate the descriptor set
-    auto AllocationResult =
-        vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &CurrentDescriptorSetAllocateInfo, &outDescriptorSet.Handle);
-    if (AllocationResult == VK_SUCCESS)
+    // Try to allocate the descriptor set with current
     {
-        ++m_AllocatedDescriptorSets;
-        outDescriptorSet.PoolID                      = m_Pools.size() - 1;
-        Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
-        return true;
+        const auto CurrentDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &descriptorSetLayout);
+        AllocationResult =
+            vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &CurrentDescriptorSetAllocateInfo, &outDescriptorSet.Handle);
+        if (AllocationResult == VK_SUCCESS)
+        {
+            ++m_AllocatedDescriptorSets;
+            outDescriptorSet.PoolID                      = m_Pools.size() - 1;
+            Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
+            return true;
+        }
     }
 
-    // Allocation failed, try to get new pool and allocate using this new pool
+    // Try different pools
+    for (uint32_t i = 0; i < m_Pools.size(); ++i)
+    {
+        // Skip current cuz it's checked already.
+        if (m_Pools[i] == m_CurrentPool) continue;
+
+        const auto NewDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_Pools[i], 1, &descriptorSetLayout);
+
+        // Try to allocate the descriptor set with different pools
+        AllocationResult = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &NewDescriptorSetAllocateInfo, &outDescriptorSet.Handle);
+        if (AllocationResult == VK_SUCCESS)
+        {
+            ++m_AllocatedDescriptorSets;
+            outDescriptorSet.PoolID                      = i;
+            Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
+            return true;
+        }
+    }
+
+    // Allocation through all pools failed, try to get new pool and allocate using this new pool
     if (AllocationResult == VK_ERROR_FRAGMENTED_POOL || AllocationResult == VK_ERROR_OUT_OF_POOL_MEMORY)
     {
         m_CurrentPool = CreatePool(m_CurrentPoolSizeMultiplier);
@@ -74,6 +93,13 @@ void VulkanDescriptorAllocator::ReleaseDescriptorSets(DescriptorSet* descriptorS
     // Since descriptor sets can be allocated through different pool I have to iterate them like dumb
     for (uint32_t i = 0; i < descriptorSetCount; ++i)
     {
+        GNT_ASSERT(descriptorSets[i].PoolID >= 0 && descriptorSets[i].PoolID < UINT32_MAX, "Invalid Pool ID!");
+        if (!descriptorSets[i].Handle)
+        {
+            LOG_WARN("Failed to release descriptor set!");
+            continue;
+        }
+
         VK_CHECK(vkFreeDescriptorSets(m_Device->GetLogicalDevice(), m_Pools[descriptorSets[i].PoolID], 1, &descriptorSets[i].Handle),
                  "Failed to free descriptor set!");
         descriptorSets[i].Handle = VK_NULL_HANDLE;

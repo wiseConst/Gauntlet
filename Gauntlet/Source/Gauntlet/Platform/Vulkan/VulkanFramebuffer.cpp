@@ -87,7 +87,7 @@ void VulkanFramebuffer::Invalidate()
                 DepthImageSpec.Height             = m_Specification.Height;
                 DepthImageSpec.Format             = attachment.Format;
                 DepthImageSpec.Usage              = EImageUsage::Attachment;
-                DepthImageSpec.CreateTextureID    = false;  // TODO: Should I also craete texture id for depth image to display it sooner?
+                DepthImageSpec.CreateTextureID    = true;
 
                 m_DepthAttachment.reset(new VulkanImage(DepthImageSpec));
             }

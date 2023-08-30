@@ -85,8 +85,9 @@ Mesh::Mesh(const std::string& meshPath)
 void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
-                                                                  aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes);
+    const aiScene* scene =
+        importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_PreTransformVertices |
+                                               aiProcess_OptimizeMeshes | aiProcess_RemoveRedundantMaterials);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {

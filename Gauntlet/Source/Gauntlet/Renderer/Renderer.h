@@ -61,6 +61,7 @@ class Renderer : private Uncopyable, private Unmovable
     {
         bool ShowWireframes = false;
         bool VSync          = false;
+        bool RenderShadows  = true;
         float Gamma         = 1.1f;
     } static s_RendererSettings;
 

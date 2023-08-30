@@ -352,7 +352,11 @@ void VulkanImage::Destroy()
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
+    if (m_DescriptorSet.Handle)
+    {
+        Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
+    }
+
     Context.GetDevice()->WaitDeviceOnFinish();
     Context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 

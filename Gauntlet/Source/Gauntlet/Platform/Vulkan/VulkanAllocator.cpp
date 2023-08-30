@@ -13,6 +13,7 @@ namespace Gauntlet
 
 VulkanAllocator::VulkanAllocator(const VkInstance& instance, const Scoped<VulkanDevice>& device)
 {
+    // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/configuration.html#config_Vulkan_functions
     VmaVulkanFunctions vmaVulkanFunctions    = {};
     vmaVulkanFunctions.vkGetDeviceProcAddr   = vkGetDeviceProcAddr;
     vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
@@ -24,8 +25,7 @@ VulkanAllocator::VulkanAllocator(const VkInstance& instance, const Scoped<Vulkan
     AllocatorCreateInfo.vulkanApiVersion       = GNT_VK_API_VERSION;
     AllocatorCreateInfo.pVulkanFunctions       = &vmaVulkanFunctions;
 
-    const auto result = vmaCreateAllocator(&AllocatorCreateInfo, &m_Allocator);
-    GNT_ASSERT(result == VK_SUCCESS, "Failed to create AMD Vulkan Allocator!");
+    VK_CHECK(vmaCreateAllocator(&AllocatorCreateInfo, &m_Allocator), "Failed to create AMD Vulkan Allocator!");
 }
 
 VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& imageCreateInfo, VkImage* outImage) const
@@ -36,8 +36,8 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& imageCreateI
     AllocationCreateInfo.requiredFlags           = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     VmaAllocation Allocation = {};
-    const auto result        = vmaCreateImage(m_Allocator, &imageCreateInfo, &AllocationCreateInfo, outImage, &Allocation, nullptr);
-    GNT_ASSERT(result == VK_SUCCESS, "Failed to create vulkan image via VMA!");
+    VK_CHECK(vmaCreateImage(m_Allocator, &imageCreateInfo, &AllocationCreateInfo, outImage, &Allocation, nullptr),
+             "Failed to create vulkan image via VMA!");
 
     VmaAllocationInfo AllocationInfo = {};
     QueryAllocationInfo(AllocationInfo, Allocation);
@@ -76,8 +76,8 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& bufferCrea
     }
 
     VmaAllocation Allocation = VK_NULL_HANDLE;
-    const auto result        = vmaCreateBuffer(m_Allocator, &bufferCreateInfo, &AllocationCreateInfo, outBuffer, &Allocation, nullptr);
-    GNT_ASSERT(result == VK_SUCCESS, "Failed to create buffer via VMA!");
+    VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferCreateInfo, &AllocationCreateInfo, outBuffer, &Allocation, nullptr),
+             "Failed to create buffer via VMA!");
 
     auto& RendererStats = Renderer::GetStats();
     if (memoryUsage & VMA_MEMORY_USAGE_GPU_ONLY)
@@ -121,9 +121,7 @@ void VulkanAllocator::QueryAllocationInfo(VmaAllocationInfo& allocationInfo, con
 void* VulkanAllocator::Map(VmaAllocation& allocation) const
 {
     void* Mapped = nullptr;
-
-    const auto result = vmaMapMemory(m_Allocator, allocation, &Mapped);
-    GNT_ASSERT(result == VK_SUCCESS && Mapped, "Failed to map memory!");
+    VK_CHECK(vmaMapMemory(m_Allocator, allocation, &Mapped), "Failed to map memory!");
 
     return Mapped;
 }
@@ -135,8 +133,7 @@ void VulkanAllocator::Unmap(VmaAllocation& allocation) const
 
 void VulkanAllocator::Destroy()
 {
-    auto& RendererStats = Renderer::GetStats();
-
+    const auto& RendererStats = Renderer::GetStats();
     if (RendererStats.AllocatedBuffers != 0 || RendererStats.AllocatedImages != 0)
         LOG_WARN("Seems like you forgot to destroy something... Remaining data: buffers (%u), images (%u).", RendererStats.AllocatedBuffers,
                  RendererStats.AllocatedImages);

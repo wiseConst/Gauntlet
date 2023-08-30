@@ -10,10 +10,11 @@ namespace Gauntlet
 
 class VulkanDevice;
 
+// Simple wrapper around the whole descriptor set situation, to make them flexible around my system.
 struct DescriptorSet
 {
     VkDescriptorSet Handle{VK_NULL_HANDLE};  // Actual handle
-    uint32_t PoolID{0};                      // From which pool it is.
+    uint32_t PoolID{UINT32_MAX};                    // From which pool it is.
 };
 
 class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable

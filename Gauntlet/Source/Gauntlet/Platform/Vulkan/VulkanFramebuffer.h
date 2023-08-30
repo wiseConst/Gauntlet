@@ -21,6 +21,12 @@ class VulkanFramebuffer final : public Framebuffer
     FORCEINLINE const auto& GetDepthAttachment() const { return m_DepthAttachment; }
     FORCEINLINE FramebufferSpecification& GetSpec() final override { return m_Specification; }
 
+    FORCEINLINE void SetDepthStencilClearColor(const float depth, const uint32_t stencil)
+    {
+        if (!m_ColorAttachments.empty() && m_DepthAttachment) m_ClearValues[1].depthStencil = {depth, stencil};
+        if (m_DepthAttachment && m_ColorAttachments.empty()) m_ClearValues[0].depthStencil = {depth, stencil};
+    }
+
     void BeginRenderPass(const VkCommandBuffer& commandBuffer);
     FORCEINLINE void EndRenderPass(const VkCommandBuffer& commandBuffer) { vkCmdEndRenderPass(commandBuffer); }
 

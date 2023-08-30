@@ -7,12 +7,14 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
-#if 0
+#define LOAD_TEST_BED 1
+#if LOAD_TEST_BED
     SceneSerializer serializer(m_ActiveScene);
     GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
 #endif
 
-#if 1
+#define SPONZA_TEST 0
+#if SPONZA_TEST
 #if 0
     m_ActiveScene = MakeRef<Scene>("SponzaTest");
 
@@ -27,7 +29,8 @@ void EditorLayer::OnAttach()
 
 #endif
 
-#if 0
+#define MAKE_TEST_BED 0
+#if MAKE_TEST_BED
     m_ActiveScene = MakeRef<Scene>("TestBed");
 
     {
@@ -146,8 +149,6 @@ void EditorLayer::OnUpdate(const float deltaTime)
 
     m_ActiveScene->OnUpdate(deltaTime);
 
-    Renderer2D::DrawTexturedQuad({0.0f, 0.0f}, {1.0f, 1.0f}, m_WiseTreeTexture);
-
     Renderer::EndScene();
 }
 
@@ -204,7 +205,8 @@ void EditorLayer::OnImGuiRender()
     auto& rs = Renderer::GetSettings();
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("VSync", &rs.VSync);
-    ImGui::DragFloat("Gamma", &rs.Gamma, 0.1f, 1.0f, 2.2f, "%.1f");
+    ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
+    ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.2f, "%0.1f");
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();

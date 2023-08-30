@@ -199,7 +199,7 @@ NODISCARD static VkVertexInputAttributeDescription GetShaderAttributeDescription
     return AttributeDescription;
 }
 
-NODISCARD static VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding, const uint32_t DescriptorCount,
+NODISCARD static constexpr VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding, const uint32_t DescriptorCount,
                                                                             VkDescriptorType DescriptorType, VkShaderStageFlags StageFlags,
                                                                             VkSampler* ImmutableSamplers = VK_NULL_HANDLE)
 {

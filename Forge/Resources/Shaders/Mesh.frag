@@ -138,6 +138,7 @@ void main()
 	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
 		FinalColor.rgb += CalculatePointLightColor(InLightingModelBuffer.PointLights[i], UnitNormal);
 
-	FinalColor.rgb = pow(FinalColor.rgb, vec3(InLightingModelBuffer.Gamma)); // Seems like textures already corrected so no need to use this: 1.0f / InLightingModelBuffer.Gamma
+	FinalColor.rgb  = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
+	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0f / InLightingModelBuffer.Gamma)); // OLD: Seems like textures already corrected so no need to use this: 1.0f / InLightingModelBuffer.Gamma, but we should use InLightingModelBuffer.Gamma
 	OutFragColor = FinalColor;
 }

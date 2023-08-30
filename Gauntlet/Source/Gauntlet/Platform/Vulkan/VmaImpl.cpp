@@ -18,6 +18,9 @@
 //#define VMA_DEBUG_LOG_FORMAT(format, ...)
 //#endif
 
+// https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/configuration.html#config_Vulkan_functions
+// Since I'm using volk, and don't link to static lib, I have to disable static functions, but enable dynamic one.
+
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS VK_TRUE
 #define VMA_STATIC_VULKAN_FUNCTIONS VK_FALSE
 #define VMA_IMPLEMENTATION
