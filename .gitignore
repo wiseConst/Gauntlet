@@ -45,3 +45,10 @@ Intermediate/
 
 # RenderDoc files
 *.cap
+
+# Log files
+*.log
+
+# Cache files
+*.cache
+*.spv

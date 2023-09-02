@@ -8,25 +8,9 @@
 namespace Gauntlet
 {
 
-// TODO: in vulk util i have the same func?
-static const std::vector<uint32_t> ReadFromeFile(const std::string_view& filePath)
-{
-    std::ifstream in(filePath.data(), std::ios::in | std::ios::binary);
-    const auto ErrorMessage = std::string("Failed to open file! FilePath: ") + std::string(filePath.data());
-    GNT_ASSERT(in, ErrorMessage.data());
-
-    in.seekg(0, std::ios::end);
-    std::vector<uint32_t> Result(in.tellg());
-    in.seekg(0, std::ios::beg);
-    in.read((char*)Result.data(), Result.size());
-
-    in.close();
-    return Result;
-}
-
 VulkanShader::VulkanShader(const std::string_view& filePath)
 {
-    const auto ShaderCode = ReadFromeFile(filePath);
+    const auto ShaderCode = Utility::LoadDataFromDisk(std::string(filePath));
     m_ShaderModule        = LoadShaderModule(ShaderCode);
 }
 
@@ -43,10 +27,9 @@ VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint32_t>& InSha
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    VkShaderModuleCreateInfo ShaderModuleCreateInfo = {};
-    ShaderModuleCreateInfo.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    ShaderModuleCreateInfo.pCode                    = InShaderCode.data();
+    VkShaderModuleCreateInfo ShaderModuleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     ShaderModuleCreateInfo.codeSize                 = InShaderCode.size();
+    ShaderModuleCreateInfo.pCode                    = InShaderCode.data();
 
     VkShaderModule ShaderModule = VK_NULL_HANDLE;
     VK_CHECK(vkCreateShaderModule(Context.GetDevice()->GetLogicalDevice(), &ShaderModuleCreateInfo, nullptr, &ShaderModule),

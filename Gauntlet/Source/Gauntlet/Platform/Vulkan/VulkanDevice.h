@@ -51,6 +51,7 @@ struct QueueFamilyIndices
 #endif
             }
 
+            // Dedicated compute queue
             if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
             {
                 Indices.ComputeFamily = i;
@@ -92,6 +93,9 @@ struct QueueFamilyIndices
         // From vulkan-tutorial.com: Any queue family with VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT capabilities already implicitly
         // support VK_QUEUE_TRANSFER_BIT operations.
         if (Indices.TransferFamily == UINT32_MAX) Indices.TransferFamily = Indices.GraphicsFamily;
+
+        // Rely on that graphics queue will be from first family, which contains everything.
+        if (Indices.ComputeFamily == UINT32_MAX) Indices.ComputeFamily = Indices.GraphicsFamily;
 
         GNT_ASSERT(Indices.IsComplete(), "QueueFamilyIndices wasn't setup correctly!");
         return Indices;

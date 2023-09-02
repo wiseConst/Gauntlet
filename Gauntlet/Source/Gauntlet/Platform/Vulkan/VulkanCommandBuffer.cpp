@@ -31,7 +31,7 @@ void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, co
     vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
 }
 
-void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint) const
+void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint) const
 {
     auto& Context         = (VulkanContext&)VulkanContext::Get();
     const auto& Swapchain = Context.GetSwapchain();
@@ -57,9 +57,16 @@ void VulkanCommandBuffer::BindPipeline(const Ref<VulkanPipeline>& pipeline, VkPi
         Viewport.height = -static_cast<float>(Scissor.extent.height);
     }
 
+    SetPipelinePolygonMode(pipeline, pipeline->GetSpecification().PolygonMode);
     vkCmdBindPipeline(m_CommandBuffer, pipelineBindPoint, pipeline->Get());
     vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);
     vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
+}
+
+void VulkanCommandBuffer::SetPipelinePolygonMode(Ref<VulkanPipeline>& pipeline, const EPolygonMode polygonMode) const
+{
+    pipeline->GetSpecification().PolygonMode = polygonMode;
+    vkCmdSetPolygonModeEXT(m_CommandBuffer, PipelineUtils::GauntletPolygonModeToVulkan(polygonMode));
 }
 
 }  // namespace Gauntlet

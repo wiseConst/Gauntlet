@@ -8,22 +8,29 @@
 namespace Gauntlet
 {
 #define OUT_MESSAGE_LENGTH 32000
-#define MAX_TIME_LENGTH 100
+#define MAX_TIME_FORMAT_LENGTH 100
 
 std::mutex Log::s_LogMutex;
+std::ofstream Log::s_Output;
 
-void Log::Init() {}
+void Log::Init()
+{
+    s_Output = std::ofstream("Gauntlet.log", std::ios::out | std::ios::trunc);
+    if (!s_Output.is_open()) LOG_WARN("Failed to create/open log file! %s");
+}
 
 void Log::Shutdown()
 {
     // Default console output color
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
+
+    s_Output.close();
 }
 
 void Log::Output(ELogLevel logLevel, const char* message, ...)
 {
     std::scoped_lock m_Lock(s_LogMutex);
-    const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: "};
+    static const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: "};
 
     auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
     int32_t LevelIndex = 0;
@@ -76,12 +83,13 @@ void Log::Output(ELogLevel logLevel, const char* message, ...)
     std::tm* CurrentLocalTime = std::localtime(&CurrentTime);
 
     // Format the time with timezone
-    char FormattedTime[MAX_TIME_LENGTH] = {0};
-    std::strftime(FormattedTime, MAX_TIME_LENGTH, "[%d/%m/%Y] [%H:%M:%S]", CurrentLocalTime);
+    char FormattedTime[MAX_TIME_FORMAT_LENGTH] = {0};
+    std::strftime(FormattedTime, MAX_TIME_FORMAT_LENGTH, "[%d:%m:%Y|%H:%M:%S]", CurrentLocalTime);
 
     char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
     sprintf(FinalOutMessage, "%s %s%s\n", FormattedTime, LevelStrings[LevelIndex], FormattedMessage);
     printf("%s", FinalOutMessage);
+    s_Output << FinalOutMessage;
 
     // Default console output color
     SetConsoleTextAttribute(hConsole, 7);

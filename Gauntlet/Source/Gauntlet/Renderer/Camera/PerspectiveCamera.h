@@ -27,22 +27,22 @@ class PerspectiveCamera : public Camera
 
     void OnUpdate(const float deltaTime) override
     {
-        if (Input::IsKeyPressed(GNT_KEY_W))
+        if (Input::IsKeyPressed(KeyCode::KEY_W))
             m_Position += m_Front * m_CameraTranslationSpeed * deltaTime;
-        else if (Input::IsKeyPressed(GNT_KEY_S))
+        else if (Input::IsKeyPressed(KeyCode::KEY_S))
             m_Position -= m_Front * m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_A))
+        if (Input::IsKeyPressed(KeyCode::KEY_A))
             m_Position -= m_Right * m_CameraTranslationSpeed * deltaTime;
-        else if (Input::IsKeyPressed(GNT_KEY_D))
+        else if (Input::IsKeyPressed(KeyCode::KEY_D))
             m_Position += m_Right * m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_SPACE))
+        if (Input::IsKeyPressed(KeyCode::KEY_SPACE))
             m_Position += m_Up * m_CameraTranslationSpeed * deltaTime;
-        else if (Input::IsKeyPressed(GNT_KEY_C))
+        else if (Input::IsKeyPressed(KeyCode::KEY_C))
             m_Position -= m_Up * m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_LEFT_SHIFT))
+        if (Input::IsKeyPressed(KeyCode::KEY_LEFT_SHIFT))
             m_CameraTranslationSpeed = 50.0f;
         else
             m_CameraTranslationSpeed = 2.0f;
@@ -110,7 +110,7 @@ class PerspectiveCamera : public Camera
         m_LastMouseX = static_cast<float>(event.GetOffsetX());
         m_LastMouseY = static_cast<float>(event.GetOffsetY());
 
-        if (!Input::IsMouseButtonPressed(GNT_MOUSE_BUTTON_1)) return;
+        if (!Input::IsMouseButtonPressed(KeyCode::MOUSE_BUTTON_1)) return;
 
         m_Yaw += DiffX * m_Sensitivity;
 

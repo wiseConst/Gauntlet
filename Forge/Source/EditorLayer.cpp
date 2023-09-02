@@ -1,5 +1,10 @@
 #include "EditorLayer.h"
 #include "Gauntlet/Scene/SceneSerializer.h"
+#include "Gauntlet/Utils/PlatformUtils.h"
+
+#define SPONZA_TEST 0
+#define LOAD_TEST_BED 1
+#define MAKE_TEST_BED 0
 
 EditorLayer::EditorLayer() : Layer("EditorLayer"), m_GUILayer(Application::Get().GetGUILayer()) {}
 
@@ -7,13 +12,11 @@ void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
 
-#define LOAD_TEST_BED 1
 #if LOAD_TEST_BED
     SceneSerializer serializer(m_ActiveScene);
     GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
 #endif
 
-#define SPONZA_TEST 0
 #if SPONZA_TEST
 #if 0
     m_ActiveScene = MakeRef<Scene>("SponzaTest");
@@ -29,7 +32,6 @@ void EditorLayer::OnAttach()
 
 #endif
 
-#define MAKE_TEST_BED 0
 #if MAKE_TEST_BED
     m_ActiveScene = MakeRef<Scene>("TestBed");
 
@@ -130,15 +132,12 @@ void EditorLayer::OnAttach()
 #endif
 
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-    m_WiseTreeTexture = Texture2D::Create("Resources/Textures/WiseTree.jpg", true);
 }
 
 void EditorLayer::OnDetach()
 {
     SceneSerializer serializer(m_ActiveScene);
     serializer.Serialize("Resources/Scenes/" + m_ActiveScene->GetName() + ".gntlt");
-
-    m_WiseTreeTexture->Destroy();
 }
 
 void EditorLayer::OnUpdate(const float deltaTime)
@@ -206,19 +205,14 @@ void EditorLayer::OnImGuiRender()
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("VSync", &rs.VSync);
     ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
-    ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.2f, "%0.1f");
+    ImGui::Checkbox("Display ShadowMap", &rs.DisplayShadowMapRenderTarget);
+    ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.6f, "%0.1f");
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();
 
     ImGui::Begin("Content Browser");
     ImGui::Text("Files");
-    ImGui::Image(m_WiseTreeTexture->GetTextureID(),
-                 {
-                     (float)m_WiseTreeTexture->GetWidth() * 0.25f,
-                     (float)m_WiseTreeTexture->GetHeight() * 0.25f,
-                 },
-                 {0, 1}, {1, 0});
     ImGui::End();
 
     EndDockspace();
@@ -270,7 +264,47 @@ void EditorLayer::BeginDockspace()
     {
         if (ImGui::BeginMenu("Editor Settings"))
         {
-            if (ImGui::MenuItem("Close Editor", NULL)) Application::Get().Close();
+            if (ImGui::MenuItem("New", "Ctrl+Shift+N"))
+            {
+                m_ActiveScene = MakeRef<Scene>();
+                m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+            }
+
+            if (ImGui::MenuItem("Open ...", "Ctrl+O"))
+            {
+                const std::string filePath = FileDialogs::OpenFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
+
+                if (filePath.empty())
+                {
+                    LOG_WARN("Failed to open scene: %s", filePath.data());
+                }
+                else
+                {
+                    m_ActiveScene = {};
+
+                    SceneSerializer serializer(m_ActiveScene);
+                    serializer.Deserialize(filePath);
+
+                    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+                }
+            }
+
+            if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
+            {
+                const std::string filePath = FileDialogs::SaveFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
+
+                if (filePath.empty())
+                {
+                    LOG_WARN("Failed to save scene: %s", filePath.data());
+                }
+                else
+                {
+                    SceneSerializer serializer(m_ActiveScene);
+                    serializer.Serialize(filePath);
+                }
+            }
+
+            if (ImGui::MenuItem("Exit Editor")) Application::Get().Close();
             ImGui::EndMenu();
         }
 

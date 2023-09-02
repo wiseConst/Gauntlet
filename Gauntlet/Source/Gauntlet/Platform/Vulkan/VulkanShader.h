@@ -6,8 +6,6 @@
 namespace Gauntlet
 {
 
-// TODO: Add shader cache simple asf
-
 class VulkanShader final : public Shader
 {
   public:

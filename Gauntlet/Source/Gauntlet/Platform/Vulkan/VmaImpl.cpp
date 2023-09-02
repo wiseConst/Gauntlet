@@ -1,22 +1,15 @@
 #include "GauntletPCH.h"
-
 #include "Gauntlet/Core/Log.h"
 
-// TODO: Fix VMA logger
-
-// using namespace Gauntlet;
-//
-//#ifdef GNT_DEBUG
-//
-//#define  VMA_DEBUG_LOG_FORMAT(format, ...) \
-//    do \
-//    { \
-//        LOG_WARN((format), __VA_ARGS__); \
-//    } while (false)
-//
-//#else
-//#define VMA_DEBUG_LOG_FORMAT(format, ...)
-//#endif
+#if GNT_DEBUG && LOG_VMA_INFO
+#define VMA_DEBUG_LOG_FORMAT(format, ...)                                                                                                  \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        LOG_INFO((format), __VA_ARGS__);                                                                                                   \
+    } while (false)
+#else
+#define VMA_DEBUG_LOG_FORMAT(format, ...)
+#endif
 
 // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/configuration.html#config_Vulkan_functions
 // Since I'm using volk, and don't link to static lib, I have to disable static functions, but enable dynamic one.

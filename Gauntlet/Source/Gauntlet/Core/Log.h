@@ -31,6 +31,7 @@ class Log final
 
   private:
     static std::mutex s_LogMutex;
+    static std::ofstream s_Output;
 };
 
 #define LOG_INFO(message, ...) Gauntlet::Log::Output(Gauntlet::ELogLevel::LL_INFO, message, ##__VA_ARGS__)

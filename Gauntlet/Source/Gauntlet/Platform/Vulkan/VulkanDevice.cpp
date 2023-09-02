@@ -127,27 +127,31 @@ void VulkanDevice::CreateLogicalDevice()
 
     for (auto QueueFamily : UniqueQueueFamilies)
     {
-        VkDeviceQueueCreateInfo QueueCreateInfo = {};
-        QueueCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        VkDeviceQueueCreateInfo QueueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
         QueueCreateInfo.pQueuePriorities        = &QueuePriority;
         QueueCreateInfo.queueCount              = 1;
         QueueCreateInfo.queueFamilyIndex        = QueueFamily;
         QueueCreateInfos.push_back(QueueCreateInfo);
     }
 
-    VkDeviceCreateInfo deviceCI   = {};
-    deviceCI.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    VkDeviceCreateInfo deviceCI   = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCI.pQueueCreateInfos    = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
 
-    VkPhysicalDeviceVulkan12Features Vulkan12Features          = {};
-    Vulkan12Features.sType                                     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    // Useful pipeline features that can be changed in real-time(for instance, polygon mode, primitive topology, etc..)
+    VkPhysicalDeviceExtendedDynamicState3FeaturesEXT extendedDynamicState3FeaturesEXT = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT};
+    extendedDynamicState3FeaturesEXT.extendedDynamicState3PolygonMode = VK_TRUE;
+
+    // Useful vulkan 1.2 features
+    VkPhysicalDeviceVulkan12Features Vulkan12Features          = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     Vulkan12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     Vulkan12Features.descriptorBindingPartiallyBound           = VK_TRUE;
-    Vulkan12Features.pNext                                     = VK_NULL_HANDLE;
+    Vulkan12Features.pNext                                     = &extendedDynamicState3FeaturesEXT;
 
     deviceCI.pNext = &Vulkan12Features;
 
+    // Required gpu features
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
     PhysicalDeviceFeatures.samplerAnisotropy        = VK_TRUE;
     PhysicalDeviceFeatures.fillModeNonSolid         = VK_TRUE;
@@ -234,8 +238,7 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
 
     gpuInfo.GPUDriverProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
 
-    VkPhysicalDeviceProperties2 GPUProperties2 = {};
-    GPUProperties2.sType                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    VkPhysicalDeviceProperties2 GPUProperties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     GPUProperties2.pNext                       = &gpuInfo.GPUDriverProperties;
     vkGetPhysicalDeviceProperties2(gpuInfo.PhysicalDevice, &GPUProperties2);
 

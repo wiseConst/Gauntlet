@@ -26,7 +26,6 @@ class EditorLayer final : public Layer
     Ref<EditorCamera> m_EditorCamera;
     Scoped<ImGuiLayer>& m_GUILayer;
 
-    Ref<Texture2D> m_WiseTreeTexture;
     Ref<Scene> m_ActiveScene;
 
     ImVec2 m_ViewportSize     = ImVec2(0.0f, 0.0f);

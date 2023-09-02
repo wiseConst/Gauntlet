@@ -26,10 +26,11 @@ struct FramebufferAttachmentSpecification
   public:
     FramebufferAttachmentSpecification() = default;
 
-    EImageFormat Format  = EImageFormat::NONE;
-    glm::vec4 ClearColor = glm::vec4(1.0f);
-    ELoadOp LoadOp       = ELoadOp::CLEAR;
-    EStoreOp StoreOp     = EStoreOp::STORE;
+    ETextureFilter Filter = ETextureFilter::LINEAR;
+    EImageFormat Format   = EImageFormat::NONE;
+    glm::vec4 ClearColor  = glm::vec4(1.0f);
+    ELoadOp LoadOp        = ELoadOp::CLEAR;
+    EStoreOp StoreOp      = EStoreOp::STORE;
 };
 
 struct FramebufferSpecification

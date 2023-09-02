@@ -12,7 +12,10 @@
 namespace Gauntlet
 {
 
-static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology)
+namespace PipelineUtils
+{
+
+VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology)
 {
     switch (primitiveTopology)
     {
@@ -28,7 +31,7 @@ static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology 
     return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 }
 
-static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage)
+VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage)
 {
     switch (shaderStage)
     {
@@ -42,7 +45,7 @@ static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStag
     return VK_SHADER_STAGE_VERTEX_BIT;
 }
 
-static VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode)
+VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode)
 {
     switch (cullMode)
     {
@@ -56,7 +59,7 @@ static VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode)
     return VK_CULL_MODE_NONE;
 }
 
-static VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode)
+VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode)
 {
     switch (polygonMode)
     {
@@ -70,7 +73,7 @@ static VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode)
     return VK_POLYGON_MODE_FILL;
 }
 
-static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
+VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
 {
     switch (frontFace)
     {
@@ -81,6 +84,7 @@ static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
     GNT_ASSERT(false, "Unknown front face flag!");
     return VK_FRONT_FACE_CLOCKWISE;
 }
+}  // namespace PipelineUtils
 
 VulkanPipeline::VulkanPipeline(const PipelineSpecification& pipelineSpecification) : m_Specification(pipelineSpecification)
 {
@@ -127,8 +131,7 @@ void VulkanPipeline::CreatePipeline()
 
     // Creating pipeline cache
     {
-        std::vector<uint8_t> CacheData =
-            Utility::LoadPipelineCacheFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
+        std::vector<uint32_t> CacheData = Utility::LoadDataFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
 
         VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
         PipelineCacheCreateInfo.initialDataSize           = CacheData.size();
@@ -141,7 +144,7 @@ void VulkanPipeline::CreatePipeline()
     // Contains the configuration for what kind of topology will be drawn.
     VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     InputAssemblyState.primitiveRestartEnable                 = m_Specification.PrimitiveRestartEnable;
-    InputAssemblyState.topology                               = GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
+    InputAssemblyState.topology = PipelineUtils::GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
 
     std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(m_Specification.ShaderStages.size());
     for (size_t i = 0; i < m_Specification.ShaderStages.size(); ++i)
@@ -149,7 +152,7 @@ void VulkanPipeline::CreatePipeline()
         ShaderStages[i].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         ShaderStages[i].pName  = "main";
         ShaderStages[i].module = m_Specification.ShaderStages[i].Shader->GetModule();
-        ShaderStages[i].stage  = GauntletShaderStageToVulkan(m_Specification.ShaderStages[i].Stage);
+        ShaderStages[i].stage  = PipelineUtils::GauntletShaderStageToVulkan(m_Specification.ShaderStages[i].Stage);
     }
 
     // Contains the information for vertex buffers and vertex formats.
@@ -166,10 +169,10 @@ void VulkanPipeline::CreatePipeline()
     // Configuration for the fixed-function rasterization. In here is where we enable or disable backface culling, and set line width or
     // wireframe drawing.
     VkPipelineRasterizationStateCreateInfo RasterizationState = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-    RasterizationState.cullMode                               = GauntletCullModeToVulkan(m_Specification.CullMode);
+    RasterizationState.cullMode                               = PipelineUtils::GauntletCullModeToVulkan(m_Specification.CullMode);
     RasterizationState.lineWidth                              = m_Specification.LineWidth;
-    RasterizationState.polygonMode                            = GauntletPolygonModeToVulkan(m_Specification.PolygonMode);
-    RasterizationState.frontFace                              = GauntletFrontFaceToVulkan(m_Specification.FrontFace);
+    RasterizationState.polygonMode                            = PipelineUtils::GauntletPolygonModeToVulkan(m_Specification.PolygonMode);
+    RasterizationState.frontFace                              = PipelineUtils::GauntletFrontFaceToVulkan(m_Specification.FrontFace);
 
     /*
      *  If rasterizerDiscardEnable is enabled, primitives (triangles in our case) are discarded
@@ -255,7 +258,7 @@ void VulkanPipeline::CreatePipeline()
     DepthStencilState.minDepthBounds = 0.0f;
     DepthStencilState.maxDepthBounds = 1.0f;
 
-    std::vector<VkDynamicState> DynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    std::vector<VkDynamicState> DynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_POLYGON_MODE_EXT};
 
     // TODO: Make it configurable?
     VkPipelineDynamicStateCreateInfo DynamicState = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};

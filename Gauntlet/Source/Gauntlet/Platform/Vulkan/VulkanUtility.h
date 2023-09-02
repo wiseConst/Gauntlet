@@ -11,14 +11,16 @@ namespace Gauntlet
 {
 
 #define LOG_VULKAN_INFO 0
+#define LOG_VMA_INFO 0
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
 static constexpr uint32_t FRAMES_IN_FLIGHT   = 2;
 
 const std::vector<const char*> VulkanLayers     = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DeviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME,         // Swapchain creation (array of images that we render into, and present to screen)
-    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME  // For advanced GPU info
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,                // Swapchain creation (array of images that we render into, and present to screen)
+    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,        // For advanced GPU info
+    VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME  // For useful pipeline features that can be changed real-time.
 };
 
 #ifdef GNT_DEBUG
@@ -97,6 +99,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
         {
+            if (LOG_VULKAN_INFO) LOG_INFO(pCallbackData->pMessage);
             break;
         }
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
@@ -120,13 +123,53 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
+enum class EPrimitiveTopology : uint8_t
+{
+    PRIMITIVE_TOPOLOGY_POINT_LIST = 0,
+    PRIMITIVE_TOPOLOGY_LINE_LIST,
+    PRIMITIVE_TOPOLOGY_LINE_STRIP,
+    PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+    PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
+};
+
+// TODO: Mb it should be in Shader class
+enum class EShaderStage : uint8_t
+{
+    SHADER_STAGE_VERTEX = 0,
+    SHADER_STAGE_GEOMETRY,
+    SHADER_STAGE_FRAGMENT,
+    SHADER_STAGE_COMPUTE
+};
+
+enum class ECullMode : uint8_t
+{
+    CULL_MODE_NONE = 0,
+    CULL_MODE_FRONT,
+    CULL_MODE_BACK,
+    CULL_MODE_FRONT_AND_BACK
+};
+
+enum class EPolygonMode : uint8_t
+{
+    POLYGON_MODE_FILL = 0,
+    POLYGON_MODE_LINE,
+    POLYGON_MODE_POINT,
+    POLYGON_MODE_FILL_RECTANGLE_NV
+};
+
+enum class EFrontFace : uint8_t
+{
+    FRONT_FACE_COUNTER_CLOCKWISE = 0,
+    FRONT_FACE_CLOCKWISE
+};
+
 namespace Utility
 {
 
 NODISCARD static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& CommandPool, const VkDevice& Device)
 {
-    VkCommandBufferAllocateInfo AllocateInfo = {};
-    AllocateInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    VkCommandBufferAllocateInfo AllocateInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     AllocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     AllocateInfo.commandPool                 = CommandPool;
     AllocateInfo.commandBufferCount          = 1;
@@ -134,8 +177,7 @@ NODISCARD static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& Co
     VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
     VK_CHECK(vkAllocateCommandBuffers(Device, &AllocateInfo, &CommandBuffer), "Failed to allocate command buffer for single time command!");
 
-    VkCommandBufferBeginInfo BeginInfo = {};
-    BeginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    VkCommandBufferBeginInfo BeginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     BeginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     VK_CHECK(vkBeginCommandBuffer(CommandBuffer, &BeginInfo), "Failed to begin command buffer for single time command!");
@@ -148,8 +190,7 @@ static void EndSingleTimeCommands(const VkCommandBuffer& CommandBuffer, const Vk
 {
     VK_CHECK(vkEndCommandBuffer(CommandBuffer), "Failed to end command buffer for single time command!");
 
-    VkSubmitInfo SubmitInfo       = {};
-    SubmitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo SubmitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers    = &CommandBuffer;
 
@@ -199,9 +240,11 @@ NODISCARD static VkVertexInputAttributeDescription GetShaderAttributeDescription
     return AttributeDescription;
 }
 
-NODISCARD static constexpr VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding, const uint32_t DescriptorCount,
-                                                                            VkDescriptorType DescriptorType, VkShaderStageFlags StageFlags,
-                                                                            VkSampler* ImmutableSamplers = VK_NULL_HANDLE)
+NODISCARD static constexpr VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(const uint32_t Binding,
+                                                                                      const uint32_t DescriptorCount,
+                                                                                      VkDescriptorType DescriptorType,
+                                                                                      VkShaderStageFlags StageFlags,
+                                                                                      VkSampler* ImmutableSamplers = VK_NULL_HANDLE)
 {
     VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding = {};
     DescriptorSetLayoutBinding.binding                      = Binding;
@@ -218,8 +261,7 @@ NODISCARD static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType Des
                                                             VkDescriptorBufferInfo* BufferInfo,
                                                             VkBufferView* TexelBufferView = VK_NULL_HANDLE, const uint32_t ArrayElement = 0)
 {
-    VkWriteDescriptorSet WriteDescriptorSet = {};
-    WriteDescriptorSet.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    VkWriteDescriptorSet WriteDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     WriteDescriptorSet.descriptorType       = DescriptorType;
     WriteDescriptorSet.dstBinding           = Binding;
     WriteDescriptorSet.dstSet               = DescriptorSet;
@@ -236,8 +278,7 @@ NODISCARD static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType Des
                                                             VkDescriptorImageInfo* ImageInfo,
                                                             VkBufferView* TexelBufferView = VK_NULL_HANDLE, const uint32_t ArrayElement = 0)
 {
-    VkWriteDescriptorSet WriteDescriptorSet = {};
-    WriteDescriptorSet.sType                = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    VkWriteDescriptorSet WriteDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     WriteDescriptorSet.descriptorType       = DescriptorType;
     WriteDescriptorSet.dstBinding           = Binding;
     WriteDescriptorSet.dstSet               = DescriptorSet;
@@ -253,8 +294,7 @@ NODISCARD static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const 
                                                                           const uint32_t DescriptorSetCount,
                                                                           VkDescriptorSetLayout* DescriptorSetLayouts)
 {
-    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {};
-    DescriptorSetAllocateInfo.sType                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     DescriptorSetAllocateInfo.descriptorPool              = DescriptorPool;
     DescriptorSetAllocateInfo.descriptorSetCount          = DescriptorSetCount;
     DescriptorSetAllocateInfo.pSetLayouts                 = DescriptorSetLayouts;
@@ -266,8 +306,7 @@ NODISCARD static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInf
     const uint32_t BindingCount, const VkDescriptorSetLayoutBinding* Bindings,
     const VkDescriptorSetLayoutCreateFlags DescriptorSetLayoutCreateFlags = 0, const void* pNext = nullptr)
 {
-    VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {};
-    DescriptorSetLayoutCreateInfo.sType                           = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     DescriptorSetLayoutCreateInfo.bindingCount                    = BindingCount;
     DescriptorSetLayoutCreateInfo.pBindings                       = Bindings;
     DescriptorSetLayoutCreateInfo.pNext                           = pNext;
@@ -276,15 +315,13 @@ NODISCARD static VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayoutCreateInf
     return DescriptorSetLayoutCreateInfo;
 }
 
-// InMaxSetCount -  How many descriptor sets can be allocated from the pool
-//  How many things can be submitted to descriptor depending on it's type (mb it's wrong)
+// MaxSetCount -  How many descriptor sets can be allocated from the pool
 NODISCARD static VkDescriptorPoolCreateInfo GetDescriptorPoolCreateInfo(const uint32_t PoolSizeCount, const uint32_t MaxSetCount,
                                                                         const VkDescriptorPoolSize* PoolSizes,
                                                                         VkDescriptorPoolCreateFlags DescriptorPoolCreateFlags = 0,
                                                                         const void* pNext                                     = nullptr)
 {
-    VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = {};
-    DescriptorPoolCreateInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     DescriptorPoolCreateInfo.poolSizeCount              = PoolSizeCount;
     DescriptorPoolCreateInfo.maxSets                    = MaxSetCount;
     DescriptorPoolCreateInfo.pPoolSizes                 = PoolSizes;
@@ -305,23 +342,23 @@ NODISCARD static VkPushConstantRange GetPushConstantRange(const VkShaderStageFla
     return PushConstants;
 }
 
-NODISCARD static std::vector<uint8_t> LoadPipelineCacheFromDisk(const std::string& CacheFilePath)
+NODISCARD static std::vector<uint32_t> LoadDataFromDisk(const std::string& filePath)
 {
-    std::vector<uint8_t> CacheData;
+    std::vector<uint32_t> data;
 
-    std::ifstream in(CacheFilePath, std::ios::in | std::ios::binary | std::ios::ate);
+    std::ifstream in(filePath.data(), std::ios::in | std::ios::binary | std::ios::ate);
     if (!in.is_open())
     {
-        LOG_WARN("Failed to load pipeline cache from disk: %s", CacheFilePath.data());
-        return CacheData;
+        LOG_WARN("Failed to load %s!", filePath.data());
+        return data;
     }
 
-    CacheData.resize(in.tellg());
+    data.resize(in.tellg());
     in.seekg(0, std::ios::beg);
-    in.read(reinterpret_cast<char*>(CacheData.data()), CacheData.size());
+    in.read(reinterpret_cast<char*>(data.data()), data.size());
 
     in.close();
-    return CacheData;
+    return data;
 }
 
 NODISCARD static VkBool32 DropPipelineCacheToDisk(const VkDevice& Device, const VkPipelineCache& PipelineCache,

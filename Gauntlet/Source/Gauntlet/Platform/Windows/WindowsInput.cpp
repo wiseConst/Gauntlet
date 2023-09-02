@@ -17,27 +17,27 @@ static GLFWwindow* GetNativeWindow()
     return Window;
 }
 
-bool Input::IsKeyPressed(int32_t KeyCode)
+bool Input::IsKeyPressed(KeyCode keyCode)
 {
-    const auto State = glfwGetKey(GetNativeWindow(), KeyCode);
+    const auto State = glfwGetKey(GetNativeWindow(), static_cast<int32_t>(keyCode));
     return State == GLFW_PRESS || State == GLFW_REPEAT;
 }
 
-bool Input::IsMouseButtonPressed(int32_t Button)
+bool Input::IsMouseButtonPressed(KeyCode button)
 {
-    const auto State = glfwGetMouseButton(GetNativeWindow(), Button);
+    const auto State = glfwGetMouseButton(GetNativeWindow(), static_cast<int32_t>(button));
     return State == GLFW_PRESS || State == GLFW_REPEAT;
 }
 
-bool Input::IsKeyReleased(int32_t KeyCode)
+bool Input::IsKeyReleased(KeyCode keyCode)
 {
-    const auto State = glfwGetKey(GetNativeWindow(), KeyCode);
+    const auto State = glfwGetKey(GetNativeWindow(), static_cast<int32_t>(keyCode));
     return State == GLFW_RELEASE;
 }
 
-bool Input::IsMouseButtonReleased(int32_t Button)
+bool Input::IsMouseButtonReleased(KeyCode button)
 {
-    const auto State = glfwGetMouseButton(GetNativeWindow(), Button);
+    const auto State = glfwGetMouseButton(GetNativeWindow(), static_cast<int32_t>(button));
     return State == GLFW_RELEASE;
 }
 

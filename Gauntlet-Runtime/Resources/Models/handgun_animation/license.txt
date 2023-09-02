@@ -1,0 +1,11 @@
+Model Information:
+* title:	Handgun Animation
+* source:	https://sketchfab.com/3d-models/handgun-animation-059f0191761341db815816bafc3e79a4
+* author:	3DHaupt (https://sketchfab.com/dennish2010)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Handgun Animation" (https://sketchfab.com/3d-models/handgun-animation-059f0191761341db815816bafc3e79a4) by 3DHaupt (https://sketchfab.com/dennish2010) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

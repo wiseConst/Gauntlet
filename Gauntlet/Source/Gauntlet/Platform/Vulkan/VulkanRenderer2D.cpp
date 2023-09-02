@@ -111,8 +111,8 @@ void VulkanRenderer2D::Create()
 
         PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
 
-        auto VertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Shaders/FlatColor.vert.spv"));
-        auto FragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Shaders/FlatColor.frag.spv"));
+        auto VertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/FlatColor.vert.spv"));
+        auto FragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/FlatColor.frag.spv"));
 
         std::vector<PipelineSpecification::ShaderStage> ShaderStages(2);
         ShaderStages[0].Stage  = EShaderStage::SHADER_STAGE_VERTEX;

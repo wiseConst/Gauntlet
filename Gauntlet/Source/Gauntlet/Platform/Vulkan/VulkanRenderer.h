@@ -25,7 +25,6 @@ class VulkanRenderer final : public Renderer
   private:
     struct GeometryData
     {
-        std::string TestName = "None";
         Ref<Gauntlet::VulkanMaterial> Material;
         Ref<Gauntlet::VulkanVertexBuffer> VulkanVertexBuffer;
         Ref<Gauntlet::VulkanIndexBuffer> VulkanIndexBuffer;
@@ -40,7 +39,7 @@ class VulkanRenderer final : public Renderer
         Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};
 
         bool bFramebuffersNeedResize  = {false};
-        glm::uvec2 NewFramebufferSize = {0, 0};
+        glm::uvec2 NewFramebufferSize = {1280, 720};
 
         // Pipelines
         Ref<VulkanPipeline> ShadowMapPipeline = nullptr;
@@ -75,9 +74,10 @@ class VulkanRenderer final : public Renderer
         VkDescriptorSetLayout ImageDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Misc
-        VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
-        Ref<VulkanPipeline> MeshWireframePipeline = nullptr;
-
+        VulkanCommandBuffer* CurrentCommandBuffer  = nullptr;
+        Ref<VulkanPipeline> DebugShadowMapPipeline = nullptr;
+        VkDescriptorSetLayout DebugShadowMapDescriptorSetLayout;
+        DescriptorSet DebugShadowMapDescriptorSet;
         std::vector<GeometryData> SortedGeometry;
 
         // Light UBO

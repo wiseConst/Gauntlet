@@ -34,6 +34,8 @@ group "Dependencies"
     include "Gauntlet/vendor/vma"
 group ""
 
+group "Engine"
+
 project "Gauntlet"
     location "Gauntlet"
     kind "StaticLib"
@@ -102,8 +104,9 @@ project "Gauntlet"
         defines "GNT_RELEASE"
         symbols "On"
         optimize "Debug"
+group ""
         
-              
+group "Editor"      
 project "Forge"
     location "Forge"
     kind "ConsoleApp"
@@ -191,3 +194,94 @@ project "Forge"
         {
          	' {COPY} "%{Binaries.Assimp_RelWithDebInfo}" "%{cfg.targetdir}" '
         }
+group ""
+
+group "Runtime"
+project "Gauntlet-Runtime"
+    location "Gauntlet-Runtime"
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++latest"
+    staticruntime "off"
+    
+    targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
+    objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
+
+    files 
+    {
+        "%{prj.name}/Source/**.h",
+        "%{prj.name}/Source/**.cpp"
+    }
+
+    includedirs
+    {
+        "Gauntlet-Runtime/Source",
+        "%{IncludeDir.glm}",
+        "%{IncludeDir.entt}",
+        "%{IncludeDir.json}",
+		"Gauntlet/vendor",
+		"Gauntlet/Source"
+    }
+
+    links 
+    {
+		"Gauntlet"
+    }
+
+	filter "system:windows"
+		systemversion "latest"
+
+		defines
+		{
+			"_CRT_SECURE_NO_WARNINGS",
+			"GLM_FORCE_RADIANS",
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE"
+		}
+
+    filter "configurations:Debug"
+        defines "GNT_DEBUG"
+        symbols "On"
+        optimize "Off"
+        
+        links
+        {
+            "%{Libraries.Assimp_Debug}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_Debug}" "%{cfg.targetdir}" '
+        }
+
+
+    filter "configurations:Release"
+        kind "WindowedApp"
+        defines "GNT_RELEASE"
+        symbols "Off"
+        optimize "Full"
+        
+        links
+        {
+            "%{Libraries.Assimp_Release}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_Release}" "%{cfg.targetdir}" '
+        }
+        
+    filter "configurations:RelWithDebInfo"
+        defines "GNT_RELEASE"
+        symbols "On"
+        optimize "Debug"
+
+        links
+        {
+            "%{Libraries.Assimp_RelWithDebInfo}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_RelWithDebInfo}" "%{cfg.targetdir}" '
+        }
+group ""

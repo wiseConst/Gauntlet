@@ -21,9 +21,13 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
     FORCEINLINE const auto& Get() const { return m_CommandBuffer; }
     FORCEINLINE auto& Get() { return m_CommandBuffer; }
 
+    // Unused
     FORCEINLINE void Reset() const { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
 
+    // Call before render pass begin
     void BeginDebugLabel(const char* commandBufferLabelName = "NONAME", const glm::vec4& labelColor = glm::vec4(1.0f)) const;
+
+    // Call after render pass end
     FORCEINLINE void EndDebugLabel() const
     {
         if (s_bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
@@ -47,7 +51,9 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
                                 dynamicOffsetCount, dynamicOffsets);
     }
 
-    void BindPipeline(const Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
+    void BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
+    void SetPipelinePolygonMode(Ref<VulkanPipeline>& pipeline,
+                                const EPolygonMode polygonMode) const;  // Invoke before binding actual pipeline
 
     FORCEINLINE void DrawIndexed(const uint32_t indexCount, const uint32_t instanceCount = 1, const uint32_t firstIndex = 0,
                                  const int32_t vertexOffset = 0, const uint32_t firstInstance = 0) const

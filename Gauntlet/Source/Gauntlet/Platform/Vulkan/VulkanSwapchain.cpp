@@ -253,7 +253,9 @@ void VulkanSwapchain::Recreate()
     for (auto& OneResizeCallback : m_ResizeCallbacks)
         OneResizeCallback();
 
+#if GNT_DEBUG
     LOG_WARN("Swapchain recreated with: (%u, %u).", GetImageExtent().width, GetImageExtent().height);
+#endif
 }
 
 }  // namespace Gauntlet

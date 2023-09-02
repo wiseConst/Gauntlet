@@ -1,53 +1,13 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
+#include "VulkanUtility.h"
 #include <volk/volk.h>
 
 namespace Gauntlet
 {
 class VulkanShader;
 class VulkanFramebuffer;
-
-enum class EPrimitiveTopology : uint8_t
-{
-    PRIMITIVE_TOPOLOGY_POINT_LIST = 0,
-    PRIMITIVE_TOPOLOGY_LINE_LIST,
-    PRIMITIVE_TOPOLOGY_LINE_STRIP,
-    PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-    PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
-};
-
-// TODO: Mb it should be in Shader class
-enum class EShaderStage : uint8_t
-{
-    SHADER_STAGE_VERTEX = 0,
-    SHADER_STAGE_GEOMETRY,
-    SHADER_STAGE_FRAGMENT,
-    SHADER_STAGE_COMPUTE
-};
-
-enum class ECullMode : uint8_t
-{
-    CULL_MODE_NONE = 0,
-    CULL_MODE_FRONT,
-    CULL_MODE_BACK,
-    CULL_MODE_FRONT_AND_BACK
-};
-
-enum class EPolygonMode : uint8_t
-{
-    POLYGON_MODE_FILL = 0,
-    POLYGON_MODE_LINE,
-    POLYGON_MODE_POINT,
-    POLYGON_MODE_FILL_RECTANGLE_NV
-};
-
-enum class EFrontFace : uint8_t
-{
-    FRONT_FACE_COUNTER_CLOCKWISE = 0,
-    FRONT_FACE_CLOCKWISE
-};
 
 struct PipelineSpecification
 {
@@ -127,7 +87,7 @@ class VulkanPipeline final
     }
 
     FORCEINLINE const auto& GetPushConstantsSize(const uint32_t Index = 0) { return m_Specification.PushConstantRanges[Index].size; }
-    FORCEINLINE const auto& GetSpecification() { return m_Specification; }
+    FORCEINLINE auto& GetSpecification() { return m_Specification; }
 
   private:
     PipelineSpecification m_Specification;
@@ -138,5 +98,19 @@ class VulkanPipeline final
     void CreatePipelineLayout();
     void CreatePipeline();
 };
+
+namespace PipelineUtils
+{
+VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology);
+
+VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage);
+
+VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode);
+
+VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode);
+
+VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace);
+
+}  // namespace PipelineUtils
 
 }  // namespace Gauntlet

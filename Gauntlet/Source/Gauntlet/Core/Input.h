@@ -11,11 +11,11 @@ class Input final : private Uncopyable, private Unmovable
   public:
     virtual ~Input() = default;
 
-    static bool IsKeyPressed(int32_t KeyCode);
-    static bool IsMouseButtonPressed(int32_t Button);
+    static bool IsKeyPressed(KeyCode keyCode);
+    static bool IsMouseButtonPressed(KeyCode button);
 
-    static bool IsKeyReleased(int32_t KeyCode);
-    static bool IsMouseButtonReleased(int32_t Button);
+    static bool IsKeyReleased(KeyCode keyCode);
+    static bool IsMouseButtonReleased(KeyCode button);
 
     static std::pair<int32_t, int32_t> GetMousePosition();
     static int32_t GetMouseX();

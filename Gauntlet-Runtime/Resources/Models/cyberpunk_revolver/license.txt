@@ -1,0 +1,11 @@
+Model Information:
+* title:	Cyberpunk Revolver
+* source:	https://sketchfab.com/3d-models/cyberpunk-revolver-3221a50fd8b2446fb0528c3b85fff833
+* author:	Amagitsune (https://sketchfab.com/Amagitsune)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Cyberpunk Revolver" (https://sketchfab.com/3d-models/cyberpunk-revolver-3221a50fd8b2446fb0528c3b85fff833) by Amagitsune (https://sketchfab.com/Amagitsune) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

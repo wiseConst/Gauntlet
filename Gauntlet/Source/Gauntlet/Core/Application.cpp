@@ -24,6 +24,8 @@ Application::Application(const ApplicationSpecification& ApplicationSpec)
     GNT_ASSERT(!s_Instance, "You can't have 2 instances of application!");
     s_Instance = this;
 
+    Log::Init();
+
     JobSystem::Init();
     RendererAPI::Init(m_Specification.GraphicsAPI);
 
@@ -114,7 +116,7 @@ void Application::Run()
 void Application::OnEvent(Event& e)
 {
     if (m_Window->IsMinimized()) return;
-    if (Input::IsKeyPressed(GNT_KEY_ESCAPE)) OnWindowClosed((WindowCloseEvent&)e);
+    if (Input::IsKeyPressed(KeyCode::KEY_ESCAPE)) OnWindowClosed((WindowCloseEvent&)e);
 
     EventDispatcher dispatcher(e);
     dispatcher.Dispatch<WindowCloseEvent>(BIND_FN(Application::OnWindowClosed));
@@ -154,6 +156,8 @@ Application::~Application()
     m_ImGuiLayer->OnDetach();
 
     m_Context->Destroy();
+
+    Log::Shutdown();
     s_Instance = nullptr;
 }
 

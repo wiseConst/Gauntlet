@@ -98,7 +98,7 @@ void Mesh::LoadMesh(const std::string& meshPath)
 
     m_Directory = std::string(meshPath.substr(0, meshPath.find_last_of('/'))) + std::string("/");
     {
-        uint32_t i = 0;
+        uint32_t i = 0;  // Models
         for (i = 2; i < meshPath.size(); ++i)
         {
             if (meshPath[i - 2] == 'l' && meshPath[i - 1] == 's' && meshPath[i] == '/') break;

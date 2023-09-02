@@ -5,9 +5,9 @@
       "TagComponent": "DirectionalLight",
       "TransformComponent": {
         "Translation": [
-          15.0,
-          15.0,
-          -15.0
+          28.0,
+          20.0,
+          -30.0
         ],
         "Rotation": [
           0.0,
@@ -30,19 +30,19 @@
       },
       "DirectionalLightComponent": {
         "Color": [
-          0.16743558645248413,
-          0.3285500705242157,
-          0.5098038911819458
+          0.07530222833156586,
+          0.07530231028795242,
+          0.43388432264328003
         ],
         "AmbientSpecularShininess": [
           0.25,
-          4.0,
-          256.0
+          0.6000000238418579,
+          32.0
         ],
         "Direction": [
-          15.0,
-          15.0,
-          -15.0
+          28.0,
+          20.0,
+          -30.0
         ]
       }
     },
@@ -50,9 +50,9 @@
       "TagComponent": "PointLight",
       "TransformComponent": {
         "Translation": [
-          17.299999237060547,
-          7.849999904632568,
-          -31.049999237060547
+          10.0,
+          10.0,
+          -10.0
         ],
         "Rotation": [
           0.0,
@@ -67,27 +67,27 @@
       },
       "SpriteRendererComponent": {
         "Color": [
-          0.830115795135498,
-          0.07371686398983002,
-          0.07371686398983002,
-          1.0
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224
         ]
       },
       "PointLightComponent": {
         "Color": [
-          0.8186274766921997,
-          0.04414168745279312,
-          0.04414168745279312
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224
         ],
         "AmbientSpecularShininess": [
-          0.20000000298023224,
-          0.8999999761581421,
-          256.0
+          0.10000000149011612,
+          0.5,
+          32.0
         ],
         "Constant/Linear/Quadratic": [
           1.0,
-          0.0,
-          0.0005000000237487257
+          0.004000000189989805,
+          7.000000186963007e-05
         ]
       }
     },
@@ -120,7 +120,7 @@
         "Translation": [
           0.0,
           0.0,
-          -20.0
+          -40.0
         ],
         "Rotation": [
           0.0,
@@ -151,9 +151,9 @@
           0.0
         ],
         "Scale": [
-          10.0,
-          0.5,
-          10.0
+          4.0,
+          1.0,
+          4.0
         ]
       },
       "MeshComponent": {
@@ -187,13 +187,13 @@
       "TagComponent": "VikingRoom",
       "TransformComponent": {
         "Translation": [
-          -20.0,
-          -7.0,
+          -10.0,
+          -10.0,
           0.0
         ],
         "Rotation": [
           0.0,
-          -45.0,
+          0.0,
           0.0
         ],
         "Scale": [
@@ -233,13 +233,13 @@
       "TagComponent": "Cerberus",
       "TransformComponent": {
         "Translation": [
-          20.0,
           0.0,
+          -5.0,
           10.0
         ],
         "Rotation": [
           0.0,
-          45.0,
+          0.0,
           0.0
         ],
         "Scale": [
@@ -250,6 +250,29 @@
       },
       "MeshComponent": {
         "Name": "Cerberus/scene.gltf"
+      }
+    },
+    "Entity 9": {
+      "TagComponent": "Sponza",
+      "TransformComponent": {
+        "Translation": [
+          -30.0,
+          2.0,
+          -7.0
+        ],
+        "Rotation": [
+          0.0,
+          -45.0,
+          0.0
+        ],
+        "Scale": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Sponza/sponza.gltf"
       }
     }
   }

@@ -117,8 +117,8 @@ SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context) : m_Context(
 
 void SceneHierarchyPanel::SetContext(const Ref<Scene>& context)
 {
-    // TODO: Handle properly reseting prev?
-    m_Context = context;
+    m_Context          = context;
+    m_SelectionContext = {};
 }
 
 void SceneHierarchyPanel::OnImGuiRender()
@@ -155,7 +155,7 @@ void SceneHierarchyPanel::OnImGuiRender()
 
 void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 {
-    auto& tag = entity.GetComponent<TagComponent>();  // Can't get component throws exception
+    auto& tag = entity.GetComponent<TagComponent>();
 
     ImGuiTreeNodeFlags SelectionFlag = m_SelectionContext == entity ? ImGuiTreeNodeFlags_Selected : 0;
     const ImGuiTreeNodeFlags flags   = SelectionFlag | (ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth);
@@ -176,7 +176,7 @@ void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 
     if (bIsOpened)
     {
-        // Recursive open
+        // Recursive open childs here
         ImGui::TreePop();
     }
 

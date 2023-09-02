@@ -35,7 +35,7 @@ class VulkanFramebuffer final : public Framebuffer
         m_Specification.Width  = width;
         m_Specification.Height = height;
         Invalidate();
-        LOG_INFO("Framebuffer <%s> resized (%u, %u).", m_Specification.Name.data(), width, height);
+        // LOG_INFO("Framebuffer <%s> resized (%u, %u).", m_Specification.Name.data(), width, height);
     }
 
     void Invalidate();

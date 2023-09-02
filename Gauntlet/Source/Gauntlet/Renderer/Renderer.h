@@ -59,10 +59,11 @@ class Renderer : private Uncopyable, private Unmovable
 
     struct RendererSettings
     {
-        bool ShowWireframes = false;
-        bool VSync          = false;
-        bool RenderShadows  = true;
-        float Gamma         = 1.1f;
+        bool ShowWireframes               = false;
+        bool VSync                        = false;
+        bool RenderShadows                = true;
+        bool DisplayShadowMapRenderTarget = false;
+        float Gamma                       = 1.1f;
     } static s_RendererSettings;
 
     struct RendererStats

@@ -56,6 +56,7 @@ void VulkanFramebuffer::Invalidate()
     const auto& swapchain     = Context.GetSwapchain();
     const auto& logicalDevice = Context.GetDevice()->GetLogicalDevice();
 
+    // Create attachments if we don't have.
     FramebufferAttachmentSpecification framebufferColorAttachment = {};
     FramebufferAttachmentSpecification framebufferDepthAttachment = {};
     for (auto& attachment : m_Specification.Attachments)
@@ -71,6 +72,7 @@ void VulkanFramebuffer::Invalidate()
                 ImageSpec.Format             = attachment.Format;
                 ImageSpec.Usage              = EImageUsage::Attachment;
                 ImageSpec.CreateTextureID    = true;
+                ImageSpec.Filter             = attachment.Filter;
                 for (uint32_t i = 0; i < swapchain->GetImageCount(); ++i)
                     m_ColorAttachments.emplace_back(new VulkanImage(ImageSpec));
             }
@@ -88,6 +90,7 @@ void VulkanFramebuffer::Invalidate()
                 DepthImageSpec.Format             = attachment.Format;
                 DepthImageSpec.Usage              = EImageUsage::Attachment;
                 DepthImageSpec.CreateTextureID    = true;
+                DepthImageSpec.Filter             = attachment.Filter;
 
                 m_DepthAttachment.reset(new VulkanImage(DepthImageSpec));
             }
@@ -96,6 +99,7 @@ void VulkanFramebuffer::Invalidate()
         }
     }
 
+    // If we didn't specify any attachments to create, but specified existing attachments.
     if (m_ColorAttachments.empty() && !m_DepthAttachment)
     {
         for (auto& attachment : m_Specification.AliveAttachments)
@@ -118,6 +122,7 @@ void VulkanFramebuffer::Invalidate()
         for (auto& Framebuffer : m_Framebuffers)
             vkDestroyFramebuffer(logicalDevice, Framebuffer, nullptr);
 
+        // Recreate images if only we own them(we own images if AliveAttachments empty)
         if (m_Specification.AliveAttachments.empty())
         {
             if (!m_ColorAttachments.empty())
@@ -289,6 +294,7 @@ void VulkanFramebuffer::Invalidate()
         VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[i]), "Failed to create framebuffer!");
     }
 
+    // Setup clear values
     if (!m_ColorAttachments.empty() && m_ClearValues.size() < 2)
     {
         VkClearColorValue clearColor = {framebufferColorAttachment.ClearColor.r, framebufferColorAttachment.ClearColor.g,
@@ -314,11 +320,10 @@ void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer)
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
-    VkRenderPassBeginInfo RenderPassBeginInfo = {};
-    RenderPassBeginInfo.sType                 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    VkRenderPassBeginInfo RenderPassBeginInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     RenderPassBeginInfo.framebuffer           = m_Framebuffers[Context.GetSwapchain()->GetCurrentImageIndex()];
-    RenderPassBeginInfo.pClearValues          = m_ClearValues.data();
     RenderPassBeginInfo.clearValueCount       = m_ClearValues.size();
+    RenderPassBeginInfo.pClearValues          = m_ClearValues.data();
     RenderPassBeginInfo.renderPass            = m_RenderPass;
 
     VkRect2D RenderArea            = {};

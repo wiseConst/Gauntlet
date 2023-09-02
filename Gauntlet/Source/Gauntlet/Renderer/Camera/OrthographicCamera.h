@@ -25,14 +25,14 @@ class OrthographicCamera final : public Camera
 
     void OnUpdate(const float deltaTime) final override
     {
-        if (Input::IsKeyPressed(GNT_KEY_S)) m_Position.y -= m_CameraTranslationSpeed * deltaTime;
-        if (Input::IsKeyPressed(GNT_KEY_W)) m_Position.y += m_CameraTranslationSpeed * deltaTime;
+        if (Input::IsKeyPressed(KeyCode::KEY_S)) m_Position.y -= m_CameraTranslationSpeed * deltaTime;
+        if (Input::IsKeyPressed(KeyCode::KEY_W)) m_Position.y += m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_A)) m_Position.x -= m_CameraTranslationSpeed * deltaTime;
-        if (Input::IsKeyPressed(GNT_KEY_D)) m_Position.x += m_CameraTranslationSpeed * deltaTime;
+        if (Input::IsKeyPressed(KeyCode::KEY_A)) m_Position.x -= m_CameraTranslationSpeed * deltaTime;
+        if (Input::IsKeyPressed(KeyCode::KEY_D)) m_Position.x += m_CameraTranslationSpeed * deltaTime;
 
-        if (Input::IsKeyPressed(GNT_KEY_Q)) m_Rotation.z += m_CameraRotationSpeed * deltaTime;
-        if (Input::IsKeyPressed(GNT_KEY_E)) m_Rotation.z -= m_CameraRotationSpeed * deltaTime;
+        if (Input::IsKeyPressed(KeyCode::KEY_Q)) m_Rotation.z += m_CameraRotationSpeed * deltaTime;
+        if (Input::IsKeyPressed(KeyCode::KEY_E)) m_Rotation.z -= m_CameraRotationSpeed * deltaTime;
 
         SetRotation(m_Rotation);
 

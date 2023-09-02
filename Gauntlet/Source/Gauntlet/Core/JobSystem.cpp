@@ -9,7 +9,7 @@ void JobSystem::Init()
 {
     GNT_ASSERT(!s_bIsInitialized, "Job system already initialized!");
     s_bIsInitialized = true;
-    LOG_INFO("MainThread ID: %u", std::this_thread::get_id());
+    // LOG_INFO("MainThread ID: %u", std::this_thread::get_id());
 
     s_ThreadCount = std::thread::hardware_concurrency() - 1;
     if (s_ThreadCount > MAX_WORKER_THREADS)

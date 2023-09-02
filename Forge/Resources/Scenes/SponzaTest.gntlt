@@ -2,6 +2,51 @@
   "Scene": "SponzaTest",
   "Entities": {
     "Entity 0": {
+      "TagComponent": "Directional Light",
+      "TransformComponent": {
+        "Translation": [
+          26.0,
+          5.0,
+          -21.0
+        ],
+        "Rotation": [
+          0.0,
+          -90.0,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          0.0
+        ]
+      },
+      "SpriteRendererComponent": {
+        "Color": [
+          0.6754520535469055,
+          0.760617733001709,
+          0.0,
+          1.0
+        ]
+      },
+      "DirectionalLightComponent": {
+        "Color": [
+          1.0,
+          0.6694214344024658,
+          0.0
+        ],
+        "AmbientSpecularShininess": [
+          0.10000000149011612,
+          0.4000000059604645,
+          128.0
+        ],
+        "Direction": [
+          26.0,
+          5.0,
+          -21.0
+        ]
+      }
+    },
+    "Entity 1": {
       "TagComponent": "Sponza",
       "TransformComponent": {
         "Translation": [
@@ -22,51 +67,6 @@
       },
       "MeshComponent": {
         "Name": "Sponza/sponza.gltf"
-      }
-    },
-    "Entity 1": {
-      "TagComponent": "Directional Light",
-      "TransformComponent": {
-        "Translation": [
-          15.0,
-          -20.0,
-          15.0
-        ],
-        "Rotation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "SpriteRendererComponent": {
-        "Color": [
-          0.9606447219848633,
-          1.0,
-          0.07335907220840454,
-          1.0
-        ]
-      },
-      "DirectionalLightComponent": {
-        "Color": [
-          0.5441176891326904,
-          0.05067763477563858,
-          0.26837196946144104
-        ],
-        "AmbientSpecularShininess": [
-          0.15000000596046448,
-          0.800000011920929,
-          64.0
-        ],
-        "Direction": [
-          15.0,
-          -20.0,
-          15.0
-        ]
       }
     }
   }
