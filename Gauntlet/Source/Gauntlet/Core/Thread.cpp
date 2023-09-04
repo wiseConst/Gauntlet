@@ -31,7 +31,9 @@ void Thread::Start()
                     job();
 
                     m_Jobs.pop();
-                    m_CondVar.notify_one();  // in case we got more than 1 job
+                    if (m_Jobs.empty())
+                        m_CondVar.notify_one();  // In case we were waiting, and done everything. Also it won't affect the "wait" above,
+                                                 // since conditions weren't changed, it's gonna get back waiting.
                 }
             }
         });
