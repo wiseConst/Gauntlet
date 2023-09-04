@@ -30,6 +30,7 @@ void Log::Shutdown()
 void Log::Output(ELogLevel logLevel, const char* message, ...)
 {
     std::scoped_lock m_Lock(s_LogMutex);
+    s_Output                          = std::ofstream("Gauntlet.log", std::ios::out | std::ios::app);
     static const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: "};
 
     auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -93,6 +94,8 @@ void Log::Output(ELogLevel logLevel, const char* message, ...)
 
     // Default console output color
     SetConsoleTextAttribute(hConsole, 7);
+
+    s_Output.close();
 }
 
 }  // namespace Gauntlet

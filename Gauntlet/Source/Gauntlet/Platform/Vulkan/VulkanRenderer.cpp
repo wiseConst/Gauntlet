@@ -2,6 +2,7 @@
 #include "VulkanRenderer.h"
 
 #include "Gauntlet/Renderer/Camera/PerspectiveCamera.h"
+#include "Gauntlet/Core/JobSystem.h"
 
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
@@ -312,7 +313,7 @@ void VulkanRenderer::BeginImpl()
 
     // Clear geometry buffer contents
     s_Data.CurrentCommandBuffer->BeginDebugLabel("ClearPass", glm::vec4(0.3f, 0.56f, 0.841f, 1.0f));
-    s_Data.SetupFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
+    s_Data.SetupFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer);
 
     s_Data.SetupFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
     s_Data.CurrentCommandBuffer->EndDebugLabel();
@@ -441,13 +442,12 @@ void VulkanRenderer::SetupSkybox()
     GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(s_Data.SkyboxDescriptorSet, s_Data.SkyboxDescriptorSetLayout),
                "Failed to allocate descriptor sets!");
 
-    VkWriteDescriptorSet SkyboxWriteDescriptorSet = {};
-    auto CubeMapTexture                           = std::static_pointer_cast<VulkanTextureCube>(s_Data.DefaultSkybox->GetCubeMapTexture());
+    auto CubeMapTexture = std::static_pointer_cast<VulkanTextureCube>(s_Data.DefaultSkybox->GetCubeMapTexture());
     GNT_ASSERT(CubeMapTexture, "Skybox image is not valid!");
 
-    auto CubeMapTextureImageInfo = CubeMapTexture->GetImage()->GetDescriptorInfo();
-    SkyboxWriteDescriptorSet     = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
-                                                                  s_Data.SkyboxDescriptorSet.Handle, 1, &CubeMapTextureImageInfo);
+    auto CubeMapTextureImageInfo        = CubeMapTexture->GetImage()->GetDescriptorInfo();
+    const auto SkyboxWriteDescriptorSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
+                                                                         s_Data.SkyboxDescriptorSet.Handle, 1, &CubeMapTextureImageInfo);
     vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &SkyboxWriteDescriptorSet, 0, VK_NULL_HANDLE);
 }
 
@@ -507,17 +507,40 @@ void VulkanRenderer::EndSceneImpl()
 
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
 
+    // Multithreaded stuff
+
+    // Add a job to the thread's queue for each object to be rendered
+    const uint32_t threadCount   = JobSystem::GetThreadCount() > 0 ? JobSystem::GetThreadCount() : 1;
+    const uint32_t objectsUint32 = (uint32_t)s_Data.SortedGeometry.size() / threadCount;
+    bool bAreThereRemainingObjects{false};
+    {
+        const float objectsFloat  = static_cast<float>(s_Data.SortedGeometry.size()) / threadCount;
+        bAreThereRemainingObjects = objectsFloat > static_cast<float>(objectsUint32);
+    }
+
+    // TODO: Think if geometry pass objects and shadow pass object vary or not? Should I calculate objects per thread per pass? If I do
+    // render some objects in geometry pass, but I do not render them in shadow pass(some reasons may happen)
+    const uint32_t objectsPerThread = bAreThereRemainingObjects ? objectsUint32 + 1 : objectsUint32;
+
+    auto& threads    = JobSystem::GetThreads();
+    auto& threadData = m_Context.GetThreadData();
+
     // ShadowMap
     s_Data.ShadowMapFramebuffer->SetDepthStencilClearColor(GetSettings().RenderShadows ? 1.0f : 0.0f, 0);
 
     s_Data.CurrentCommandBuffer->BeginDebugLabel("ShadowMapPass", glm::vec4(0.2f, 0.2f, 0.2f, 1.0f));
-    s_Data.ShadowMapFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
-
-    if (GetSettings().RenderShadows)
+    if (!Renderer::GetSettings().RenderShadows)
     {
-        constexpr float cameraWidth = 15.0f;
-        //  const glm::mat4 lightProjection = glm::perspective(glm::radians(45.0f), 1.0f, 1.0f, 1000.0f);
-        const glm::mat4 lightProjection = glm::ortho(-cameraWidth, cameraWidth, -cameraWidth, cameraWidth, 1.0f, 96.0f);
+        s_Data.ShadowMapFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer);
+    }
+    else
+    {
+        s_Data.ShadowMapFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+
+        constexpr float cameraWidth     = 15.0f;
+        constexpr float zNear           = 1.0f;
+        constexpr float zFar            = 96.0f;
+        const glm::mat4 lightProjection = glm::ortho(-cameraWidth, cameraWidth, -cameraWidth, cameraWidth, zNear, zFar);
 
         const glm::mat4 lightView =
             glm::lookAt(glm::vec3(s_Data.MeshLightingModelBuffer.DirLight.Direction), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -528,20 +551,60 @@ void VulkanRenderer::EndSceneImpl()
         pushConstants.LightSpaceProjection = s_Data.MeshShadowsBuffer.LightSpaceMatrix;
         pushConstants.Model                = glm::mat4(1.0f);
 
-        s_Data.CurrentCommandBuffer->BindPipeline(s_Data.ShadowMapPipeline);
+        const auto inheritanceInfo =
+            Utility::GetCommandBufferInheritanceInfo(s_Data.ShadowMapFramebuffer->GetRenderPass(), s_Data.ShadowMapFramebuffer->Get());
 
-        for (const auto& geometry : s_Data.SortedGeometry)
+        uint32_t currentGeometryIndex = 0;
+        std::vector<VkCommandBuffer> recordedSecondaryShadowMapCommandBuffers;
+
+        for (uint32_t t = 0; t < threadCount; ++t)
         {
-            s_Data.CurrentCommandBuffer->BindPushConstants(s_Data.ShadowMapPipeline->GetLayout(),
-                                                           s_Data.ShadowMapPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                           s_Data.ShadowMapPipeline->GetPushConstantsSize(), &pushConstants);
+            std::vector<GeometryData> objects;
+            for (uint32_t i = 0; i < objectsPerThread; ++i)
+            {
+                if (currentGeometryIndex >= s_Data.SortedGeometry.size())
+                    break;
+                else
+                {
+                    objects.push_back(s_Data.SortedGeometry[currentGeometryIndex]);
+                    ++currentGeometryIndex;
+                }
+            }
 
-            VkDeviceSize Offset = 0;
-            s_Data.CurrentCommandBuffer->BindVertexBuffers(0, 1, &geometry.VulkanVertexBuffer->Get(), &Offset);
+            if (objects.empty()) break;
 
-            s_Data.CurrentCommandBuffer->BindIndexBuffer(geometry.VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
-            s_Data.CurrentCommandBuffer->DrawIndexed(static_cast<uint32_t>(geometry.VulkanIndexBuffer->GetCount()));
-            ++Renderer::GetStats().DrawCalls;
+            auto& currentSecondaryCommandBuffer =
+                threadData[t].SecondaryShadowMapCommandBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
+            recordedSecondaryShadowMapCommandBuffers.push_back(currentSecondaryCommandBuffer.Get());
+            threads[t].Submit(
+                [=]
+                {
+                    currentSecondaryCommandBuffer.BeginRecording(0, &inheritanceInfo);
+                    currentSecondaryCommandBuffer.BindPipeline(s_Data.ShadowMapPipeline);
+
+                    for (auto& object : objects)
+                    {
+                        currentSecondaryCommandBuffer.BindPushConstants(s_Data.ShadowMapPipeline->GetLayout(),
+                                                                        s_Data.ShadowMapPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                                        s_Data.ShadowMapPipeline->GetPushConstantsSize(), &pushConstants);
+
+                        VkDeviceSize Offset = 0;
+                        currentSecondaryCommandBuffer.BindVertexBuffers(0, 1, &object.VulkanVertexBuffer->Get(), &Offset);
+
+                        currentSecondaryCommandBuffer.BindIndexBuffer(object.VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+                        currentSecondaryCommandBuffer.DrawIndexed(static_cast<uint32_t>(object.VulkanIndexBuffer->GetCount()));
+                        ++Renderer::GetStats().DrawCalls;
+                    }
+
+                    currentSecondaryCommandBuffer.EndRecording();
+                });
+        }
+
+        if (!recordedSecondaryShadowMapCommandBuffers.empty())
+        {
+            JobSystem::Wait();
+            vkCmdExecuteCommands(s_Data.CurrentCommandBuffer->Get(), recordedSecondaryShadowMapCommandBuffers.size(),
+                                 recordedSecondaryShadowMapCommandBuffers.data());
         }
     }
 
@@ -550,10 +613,10 @@ void VulkanRenderer::EndSceneImpl()
 
     // Actual GeometryPass
     s_Data.CurrentCommandBuffer->BeginDebugLabel("GeometryPass", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-    s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
 
     if (GetSettings().DisplayShadowMapRenderTarget)
     {
+        s_Data.GeometryFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer);
         s_Data.CurrentCommandBuffer->BindPipeline(s_Data.DebugShadowMapPipeline);
         s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.DebugShadowMapPipeline->GetLayout(), 0, 1,
                                                         &s_Data.DebugShadowMapDescriptorSet.Handle);  // set no layout
@@ -562,6 +625,8 @@ void VulkanRenderer::EndSceneImpl()
     }
     else
     {
+        s_Data.GeometryFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+
         // Set shadow buffer(only contains light space mvp mat4)
         memcpy(s_Data.MappedUniformShadowsBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshShadowsBuffer,
                sizeof(ShadowsBuffer));
@@ -570,30 +635,80 @@ void VulkanRenderer::EndSceneImpl()
         memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
                sizeof(LightingModelBuffer));
 
-        s_Data.CurrentCommandBuffer->SetPipelinePolygonMode(
-            s_Data.GeometryPipeline, GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
-        s_Data.CurrentCommandBuffer->BindPipeline(s_Data.GeometryPipeline);
+        const auto inheritanceInfo =
+            Utility::GetCommandBufferInheritanceInfo(s_Data.GeometryFramebuffer->GetRenderPass(), s_Data.GeometryFramebuffer->Get());
 
-        for (const auto& geometry : s_Data.SortedGeometry)
+        // TODO: Handle while there's no multithreading.
+        uint32_t currentGeometryIndex = 0;
+        std::vector<VkCommandBuffer> recordedSecondaryGeometryCommandBuffers;
+
+        for (uint32_t t = 0; t < threadCount; ++t)
         {
-            MeshPushConstants PushConstants = {};
-            PushConstants.TransformMatrix   = geometry.Transform;
+            std::vector<GeometryData> objects;
+            for (uint32_t i = 0; i < objectsPerThread; ++i)
+            {
+                if (currentGeometryIndex >= s_Data.SortedGeometry.size())
+                    break;
+                else
+                {
+                    objects.push_back(s_Data.SortedGeometry[currentGeometryIndex]);
+                    ++currentGeometryIndex;
+                }
+            }
 
-            s_Data.CurrentCommandBuffer->BindPushConstants(s_Data.GeometryPipeline->GetLayout(),
-                                                           s_Data.GeometryPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                           s_Data.GeometryPipeline->GetPushConstantsSize(), &PushConstants);
+            if (objects.empty()) break;
 
-            auto MaterialDescriptorSet = geometry.Material->GetDescriptorSet();
-            s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.GeometryPipeline->GetLayout(), 0, 1, &MaterialDescriptorSet);
+            auto& currentSecondaryCommandBuffer =
+                threadData[t].SecondaryGeometryCommandBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
+            recordedSecondaryGeometryCommandBuffers.push_back(currentSecondaryCommandBuffer.Get());
+            threads[t].Submit(
+                [=]
+                {
+                    currentSecondaryCommandBuffer.BeginRecording(0, &inheritanceInfo);
+                    currentSecondaryCommandBuffer.SetPipelinePolygonMode(s_Data.GeometryPipeline, GetSettings().ShowWireframes
+                                                                                                      ? EPolygonMode::POLYGON_MODE_LINE
+                                                                                                      : EPolygonMode::POLYGON_MODE_FILL);
+                    currentSecondaryCommandBuffer.BindPipeline(s_Data.GeometryPipeline);
 
-            VkDeviceSize Offset = 0;
-            s_Data.CurrentCommandBuffer->BindVertexBuffers(0, 1, &geometry.VulkanVertexBuffer->Get(), &Offset);
+                    for (auto& object : objects)
+                    {
+                        MeshPushConstants PushConstants = {};
+                        PushConstants.TransformMatrix   = object.Transform;
 
-            s_Data.CurrentCommandBuffer->BindIndexBuffer(geometry.VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
-            s_Data.CurrentCommandBuffer->DrawIndexed(static_cast<uint32_t>(geometry.VulkanIndexBuffer->GetCount()));
-            ++Renderer::GetStats().DrawCalls;
+                        currentSecondaryCommandBuffer.BindPushConstants(s_Data.GeometryPipeline->GetLayout(),
+                                                                        s_Data.GeometryPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                                        s_Data.GeometryPipeline->GetPushConstantsSize(), &PushConstants);
+
+                        auto MaterialDescriptorSet = object.Material->GetDescriptorSet();
+                        currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.GeometryPipeline->GetLayout(), 0, 1,
+                                                                         &MaterialDescriptorSet);
+
+                        VkDeviceSize Offset = 0;
+                        currentSecondaryCommandBuffer.BindVertexBuffers(0, 1, &object.VulkanVertexBuffer->Get(), &Offset);
+
+                        currentSecondaryCommandBuffer.BindIndexBuffer(object.VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+                        currentSecondaryCommandBuffer.DrawIndexed(static_cast<uint32_t>(object.VulkanIndexBuffer->GetCount()));
+                        ++Renderer::GetStats().DrawCalls;
+                    }
+
+                    currentSecondaryCommandBuffer.EndRecording();
+                });
+        }
+
+        if (!recordedSecondaryGeometryCommandBuffers.empty())
+        {
+            JobSystem::Wait();
+            vkCmdExecuteCommands(s_Data.CurrentCommandBuffer->Get(), recordedSecondaryGeometryCommandBuffers.size(),
+                                 recordedSecondaryGeometryCommandBuffers.data());
         }
     }
+
+    s_Data.GeometryFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
+    s_Data.CurrentCommandBuffer->EndDebugLabel();
+
+    // Render skybox as last geometry to prevent depth testing as mush as possible
+    s_Data.CurrentCommandBuffer->BeginDebugLabel("Skybox", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+    s_Data.GeometryFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer);
 
     DrawSkybox();
 

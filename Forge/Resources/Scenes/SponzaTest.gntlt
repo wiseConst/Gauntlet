@@ -5,9 +5,9 @@
       "TagComponent": "Directional Light",
       "TransformComponent": {
         "Translation": [
-          26.0,
-          5.0,
-          -21.0
+          -7.0,
+          20.0,
+          5.0
         ],
         "Rotation": [
           0.0,
@@ -17,7 +17,7 @@
         "Scale": [
           1.0,
           1.0,
-          0.0
+          1.0
         ]
       },
       "SpriteRendererComponent": {
@@ -30,9 +30,9 @@
       },
       "DirectionalLightComponent": {
         "Color": [
-          1.0,
-          0.6694214344024658,
-          0.0
+          0.7148760557174683,
+          0.5134402513504028,
+          0.056126613169908524
         ],
         "AmbientSpecularShininess": [
           0.10000000149011612,
@@ -40,9 +40,9 @@
           128.0
         ],
         "Direction": [
-          26.0,
-          5.0,
-          -21.0
+          2.0,
+          -8.0,
+          -6.0
         ]
       }
     },

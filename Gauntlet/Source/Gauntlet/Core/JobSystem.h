@@ -12,7 +12,7 @@ class JobSystem final : private Uncopyable, private Unmovable
     static void Shutdown();
 
     static void Update();
-    static void Wait();  // Temporary function until I handle meshes descriptor sets
+    static void Wait();
 
     template <typename Func, typename... Args> static void Submit(Func&& InFunc, Args&&... args)
     {
@@ -37,6 +37,9 @@ class JobSystem final : private Uncopyable, private Unmovable
 
         s_PendingJobs.emplace(Command);
     }
+
+    FORCEINLINE static uint32_t GetThreadCount() { return s_ThreadCount; }
+    FORCEINLINE static auto& GetThreads() { return s_Threads; }
 
   private:
     inline static uint32_t s_ThreadCount = 0;

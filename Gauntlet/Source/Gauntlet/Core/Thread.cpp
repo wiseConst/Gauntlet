@@ -15,21 +15,23 @@ void Thread::Start()
         {
             while (true)
             {
-                std::unique_lock<std::mutex> Lock(m_QueueMutex);
-                m_ThreadState = EThreadState::IDLE;
-
-                // Wait until we want to shutdown or we got some jobs.
-                m_CondVar.wait(Lock, [this] { return !m_Jobs.empty() || m_bIsShutdownRequested; });
-
-                if (m_Jobs.empty() && m_bIsShutdownRequested) break;
-
-                m_ThreadState = EThreadState::WORKING;
-                while (!m_Jobs.empty())
+                Job job;
                 {
-                    Job job = m_Jobs.front();
+                    m_ThreadState = EThreadState::IDLE;
+                    std::unique_lock<std::mutex> Lock(m_QueueMutex);
+
+                    // Wait until we want to shutdown or we got some jobs.
+                    m_CondVar.wait(Lock, [this] { return !m_Jobs.empty() || m_bIsShutdownRequested; });
+
+                    if (m_Jobs.empty() && m_bIsShutdownRequested) break;
+
+                    job = m_Jobs.front();
+
+                    m_ThreadState = EThreadState::WORKING;
                     job();
 
                     m_Jobs.pop();
+                    m_CondVar.notify_one();  // in case we got more than 1 job
                 }
             }
         });
@@ -40,8 +42,8 @@ void Thread::Shutdown()
     {
         std::unique_lock<std::mutex> Lock(m_QueueMutex);
         m_bIsShutdownRequested = true;
+        m_CondVar.notify_one();
     }
-    m_CondVar.notify_one();
 
     Join();
 }
@@ -64,6 +66,12 @@ void Thread::SetThreadAffinity(const uint32_t threadID)
     GNT_ASSERT(PriorityResult != 0, "Failed to set thread priority to THREAD_PRIORITY_HIGHEST");
 
 #endif
+}
+
+void Thread::Wait()
+{
+    std::unique_lock<std::mutex> lock(m_QueueMutex);
+    m_CondVar.wait(lock, [this] { return m_Jobs.empty(); });
 }
 
 }  // namespace Gauntlet

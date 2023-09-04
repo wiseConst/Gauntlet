@@ -68,21 +68,22 @@ class Renderer : private Uncopyable, private Unmovable
 
     struct RendererStats
     {
-        size_t GPUMemoryAllocated = 0;
+        std::atomic<size_t> GPUMemoryAllocated = 0;
 
-        size_t Allocations          = 0;
-        size_t AllocatedBuffers     = 0;
-        size_t StagingVertexBuffers = 0;
-        size_t AllocatedImages      = 0;
+        std::atomic<size_t> Allocations          = 0;
+        std::atomic<size_t> AllocatedBuffers     = 0;
+        std::atomic<size_t> StagingVertexBuffers = 0;
+        std::atomic<size_t> AllocatedImages      = 0;
 
-        size_t DrawCalls = 0;
-        size_t QuadCount = 0;
+        std::atomic<size_t> DrawCalls = 0;
+        std::atomic<size_t> QuadCount = 0;
 
-        uint32_t AllocatedDescriptorSets = 0;
-        uint32_t FPS                     = 0;
+        std::atomic<uint32_t> AllocatedDescriptorSets = 0;
+        uint32_t FPS                                  = 0;
 
         float CPUWaitTime = 0.0f;
         float GPUWaitTime = 0.0f;
+        float FrameTime   = 0.0f;
     } static s_RendererStats;
 
   protected:

@@ -7,21 +7,24 @@
 
 namespace Gauntlet
 {
-void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags) const
+void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags,
+                                         const VkCommandBufferInheritanceInfo* inheritanceInfo) const
 {
-    VkCommandBufferBeginInfo CommandBufferBeginInfo = {};
-    CommandBufferBeginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    CommandBufferBeginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | commandBufferUsageFlags;
+    VkCommandBufferBeginInfo commandBufferBeginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
 
-    VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &CommandBufferBeginInfo), "Failed to begin command buffer recording!");
+    const bool bIsSecondary                 = m_Level == VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    commandBufferBeginInfo.flags            = bIsSecondary ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
+                                                           : VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | commandBufferUsageFlags;
+    commandBufferBeginInfo.pInheritanceInfo = inheritanceInfo;
+
+    VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &commandBufferBeginInfo), "Failed to begin command buffer recording!");
 }
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const
 {
     if (!s_bEnableValidationLayers) return;
 
-    VkDebugUtilsLabelEXT CommandBufferLabelEXT = {};
-    CommandBufferLabelEXT.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    VkDebugUtilsLabelEXT CommandBufferLabelEXT = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;
     CommandBufferLabelEXT.color[0]             = labelColor.r;
     CommandBufferLabelEXT.color[1]             = labelColor.g;
@@ -47,10 +50,9 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipeline
     Viewport.height = -static_cast<float>(Swapchain->GetImageExtent().height);
 
     VkRect2D Scissor = {{0, 0}, Swapchain->GetImageExtent()};
-    if (pipeline->GetSpecification().TargetFramebuffer)
+    if (auto& targetFramebuffer = pipeline->GetSpecification().TargetFramebuffer)
     {
-        Scissor.extent = VkExtent2D(pipeline->GetSpecification().TargetFramebuffer->GetWidth(),
-                                    pipeline->GetSpecification().TargetFramebuffer->GetHeight());
+        Scissor.extent = VkExtent2D(targetFramebuffer->GetWidth(), targetFramebuffer->GetHeight());
 
         Viewport.y      = static_cast<float>(Scissor.extent.height);
         Viewport.width  = static_cast<float>(Scissor.extent.width);

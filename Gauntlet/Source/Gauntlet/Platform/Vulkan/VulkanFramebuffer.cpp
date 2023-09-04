@@ -315,7 +315,7 @@ void VulkanFramebuffer::Invalidate()
     }
 }
 
-void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer)
+void VulkanFramebuffer::BeginRenderPass(const VulkanCommandBuffer& commandBuffer, const VkSubpassContents subpassContents)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
@@ -331,7 +331,7 @@ void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer)
     RenderArea.extent              = VkExtent2D{m_Specification.Width, m_Specification.Height};
     RenderPassBeginInfo.renderArea = RenderArea;
 
-    vkCmdBeginRenderPass(commandBuffer, &RenderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer.Get(), &RenderPassBeginInfo, subpassContents);
 }
 
 void VulkanFramebuffer::Destroy()
@@ -381,6 +381,15 @@ const uint32_t VulkanFramebuffer::GetHeight() const
     if (m_DepthAttachment) return m_DepthAttachment->GetHeight();
 
     return m_ColorAttachments[0]->GetHeight();
+}
+
+const VkFramebuffer& VulkanFramebuffer::Get() const
+{
+    const auto& Context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
+    const auto& swapchain = Context.GetSwapchain();
+
+    return m_Framebuffers[swapchain->GetCurrentImageIndex()];
 }
 
 }  // namespace Gauntlet

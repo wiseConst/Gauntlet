@@ -2,8 +2,8 @@
 #include "Gauntlet/Scene/SceneSerializer.h"
 #include "Gauntlet/Utils/PlatformUtils.h"
 
-#define SPONZA_TEST 0
-#define LOAD_TEST_BED 1
+#define SPONZA_TEST 1
+#define LOAD_TEST_BED 0
 #define MAKE_TEST_BED 0
 
 EditorLayer::EditorLayer() : Layer("EditorLayer"), m_GUILayer(Application::Get().GetGUILayer()) {}
@@ -185,17 +185,18 @@ void EditorLayer::OnImGuiRender()
         ImGui::Begin("Application Stats", &bShowAppStats);
 
         const auto& Stats = Renderer::GetStats();
-        ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages);
-        ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers);
-        ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers);
-        ImGui::Text("VRAM Usage: (%0.2f) MB", Stats.GPUMemoryAllocated / 1024.0f / 1024.0f);
+        ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages.load());
+        ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers.load());
+        ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers.load());
+        ImGui::Text("VRAM Usage: (%0.2f) MB", Stats.GPUMemoryAllocated.load() / 1024.0f / 1024.0f);
         ImGui::Text("FPS: (%u)", Stats.FPS);
-        ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets);
+        ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets.load());
         ImGui::Text("CPU Wait Time: %0.2f ms", Stats.CPUWaitTime * 1000.0f);
         ImGui::Text("GPU Wait Time: %0.2f ms", Stats.GPUWaitTime * 1000.0f);
-        ImGui::Text("VMA Allocations: %llu", Stats.Allocations);
-        ImGui::Text("DrawCalls: %llu", Stats.DrawCalls);
-        ImGui::Text("QuadCount: %llu", Stats.QuadCount);
+        ImGui::Text("FrameTime: %0.2f ms", Stats.FrameTime * 1000.0f);
+        ImGui::Text("VMA Allocations: %llu", Stats.Allocations.load());
+        ImGui::Text("DrawCalls: %llu", Stats.DrawCalls.load());
+        ImGui::Text("QuadCount: %llu", Stats.QuadCount.load());
 
         ImGui::End();
     }

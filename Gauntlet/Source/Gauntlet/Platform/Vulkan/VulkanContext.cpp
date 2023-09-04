@@ -10,6 +10,7 @@
 #include "VulkanDescriptors.h"
 
 #include "Gauntlet/Core/Application.h"
+#include "Gauntlet/Core/JobSystem.h"
 #include "Gauntlet/Core/Window.h"
 #include "Gauntlet/Renderer/Renderer.h"
 
@@ -49,6 +50,8 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
     CreateSyncObjects();
 
     m_DescriptorAllocator.reset(new VulkanDescriptorAllocator(m_Device));
+
+    InitializeMultithreadedRenderer();
 }
 
 void VulkanContext::CreateInstance()
@@ -339,6 +342,12 @@ void VulkanContext::Destroy()
 {
     m_Device->WaitDeviceOnFinish();
 
+    // Multithreaded stuff
+    for (auto& threadData : m_ThreadData)
+    {
+        threadData.CommandPool->Destroy();
+    }
+
     m_CurrentCommandBuffer = nullptr;
     m_DescriptorAllocator->Destroy();
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
@@ -371,6 +380,25 @@ void VulkanContext::Destroy()
 void VulkanContext::AddSwapchainResizeCallback(const std::function<void()>& resizeCallback)
 {
     m_Swapchain->AddResizeCallback(resizeCallback);
+}
+
+void VulkanContext::InitializeMultithreadedRenderer()
+{
+    m_ThreadData.resize(JobSystem::GetThreadCount());
+    for (uint32_t i = 0; i < m_ThreadData.size(); ++i)
+    {
+        CommandPoolSpecification CommandPoolSpec = {};
+        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
+        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GraphicsFamily;
+
+        m_ThreadData[i].CommandPool = Scoped<VulkanCommandPool>(new VulkanCommandPool(CommandPoolSpec));
+
+        m_ThreadData[i].SecondaryShadowMapCommandBuffers.resize(FRAMES_IN_FLIGHT);
+        m_ThreadData[i].CommandPool->AllocateSecondaryCommandBuffers(m_ThreadData[i].SecondaryShadowMapCommandBuffers);
+
+        m_ThreadData[i].SecondaryGeometryCommandBuffers.resize(FRAMES_IN_FLIGHT);
+        m_ThreadData[i].CommandPool->AllocateSecondaryCommandBuffers(m_ThreadData[i].SecondaryGeometryCommandBuffers);
+    }
 }
 
 }  // namespace Gauntlet

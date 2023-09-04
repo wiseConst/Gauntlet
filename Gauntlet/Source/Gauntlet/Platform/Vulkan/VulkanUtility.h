@@ -388,6 +388,24 @@ NODISCARD static VkBool32 DropPipelineCacheToDisk(const VkDevice& Device, const 
     return VK_TRUE;
 }
 
+// TODO: Implement query pool
+static VkCommandBufferInheritanceInfo GetCommandBufferInheritanceInfo(const VkRenderPass& renderPass, const VkFramebuffer& framebuffer,
+                                                                      const uint32_t subpass                      = 0,
+                                                                      const VkBool32 occlusionQueryEnable         = VK_FALSE,
+                                                                      const VkQueryControlFlags queryControlFlags = 0,
+                                                                      const VkQueryPipelineStatisticFlags queryPipelineStatisticsFlags = 0)
+{
+    VkCommandBufferInheritanceInfo commandBufferInheritanceInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO};
+    commandBufferInheritanceInfo.renderPass                     = renderPass;
+    commandBufferInheritanceInfo.subpass                        = subpass;
+    commandBufferInheritanceInfo.framebuffer                    = framebuffer;
+    commandBufferInheritanceInfo.occlusionQueryEnable           = occlusionQueryEnable;
+    commandBufferInheritanceInfo.queryFlags                     = queryControlFlags;
+    commandBufferInheritanceInfo.pipelineStatistics             = queryPipelineStatisticsFlags;
+
+    return commandBufferInheritanceInfo;
+}
+
 }  // namespace Utility
 
 }  // namespace Gauntlet

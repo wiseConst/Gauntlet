@@ -90,6 +90,8 @@ bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDesc
 
 void VulkanDescriptorAllocator::ReleaseDescriptorSets(DescriptorSet* descriptorSets, const uint32_t descriptorSetCount)
 {
+    GRAPHICS_GUARD_LOCK;
+
     // Since descriptor sets can be allocated through different pool I have to iterate them like dumb
     for (uint32_t i = 0; i < descriptorSetCount; ++i)
     {

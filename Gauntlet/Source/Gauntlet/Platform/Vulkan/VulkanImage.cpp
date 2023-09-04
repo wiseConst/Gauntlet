@@ -357,6 +357,8 @@ void VulkanImage::Destroy()
         Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
     }
 
+    GRAPHICS_GUARD_LOCK;
+
     Context.GetDevice()->WaitDeviceOnFinish();
     Context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 

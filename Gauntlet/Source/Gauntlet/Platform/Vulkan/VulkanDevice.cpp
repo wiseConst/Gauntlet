@@ -332,10 +332,17 @@ bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& physicalD
     VK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &ExtensionCount, AvailableExtensions.data()),
              "Failed to retrieve device extensions.");
 
+    LOG_INFO("Available extensions on current gpu: (%u)", ExtensionCount);
     std::set<std::string> RequiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
     for (const auto& Ext : AvailableExtensions)
     {
+#if !LOG_VULKAN_INFO
         if (RequiredExtensions.empty()) return true;
+#endif
+
+#if LOG_VULKAN_INFO
+        LOG_TRACE("%s", Ext.extensionName);
+#endif
 
         RequiredExtensions.erase(Ext.extensionName);
     }

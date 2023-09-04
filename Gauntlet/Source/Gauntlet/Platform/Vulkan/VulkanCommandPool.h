@@ -62,6 +62,7 @@ class VulkanCommandPool final : private Uncopyable, private Unmovable
     FORCEINLINE const auto& Get() const { return m_CommandPool; }
     FORCEINLINE auto& Get() { return m_CommandPool; }
 
+    void AllocateSecondaryCommandBuffers(std::vector<VulkanCommandBuffer>& secondaryCommandBuffers);
     void Destroy();
 
   private:
@@ -71,6 +72,6 @@ class VulkanCommandPool final : private Uncopyable, private Unmovable
     std::vector<VulkanCommandBuffer> m_CommandBuffers;
 
     void CreateCommandPool();
-    void AllocateCommandBuffers();
+    void AllocatePrimaryCommandBuffers();
 };
 }  // namespace Gauntlet

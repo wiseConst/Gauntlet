@@ -55,6 +55,9 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetDescriptorAllocator() const { return m_DescriptorAllocator; }
     FORCEINLINE auto& GetDescriptorAllocator() { return m_DescriptorAllocator; }
 
+    FORCEINLINE const auto& GetThreadData() const { return m_ThreadData; }
+    FORCEINLINE auto& GetThreadData() { return m_ThreadData; }
+
     void AddSwapchainResizeCallback(const std::function<void()>& resizeCallback);
 
   private:
@@ -62,12 +65,12 @@ class VulkanContext final : public GraphicsContext
     VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
     VkSurfaceKHR m_Surface                    = VK_NULL_HANDLE;
 
-    Scoped<VulkanDevice> m_Device;
-    Scoped<VulkanAllocator> m_Allocator;
-    Scoped<VulkanSwapchain> m_Swapchain;
-    Scoped<VulkanCommandPool> m_TransferCommandPool;
-    Scoped<VulkanCommandPool> m_GraphicsCommandPool;
-    Scoped<VulkanDescriptorAllocator> m_DescriptorAllocator;
+    Scoped<VulkanDevice> m_Device                           = nullptr;
+    Scoped<VulkanAllocator> m_Allocator                     = nullptr;
+    Scoped<VulkanSwapchain> m_Swapchain                     = nullptr;
+    Scoped<VulkanCommandPool> m_TransferCommandPool         = nullptr;
+    Scoped<VulkanCommandPool> m_GraphicsCommandPool         = nullptr;
+    Scoped<VulkanDescriptorAllocator> m_DescriptorAllocator = nullptr;
 
     VulkanCommandBuffer* m_CurrentCommandBuffer = nullptr;
 
@@ -80,10 +83,21 @@ class VulkanContext final : public GraphicsContext
     float m_CPULastWaitTime = 0.0f;
     float m_GPULastWaitTime = 0.0f;
 
+    // Multithreaded stuff
+    struct ThreadData
+    {
+        // TODO: If it makes sense, implement query pool
+        Scoped<VulkanCommandPool> CommandPool = nullptr;
+        std::vector<VulkanCommandBuffer> SecondaryShadowMapCommandBuffers; // Per-frame
+        std::vector<VulkanCommandBuffer> SecondaryGeometryCommandBuffers; // Per-frame
+    };
+    std::vector<ThreadData> m_ThreadData;
+
     void CreateInstance();
     void CreateDebugMessenger();
     void CreateSurface();
     void CreateSyncObjects();
+    void InitializeMultithreadedRenderer();
 
     bool CheckVulkanAPISupport() const;
     bool CheckValidationLayerSupport();

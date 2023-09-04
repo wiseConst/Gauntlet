@@ -61,7 +61,7 @@ void Application::Run()
 
     {
         const float AppPrepareStartTime = GetTimeNow();
-        JobSystem::Wait();  // JobSystem::Update();
+        JobSystem::Wait();
         const float AppPrepareEndTime = GetTimeNow();
         LOG_INFO("Time took to prepare application: (%f)ms", AppPrepareEndTime - AppPrepareStartTime);
     }
@@ -71,8 +71,6 @@ void Application::Run()
     float LastFrameTime = 0.0f;
     while (m_Window->IsRunning())
     {
-        JobSystem::Update();
-
         if (!m_Window->IsMinimized())
         {
             m_Context->BeginRender();
@@ -101,6 +99,8 @@ void Application::Run()
         m_MainThreadDelta       = CurrentTime - LastFrameTime;
         LastFrameTime           = CurrentTime;
 
+        Renderer::GetStats().FrameTime = m_MainThreadDelta;
+
         // FPS
         const float DeltaTime = CurrentTime - LastTime;
         ++FrameCount;
@@ -110,6 +110,8 @@ void Application::Run()
             FrameCount               = 0;
             LastTime                 = CurrentTime;
         }
+
+        JobSystem::Update();
     }
 }
 

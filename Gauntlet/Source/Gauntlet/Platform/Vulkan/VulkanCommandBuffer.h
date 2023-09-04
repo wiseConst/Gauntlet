@@ -21,6 +21,8 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
     FORCEINLINE const auto& Get() const { return m_CommandBuffer; }
     FORCEINLINE auto& Get() { return m_CommandBuffer; }
 
+    FORCEINLINE const auto& GetLevel() const { return m_Level; }
+
     // Unused
     FORCEINLINE void Reset() const { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
 
@@ -33,7 +35,8 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         if (s_bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
     }
 
-    void BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags = 0) const;
+    void BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags = 0,
+                        const VkCommandBufferInheritanceInfo* inheritanceInfo   = VK_NULL_HANDLE) const;
     FORCEINLINE void EndRecording() const { VK_CHECK(vkEndCommandBuffer(m_CommandBuffer), "Failed to end recording command buffer"); }
 
     FORCEINLINE void BindPushConstants(VkPipelineLayout pipelineLayout, const VkShaderStageFlags shaderStageFlags, const uint32_t offset,
@@ -80,6 +83,9 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
 
   private:
     VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
+    VkCommandBufferLevel m_Level    = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+    friend class VulkanCommandPool;
 };
 
 }  // namespace Gauntlet

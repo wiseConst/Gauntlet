@@ -134,9 +134,9 @@ void VulkanAllocator::Unmap(VmaAllocation& allocation) const
 void VulkanAllocator::Destroy()
 {
     const auto& RendererStats = Renderer::GetStats();
-    if (RendererStats.AllocatedBuffers != 0 || RendererStats.AllocatedImages != 0)
-        LOG_WARN("Seems like you forgot to destroy something... Remaining data: buffers (%u), images (%u).", RendererStats.AllocatedBuffers,
-                 RendererStats.AllocatedImages);
+    if (RendererStats.AllocatedBuffers.load() != 0 || RendererStats.AllocatedImages.load() != 0)
+        LOG_WARN("Seems like you forgot to destroy something... Remaining data: buffers (%u), images (%u).",
+                 RendererStats.AllocatedBuffers.load(), RendererStats.AllocatedImages.load());
 
     vmaDestroyAllocator(m_Allocator);
 }
