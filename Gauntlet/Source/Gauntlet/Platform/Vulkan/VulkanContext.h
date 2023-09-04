@@ -88,8 +88,8 @@ class VulkanContext final : public GraphicsContext
     {
         // TODO: If it makes sense, implement query pool
         Scoped<VulkanCommandPool> CommandPool = nullptr;
-        std::vector<VulkanCommandBuffer> SecondaryShadowMapCommandBuffers; // Per-frame
-        std::vector<VulkanCommandBuffer> SecondaryGeometryCommandBuffers; // Per-frame
+        std::vector<VulkanCommandBuffer> SecondaryShadowMapCommandBuffers;  // Per-frame
+        std::vector<VulkanCommandBuffer> SecondaryGeometryCommandBuffers;   // Per-frame
     };
     std::vector<ThreadData> m_ThreadData;
 

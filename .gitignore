@@ -52,3 +52,8 @@ Intermediate/
 # Cache files
 *.cache
 *.spv
+
+# Assimp case
+!Gauntlet/vendor/assimp/Binaries/
+!Gauntlet/vendor/assimp/Binaries/*/*.dll
+!Gauntlet/vendor/assimp/Binaries/*/*.lib

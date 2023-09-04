@@ -2,6 +2,29 @@
   "Scene": "SponzaTest",
   "Entities": {
     "Entity 0": {
+      "TagComponent": "Sponza",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Sponza/sponza.gltf"
+      }
+    },
+    "Entity 1": {
       "TagComponent": "Directional Light",
       "TransformComponent": {
         "Translation": [
@@ -44,29 +67,6 @@
           -8.0,
           -6.0
         ]
-      }
-    },
-    "Entity 1": {
-      "TagComponent": "Sponza",
-      "TransformComponent": {
-        "Translation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Rotation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "MeshComponent": {
-        "Name": "Sponza/sponza.gltf"
       }
     }
   }
