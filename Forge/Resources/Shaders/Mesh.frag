@@ -43,7 +43,7 @@ layout(set = 0, binding = 5) uniform LightingModelBuffer
 } InLightingModelBuffer;
 
 // simple shadowmapping from here: https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
-float CalculateShadows(vec4 LightSpaceFragPos)
+float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, const vec3 LightDirection)
 {
 	// Transforming into NDC [-1, 1]
 	vec3 projCoords = LightSpaceFragPos.xyz / LightSpaceFragPos.w; 
@@ -54,7 +54,8 @@ float CalculateShadows(vec4 LightSpaceFragPos)
 	const float currentDepth = projCoords.z;
 	const float closestDepth = texture(ShadowMap, projCoords.xy).r;
 
-	const float shadow = currentDepth > closestDepth ? 1.0f : 0.0f; 
+	const float bias = max(0.05f * (1.0f - dot(UnitNormal, LightDirection)), 0.005f);
+	const float shadow = currentDepth - bias > closestDepth ? 1.0f : 0.0f; 
 	return shadow;
 }
 
@@ -63,7 +64,7 @@ vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 UnitN
 	// Ambient
 	const vec3 AmbientColor = DirLight.AmbientSpecularShininess.x * vec3(DirLight.Color);
 
-	// By default dir light direction is coming from light source to fragment
+	// By default dir light direction is coming from light source to fragment, but we want it to be from fragment to light source
 	const vec3 NormalizedLightDirection = normalize(-vec3(DirLight.Direction));
 
 	// Diffuse
@@ -75,7 +76,7 @@ vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 UnitN
 	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), DirLight.AmbientSpecularShininess.z);
 	const vec3 SpecularColor = DirLight.AmbientSpecularShininess.y * SpecularFactor * vec3(DirLight.Color);  
 
-	return AmbientColor + (1.0 - shadow) * (DiffuseColor + SpecularColor);
+	return AmbientColor + (1.0f - shadow) * (DiffuseColor + SpecularColor);
 }
 
 vec3 CalculatePointLightColor(PointLight InPointLight, const vec3 UnitNormal) {
@@ -131,9 +132,9 @@ void main()
 		}
 	}
 
-	const float shadow = CalculateShadows(InLightSpaceFragPos);
 
 	const vec3 UnitNormal = normalize(InNormal);
+	const float shadow = CalculateShadows(InLightSpaceFragPos, UnitNormal, vec3(InLightingModelBuffer.DirLight.Direction));
 	FinalColor.rgb += CalculateDirectionalLight(InLightingModelBuffer.DirLight, UnitNormal, shadow);
 	
 	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)

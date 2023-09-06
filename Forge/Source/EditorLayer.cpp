@@ -2,20 +2,17 @@
 #include "Gauntlet/Scene/SceneSerializer.h"
 #include "Gauntlet/Utils/PlatformUtils.h"
 
+namespace Gauntlet
+{
 #define SPONZA_TEST 1
-#define LOAD_TEST_BED 0
-#define MAKE_TEST_BED 0
+
+extern const std::filesystem::path g_AssetsPath = "Resources";
 
 EditorLayer::EditorLayer() : Layer("EditorLayer"), m_GUILayer(Application::Get().GetGUILayer()) {}
 
 void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
-
-#if LOAD_TEST_BED
-    SceneSerializer serializer(m_ActiveScene);
-    GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
-#endif
 
 #if SPONZA_TEST
 #if 0
@@ -32,112 +29,19 @@ void EditorLayer::OnAttach()
 
 #endif
 
-#if MAKE_TEST_BED
-    m_ActiveScene = MakeRef<Scene>("TestBed");
-
-    {
-        auto Cerberus = m_ActiveScene->CreateEntity("Cerberus");
-        Cerberus.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Cerberus/scene.gltf"));
-
-        auto& tc       = Cerberus.GetComponent<TransformComponent>();
-        tc.Translation = glm::vec3(0, -5.0f, 10.0f);
-        tc.Scale       = glm::vec3(0.1f);
-    }
-
-    {
-        auto CyberPunkRevolver = m_ActiveScene->CreateEntity("CyberPunkRevolver");
-        CyberPunkRevolver.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/cyberpunk_revolver/scene.gltf"));
-        auto& tc = CyberPunkRevolver.GetComponent<TransformComponent>();
-
-        tc.Translation = glm::vec3(55.0f, 55.0f, 0.0f);
-        tc.Scale       = glm::vec3(0.05f);
-    }
-
-    {
-        auto VikingRoom = m_ActiveScene->CreateEntity("VikingRoom");
-        VikingRoom.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/VikingRoom/viking_room.gltf"));
-        auto& tc = VikingRoom.GetComponent<TransformComponent>();
-
-        tc.Translation = glm::vec3(-10.0f, -10.0f, 0.0f);
-        tc.Scale       = glm::vec3(4.0f);
-    }
-
-    {
-        auto Sphere = m_ActiveScene->CreateEntity("Sphere");
-        Sphere.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Default/Sphere.gltf"));
-        auto& tc = Sphere.GetComponent<TransformComponent>();
-
-        tc.Scale         = glm::vec3(150.0f);
-        tc.Translation.y = 5.0f;
-    }
-
-    {
-        auto Plane = m_ActiveScene->CreateEntity("Plane");
-        Plane.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Default/Plane.gltf"));
-        auto& tc = Plane.GetComponent<TransformComponent>();
-
-        tc.Translation = glm::vec3(0.0f, -10.0f, 0.0f);
-        tc.Scale       = glm::vec3(4.0f, 1.0f, 4.0f);
-    }
-
-    {
-        auto rhetorician = m_ActiveScene->CreateEntity("rhetorician");
-        rhetorician.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/rhetorician/scene.gltf"));
-        auto& tc = rhetorician.GetComponent<TransformComponent>();
-
-        tc.Scale       = glm::vec3(2.0f);
-        tc.Translation = glm::vec3(0.0f, 0.0f, -40.0f);
-    }
-
-    {
-        auto handgun_animation = m_ActiveScene->CreateEntity("handgun_animation");
-        handgun_animation.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/handgun_animation/scene.gltf"));
-        auto& tc = handgun_animation.GetComponent<TransformComponent>();
-
-        tc.Scale       = glm::vec3(15.0f);
-        tc.Translation = glm::vec3(-5.0f, 0.0f, -5.0f);
-    }
-
-    {
-        auto PointLight = m_ActiveScene->CreateEntity("PointLight");
-        PointLight.AddComponent<SpriteRendererComponent>(glm::vec4{0.2f});
-
-        auto& tc       = PointLight.GetComponent<TransformComponent>();
-        tc.Scale       = glm::vec3(1.5f);
-        tc.Translation = glm::vec3(10.0f, 10.0f, -10.0f);
-
-        auto& plc                      = PointLight.AddComponent<PointLightComponent>();
-        plc.Color                      = glm::vec4(0.2f);
-        plc.AmbientSpecularShininess.x = 0.1f;
-        plc.AmbientSpecularShininess.y = 0.5f;
-        plc.AmbientSpecularShininess.z = 32.0f;
-        plc.CLQ                        = glm::vec3(1.0f, 0.004f, 0.00007f);
-    }
-
-    {
-        auto DirectionalLight = m_ActiveScene->CreateEntity("DirectionalLight");
-        DirectionalLight.AddComponent<SpriteRendererComponent>(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
-
-        auto& tc       = DirectionalLight.GetComponent<TransformComponent>();
-        tc.Scale       = glm::vec3(2.5f);
-        tc.Translation = glm::vec3(20.0f, 20.0f, -10.0f);
-
-        auto& dlc                      = DirectionalLight.AddComponent<DirectionalLightComponent>();
-        dlc.Color                      = glm::vec3(0.0f, 0.0f, 0.05f);
-        dlc.Direction                  = tc.Translation;
-        dlc.AmbientSpecularShininess.x = 0.25f;
-        dlc.AmbientSpecularShininess.y = 0.6f;
-        dlc.AmbientSpecularShininess.z = 32.0f;
-    }
-#endif
-
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+
+    m_PlayIcon = Texture2D::Create("Resources/Icons/icons8/play-48.png", true);
+    m_StopIcon = Texture2D::Create("Resources/Icons/icons8/stop-48.png", true);
 }
 
 void EditorLayer::OnDetach()
 {
     SceneSerializer serializer(m_ActiveScene);
     serializer.Serialize("Resources/Scenes/" + m_ActiveScene->GetName() + ".gntlt");
+
+    m_PlayIcon->Destroy();
+    m_StopIcon->Destroy();
 }
 
 void EditorLayer::OnUpdate(const float deltaTime)
@@ -154,6 +58,23 @@ void EditorLayer::OnUpdate(const float deltaTime)
 void EditorLayer::OnEvent(Event& event)
 {
     if (m_bIsViewportHovered) m_EditorCamera->OnEvent(event);
+
+    EventDispatcher dispatcher(event);
+    dispatcher.Dispatch<KeyButtonPressedEvent>(BIND_FN(EditorLayer::OnKeyPressed));
+}
+
+void EditorLayer::OnKeyPressed(KeyButtonPressedEvent& e)
+{
+    if (e.IsRepeat()) return;
+
+    const bool bShiftPressed = Input::IsKeyPressed(KeyCode::KEY_LEFT_SHIFT) || Input::IsKeyPressed(KeyCode::KEY_RIGHT_SHIFT);
+    const bool bCtrlPressed  = Input::IsKeyPressed(KeyCode::KEY_RIGHT_CONTROL) || Input::IsKeyPressed(KeyCode::KEY_LEFT_CONTROL);
+
+    if (bShiftPressed && bCtrlPressed && Input::IsKeyPressed(KeyCode::KEY_N)) NewScene();
+
+    if (bCtrlPressed && Input::IsKeyPressed(KeyCode::KEY_O)) OpenScene();
+
+    if (bShiftPressed && bCtrlPressed && Input::IsKeyPressed(KeyCode::KEY_S)) SaveScene();
 }
 
 void EditorLayer::OnImGuiRender()
@@ -163,21 +84,32 @@ void EditorLayer::OnImGuiRender()
     BeginDockspace();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
-
     ImGui::Begin("Viewport");
+    ImGui::PopStyleVar();
     m_ViewportSize = ImGui::GetContentRegionAvail();
 
     m_bIsViewportFocused = ImGui::IsWindowFocused();
     m_bIsViewportHovered = ImGui::IsWindowHovered();
-    m_GUILayer->BlockEvents(m_bIsViewportFocused && !m_bIsViewportHovered);
+    m_GUILayer->BlockEvents(!m_bIsViewportFocused || !m_bIsViewportHovered);
 
     ImGui::Image(Renderer::GetFinalImage()->GetTextureID(), m_ViewportSize);
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM"))
+        {
+            const wchar_t* path = (const wchar_t*)payload->Data;
+            const std::filesystem::path scenePath(path);
+
+            if (scenePath.extension().string() == std::string(".gntlt")) OpenScene(scenePath.string());
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     ImGui::End();
 
-    ImGui::PopStyleVar();
-
     /*static bool ShowDemoWindow = true;
-    if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
+   if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
 
     static bool bShowAppStats = true;
     if (bShowAppStats)
@@ -212,11 +144,35 @@ void EditorLayer::OnImGuiRender()
 
     m_SceneHierarchyPanel.OnImGuiRender();
 
-    ImGui::Begin("Content Browser");
-    ImGui::Text("Files");
-    ImGui::End();
+    m_ContentBrowserPanel.OnImGuiRender();
+
+    UI_Toolbar();
 
     EndDockspace();
+}
+
+void EditorLayer::UI_Toolbar()
+{
+    // TODO: Currently unused
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+
+    ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+    const float size = ImGui::GetWindowHeight() - 4.0f;
+    const auto icon  = m_SceneState == ESceneState::Edit ? m_PlayIcon : m_StopIcon;
+    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x * 0.5f - size * 0.5f);
+    if (ImGui::ImageButton(icon->GetTextureID(), ImVec2(size, size)))
+    {
+        if (m_SceneState == ESceneState::Edit)
+            OnScenePlay();
+        else if (m_SceneState == ESceneState::Play)
+            OnSceneStop();
+    }
+    ImGui::End();
+
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
 }
 
 void EditorLayer::BeginDockspace()
@@ -265,45 +221,11 @@ void EditorLayer::BeginDockspace()
     {
         if (ImGui::BeginMenu("Editor Settings"))
         {
-            if (ImGui::MenuItem("New", "Ctrl+Shift+N"))
-            {
-                m_ActiveScene = MakeRef<Scene>();
-                m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-            }
+            if (ImGui::MenuItem("New", "Ctrl+Shift+N")) NewScene();
 
-            if (ImGui::MenuItem("Open ...", "Ctrl+O"))
-            {
-                const std::string filePath = FileDialogs::OpenFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
+            if (ImGui::MenuItem("Open ...", "Ctrl+O")) OpenScene();
 
-                if (filePath.empty())
-                {
-                    LOG_WARN("Failed to open scene: %s", filePath.data());
-                }
-                else
-                {
-                    m_ActiveScene = {};
-
-                    SceneSerializer serializer(m_ActiveScene);
-                    serializer.Deserialize(filePath);
-
-                    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-                }
-            }
-
-            if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
-            {
-                const std::string filePath = FileDialogs::SaveFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
-
-                if (filePath.empty())
-                {
-                    LOG_WARN("Failed to save scene: %s", filePath.data());
-                }
-                else
-                {
-                    SceneSerializer serializer(m_ActiveScene);
-                    serializer.Serialize(filePath);
-                }
-            }
+            if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) SaveScene();
 
             if (ImGui::MenuItem("Exit Editor")) Application::Get().Close();
             ImGui::EndMenu();
@@ -338,3 +260,43 @@ void EditorLayer::UpdateViewportSize()
         m_EditorCamera->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
     }
 }
+
+void EditorLayer::NewScene()
+{
+    m_ActiveScene = MakeRef<Scene>();
+    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+}
+
+void EditorLayer::OpenScene()
+{
+    const std::string filePath = FileDialogs::OpenFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
+
+    if (filePath.empty())
+        LOG_WARN("Failed to open scene: %s", filePath.data());
+    else
+        OpenScene(filePath);
+}
+
+void EditorLayer::OpenScene(const std::filesystem::path& path)
+{
+    m_ActiveScene = MakeRef<Scene>();
+
+    SceneSerializer serializer(m_ActiveScene);
+    serializer.Deserialize(path.string());
+
+    m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+}
+
+void EditorLayer::SaveScene()
+{
+    const std::string filePath = FileDialogs::SaveFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
+
+    if (filePath.empty())
+        LOG_WARN("Failed to save scene: %s", filePath.data());
+    else
+    {
+        SceneSerializer serializer(m_ActiveScene);
+        serializer.Serialize(filePath);
+    }
+}
+}  // namespace Gauntlet

@@ -2,6 +2,9 @@
 
 #include <Gauntlet.h>
 
+namespace Gauntlet
+{
+
 class EditorCamera final : public Gauntlet::PerspectiveCamera
 {
   public:
@@ -23,7 +26,7 @@ class EditorCamera final : public Gauntlet::PerspectiveCamera
 
     // void OnUpdate(const float DeltaTime) final override {}
 
-    // void OnEvent(Gauntlet::Event& InEvent) final override {}
+    // void OnEvent(Gauntlet::Event& InEvent) final override{PerspectiveCamera::OnEvent(InEvent);}
 
     void Resize(uint32_t InWidth, uint32_t InHeight)
     {
@@ -47,3 +50,4 @@ class EditorCamera final : public Gauntlet::PerspectiveCamera
 
     //  void RecalculateViewMatrix() final override {}
 };
+}  // namespace Gauntlet

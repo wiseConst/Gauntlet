@@ -3,26 +3,28 @@
 
 #include "EditorLayer.h"
 
-class GauntletEditor final : public Gauntlet::Application
+namespace Gauntlet
+{
+
+class GauntletEditor final : public Application
 {
   public:
-    GauntletEditor(const Gauntlet::ApplicationSpecification& InApplicationSpec) : Gauntlet::Application(InApplicationSpec)
-    {
-        PushLayer(new EditorLayer());
-    }
+    GauntletEditor(const ApplicationSpecification& InApplicationSpec) : Application(InApplicationSpec) { PushLayer(new EditorLayer()); }
 
     ~GauntletEditor() {}
 };
 
-Gauntlet::Scoped<Gauntlet::Application> Gauntlet::CreateApplication()
+Scoped<Application> CreateApplication()
 {
-    Gauntlet::ApplicationSpecification AppSpec = {};
-    AppSpec.AppName                            = "Gauntlet Editor";
+    ApplicationSpecification appSpec = {};
+    appSpec.AppName                  = "Gauntlet Editor";
 
     const auto WindowLogoPath  = std::string("../Resources/Logo/Gauntlet.png");
-    AppSpec.WindowLogoPath     = WindowLogoPath.data();
-    AppSpec.GraphicsAPI        = Gauntlet::RendererAPI::EAPI::Vulkan;
-    AppSpec.bUseCustomTitleBar = false;
+    appSpec.WindowLogoPath     = WindowLogoPath.data();
+    appSpec.GraphicsAPI        = RendererAPI::EAPI::Vulkan;
+    appSpec.bUseCustomTitleBar = false;
 
-    return Gauntlet::MakeScoped<GauntletEditor>(AppSpec);
+    return MakeScoped<GauntletEditor>(appSpec);
 }
+
+}  // namespace Gauntlet

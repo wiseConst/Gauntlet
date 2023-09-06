@@ -134,7 +134,7 @@ void WindowsWindow::SetCallbacks()
                                }
                                case GLFW_REPEAT:
                                {
-                                   KeyButtonRepeatedEvent e(key, scancode, action, 2);
+                                   KeyButtonPressedEvent e(key, scancode, true);
                                    Window.m_CallbackFn(e);
                                    break;
                                }

@@ -216,7 +216,7 @@ void VulkanRenderer::Create()
         PipelineSpec.Name                  = "ShadowMap";
         PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
+        PipelineSpec.CullMode              = ECullMode::CULL_MODE_FRONT;  // BACK was
         PipelineSpec.bDepthWrite           = VK_TRUE;
         PipelineSpec.bDepthTest            = VK_TRUE;
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
@@ -537,9 +537,9 @@ void VulkanRenderer::EndSceneImpl()
     {
         s_Data.ShadowMapFramebuffer->BeginRenderPass(*s_Data.CurrentCommandBuffer, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
-        constexpr float cameraWidth     = 15.0f;
+        constexpr float cameraWidth     = 30.0f;
         constexpr float zNear           = 1.0f;
-        constexpr float zFar            = 96.0f;
+        constexpr float zFar            = 128.0f;
         const glm::mat4 lightProjection = glm::ortho(-cameraWidth, cameraWidth, -cameraWidth, cameraWidth, zNear, zFar);
 
         const glm::mat4 lightView =

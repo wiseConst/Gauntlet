@@ -59,7 +59,7 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipeline
         Viewport.height = -static_cast<float>(Scissor.extent.height);
     }
 
-    SetPipelinePolygonMode(pipeline, pipeline->GetSpecification().PolygonMode);
+    vkCmdSetPolygonModeEXT(m_CommandBuffer, PipelineUtils::GauntletPolygonModeToVulkan(pipeline->GetSpecification().PolygonMode));
     vkCmdBindPipeline(m_CommandBuffer, pipelineBindPoint, pipeline->Get());
     vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);
     vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
@@ -68,7 +68,6 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipeline
 void VulkanCommandBuffer::SetPipelinePolygonMode(Ref<VulkanPipeline>& pipeline, const EPolygonMode polygonMode) const
 {
     pipeline->GetSpecification().PolygonMode = polygonMode;
-    vkCmdSetPolygonModeEXT(m_CommandBuffer, PipelineUtils::GauntletPolygonModeToVulkan(polygonMode));
 }
 
 }  // namespace Gauntlet

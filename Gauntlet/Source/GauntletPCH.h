@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 #include <sstream>
+#include <filesystem>
 
 #include <unordered_map>
 #include <map>
