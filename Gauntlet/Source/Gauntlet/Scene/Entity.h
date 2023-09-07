@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
+#include "Gauntlet/Core/UUID.h"
 #include "Scene.h"
 
 namespace Gauntlet
@@ -57,7 +58,8 @@ class Entity final
     FORCEINLINE bool operator!=(const Entity& that) { return !(*this == that); }
     FORCEINLINE operator entt::entity() { return m_EntityHandle; }
 
-    FORCEINLINE bool IsValid() const { return m_Scene && m_EntityHandle != entt::null; }
+    FORCEINLINE bool IsValid() { return m_Scene && m_EntityHandle != entt::null; }
+    FORCEINLINE UUID GetUUID() { return GetComponent<IDComponent>().ID; }
 
   private:
     entt::entity m_EntityHandle{entt::null};

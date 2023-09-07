@@ -26,9 +26,15 @@ Scene::~Scene()
 
 Entity Scene::CreateEntity(const std::string& name)
 {
+    return CreateEntityWithUUID(UUID(), name);
+}
+
+Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name)
+{
     GNT_ASSERT(name.data(), "Invalid entity name!");
 
     Entity entity{m_Registry.create(), this};
+    entity.AddComponent<IDComponent>(uuid);
     auto& tag = entity.AddComponent<TagComponent>();
     entity.AddComponent<TransformComponent>();
     tag.Tag = name;
@@ -84,7 +90,7 @@ void Scene::OnUpdate(const float deltaTime)
             {
                 auto& dlc = entity.GetComponent<DirectionalLightComponent>();
 
-                Renderer::AddDirectionalLight(dlc.Color, dlc.Direction, dlc.AmbientSpecularShininess);
+                Renderer::AddDirectionalLight(dlc.Color, Transform.Rotation, dlc.AmbientSpecularShininess);
             }
         }
     }

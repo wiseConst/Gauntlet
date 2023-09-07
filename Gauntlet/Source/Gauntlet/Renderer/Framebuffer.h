@@ -27,6 +27,7 @@ struct FramebufferAttachmentSpecification
     FramebufferAttachmentSpecification() = default;
 
     ETextureFilter Filter = ETextureFilter::LINEAR;
+    ETextureWrap Wrap     = ETextureWrap::REPEAT;
     EImageFormat Format   = EImageFormat::NONE;
     glm::vec4 ClearColor  = glm::vec4(1.0f);
     ELoadOp LoadOp        = ELoadOp::CLEAR;

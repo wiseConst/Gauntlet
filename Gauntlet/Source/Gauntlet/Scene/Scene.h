@@ -16,6 +16,7 @@ class Scene final : private Uncopyable, private Unmovable
     ~Scene();
 
     Entity CreateEntity(const std::string& name = "Entity");
+    Entity CreateEntityWithUUID(UUID uuid, const std::string& name = "Entity");
     void DestroyEntity(Entity entity);
 
     void OnUpdate(const float deltaTime);

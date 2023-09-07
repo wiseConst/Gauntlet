@@ -277,8 +277,8 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
     DrawComponent<DirectionalLightComponent>("DirectionalLightComponent", entity,
                                              [](auto& dlc)
                                              {
-                                                 ImGui::Separator();
-                                                 DrawVec3Control("Direction", dlc.Direction);
+                                                 /*ImGui::Separator();
+                                                 DrawVec3Control("Direction", dlc.Direction);*/
 
                                                  ImGui::Separator();
                                                  ImGui::Text("LightColor");

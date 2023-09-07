@@ -63,7 +63,7 @@ static const char* GetStringVulkanResult(VkResult InResult)
     return nullptr;
 }
 
-#ifdef ELS_ENABLE_ASSERTS
+#ifdef GNT_ENABLE_ASSERTS
 
 #define VK_CHECK(x)                                                                                                                        \
     do                                                                                                                                     \

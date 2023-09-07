@@ -33,10 +33,13 @@ class VulkanRenderer final : public Renderer
 
     struct VulkanRendererStorage
     {
+        // Deffered rendering
+        Ref<VulkanFramebuffer> DefferedFramebuffer;
+
         // Framebuffers && RenderPasses
         Ref<VulkanFramebuffer> GeometryFramebuffer{nullptr};
         Ref<VulkanFramebuffer> ShadowMapFramebuffer{nullptr};
-        Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};
+        Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};  // Clear pass
 
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {1280, 720};

@@ -64,7 +64,7 @@ void VulkanRenderer2D::Create()
         IndexBufferInfo.Count      = s_Data2D.MaxIndices;
         IndexBufferInfo.Size       = s_Data2D.MaxIndices * sizeof(uint32_t);
         IndexBufferInfo.Data       = QuadIndices;
-        s_Data2D.QuadIndexBuffer.reset(new VulkanIndexBuffer(IndexBufferInfo));
+        s_Data2D.QuadIndexBuffer   = MakeRef<VulkanIndexBuffer>(IndexBufferInfo);
 
         delete[] QuadIndices;
     }
@@ -126,7 +126,7 @@ void VulkanRenderer2D::Create()
 
         PipelineSpec.DescriptorSetLayouts = {s_Data2D.QuadDescriptorSetLayout};
 
-        s_Data2D.QuadPipeline.reset(new VulkanPipeline(PipelineSpec));
+        s_Data2D.QuadPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
 
         VertexShader->Destroy();
         FragmentShader->Destroy();

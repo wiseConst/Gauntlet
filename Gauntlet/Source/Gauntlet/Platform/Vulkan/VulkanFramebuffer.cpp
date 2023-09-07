@@ -73,6 +73,7 @@ void VulkanFramebuffer::Invalidate()
                 ImageSpec.Usage              = EImageUsage::Attachment;
                 ImageSpec.CreateTextureID    = true;
                 ImageSpec.Filter             = attachment.Filter;
+                ImageSpec.Wrap               = attachment.Wrap;
                 for (uint32_t i = 0; i < swapchain->GetImageCount(); ++i)
                     m_ColorAttachments.emplace_back(new VulkanImage(ImageSpec));
             }
@@ -91,8 +92,9 @@ void VulkanFramebuffer::Invalidate()
                 DepthImageSpec.Usage              = EImageUsage::Attachment;
                 DepthImageSpec.CreateTextureID    = true;
                 DepthImageSpec.Filter             = attachment.Filter;
+                DepthImageSpec.Wrap               = attachment.Wrap;
 
-                m_DepthAttachment.reset(new VulkanImage(DepthImageSpec));
+                m_DepthAttachment = MakeRef<VulkanImage>(DepthImageSpec);
             }
 
             framebufferDepthAttachment = attachment;

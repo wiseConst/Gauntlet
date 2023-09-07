@@ -26,17 +26,17 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
     CreateDebugMessenger();
     CreateSurface();
 
-    m_Device.reset(new VulkanDevice(m_Instance, m_Surface));
-    m_Allocator.reset(new VulkanAllocator(m_Instance, m_Device));
+    m_Device    = MakeScoped<VulkanDevice>(m_Instance, m_Surface);
+    m_Allocator = MakeScoped<VulkanAllocator>(m_Instance, m_Device);
 
-    m_Swapchain.reset(new VulkanSwapchain(m_Device, m_Surface));
+    m_Swapchain = MakeScoped<VulkanSwapchain>(m_Device, m_Surface);
 
     {
         CommandPoolSpecification CommandPoolSpec = {};
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
         CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GraphicsFamily;
 
-        m_GraphicsCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
+        m_GraphicsCommandPool = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
     }
 
     {
@@ -44,12 +44,12 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_TRANSFER_USAGE;
         CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().TransferFamily;
 
-        m_TransferCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
+        m_TransferCommandPool = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
     }
 
     CreateSyncObjects();
 
-    m_DescriptorAllocator.reset(new VulkanDescriptorAllocator(m_Device));
+    m_DescriptorAllocator = MakeScoped<VulkanDescriptorAllocator>(m_Device);
 
     InitializeMultithreadedRenderer();
 }

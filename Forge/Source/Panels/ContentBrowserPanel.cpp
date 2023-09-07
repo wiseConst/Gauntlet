@@ -40,7 +40,7 @@ void ContentBrowserPanel::OnImGuiRender()
     const float cellSize       = thumbnailSize + padding;
 
     const float panelWidth = ImGui::GetContentRegionAvail().x;
-    uint32_t columnCount   = (uint32_t)panelWidth / cellSize;
+    uint32_t columnCount   = (uint32_t)panelWidth / (uint32_t)cellSize;
     if (columnCount < 1) columnCount = 1;
     ImGui::Columns(columnCount, 0, false);
 

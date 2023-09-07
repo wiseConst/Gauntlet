@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Gauntlet/Core/UUID.h"
 #include "Gauntlet/Renderer/Camera/Camera.h"
 #include "Gauntlet/Renderer/Mesh.h"
 #include "Gauntlet/Renderer/Material.h"
@@ -14,6 +15,15 @@
 
 namespace Gauntlet
 {
+
+struct IDComponent
+{
+    UUID ID;
+
+    IDComponent()                   = default;
+    IDComponent(const IDComponent&) = default;
+    IDComponent(const UUID& uuid) : ID(uuid) {}
+};
 
 struct TagComponent
 {
@@ -92,10 +102,11 @@ struct PointLightComponent
     PointLightComponent(const PointLightComponent&) = default;
 };
 
+// TODO: Remove direction since it now depends on TransformComponent.Rotation?
 struct DirectionalLightComponent
 {
     glm::vec3 Color{0.0f};
-    glm::vec3 Direction{0.0f};
+    // glm::vec3 Direction{0.0f}; Now it's being set through transformComponent.Rotation
     glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
 
     DirectionalLightComponent()                                 = default;

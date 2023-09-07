@@ -52,7 +52,7 @@ void VulkanRenderer::Create()
 
     {
         const uint32_t WhiteTexutreData = 0xffffffff;
-        s_Data.MeshWhiteTexture.reset(new VulkanTexture2D(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1));
+        s_Data.MeshWhiteTexture = MakeRef<VulkanTexture2D>(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
     }
 
     {
@@ -64,13 +64,14 @@ void VulkanRenderer::Create()
         shadowMapAttachment.LoadOp                             = ELoadOp::CLEAR;
         shadowMapAttachment.StoreOp                            = EStoreOp::STORE;
         shadowMapAttachment.Filter                             = ETextureFilter::NEAREST;
+        shadowMapAttachment.Wrap                               = ETextureWrap::CLAMP;
 
         shadowMapFramebufferSpec.Attachments = {shadowMapAttachment};
         shadowMapFramebufferSpec.Name        = "ShadowMap";
-        shadowMapFramebufferSpec.Width       = 2048;
-        shadowMapFramebufferSpec.Height      = 2048;
+        shadowMapFramebufferSpec.Width       = 4096;
+        shadowMapFramebufferSpec.Height      = 4096;
 
-        s_Data.ShadowMapFramebuffer.reset(new VulkanFramebuffer(shadowMapFramebufferSpec));
+        s_Data.ShadowMapFramebuffer = MakeRef<VulkanFramebuffer>(shadowMapFramebufferSpec);
     }
 
     {
@@ -89,7 +90,7 @@ void VulkanRenderer::Create()
 
         geometryFramebufferSpec.Name = "Geometry";
 
-        s_Data.GeometryFramebuffer.reset(new VulkanFramebuffer(geometryFramebufferSpec));
+        s_Data.GeometryFramebuffer = MakeRef<VulkanFramebuffer>(geometryFramebufferSpec);
     }
 
     {
@@ -101,7 +102,7 @@ void VulkanRenderer::Create()
         setupFramebufferSpec.AliveAttachments.push_back(std::static_pointer_cast<Image>(s_Data.GeometryFramebuffer->GetDepthAttachment()));
         setupFramebufferSpec.Name = "Setup";
 
-        s_Data.SetupFramebuffer.reset(new VulkanFramebuffer(setupFramebufferSpec));
+        s_Data.SetupFramebuffer = MakeRef<VulkanFramebuffer>(setupFramebufferSpec);
     }
 
     {
@@ -167,7 +168,7 @@ void VulkanRenderer::Create()
         PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
 
         PipelineSpec.DescriptorSetLayouts = {s_Data.MeshDescriptorSetLayout};
-        s_Data.GeometryPipeline.reset(new VulkanPipeline(PipelineSpec));
+        s_Data.GeometryPipeline           = MakeRef<VulkanPipeline>(PipelineSpec);
 
         GeometryFragmentShader->Destroy();
         GeometryVertexShader->Destroy();
@@ -228,7 +229,7 @@ void VulkanRenderer::Create()
         PipelineSpec.ShaderBindingDescriptions = {Utility::GetShaderBindingDescription(0, s_Data.MeshVertexBufferLayout.GetStride())};
         PipelineSpec.ShaderAttributeDescriptions.emplace_back(0, 0, Utility::GauntletShaderDataTypeToVulkan(EShaderDataType::Vec3), 0);
 
-        s_Data.ShadowMapPipeline.reset(new VulkanPipeline(PipelineSpec));
+        s_Data.ShadowMapPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
 
         DepthVertexShader->Destroy();
         DepthFragmentShader->Destroy();
@@ -260,13 +261,14 @@ void VulkanRenderer::Create()
                  "Failed to create debug shadow map descriptor set layout!");
         PipelineSpec.DescriptorSetLayouts = {s_Data.DebugShadowMapDescriptorSetLayout};
 
-        s_Data.DebugShadowMapPipeline.reset(new VulkanPipeline(PipelineSpec));
+        s_Data.DebugShadowMapPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
 
         DepthVertexShader->Destroy();
         DepthFragmentShader->Destroy();
 
-        VK_CHECK(m_Context.GetDescriptorAllocator()->Allocate(s_Data.DebugShadowMapDescriptorSet, s_Data.DebugShadowMapDescriptorSetLayout),
-                 "Failed to allocate debug shadow map descriptor set!");
+        GNT_ASSERT(
+            m_Context.GetDescriptorAllocator()->Allocate(s_Data.DebugShadowMapDescriptorSet, s_Data.DebugShadowMapDescriptorSetLayout),
+            "Failed to allocate debug shadow map descriptor set!");
         auto debugShadowMapWriteSet =
             Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.DebugShadowMapDescriptorSet.Handle, 1,
                                            &s_Data.ShadowMapFramebuffer->GetDepthAttachment()->GetDescriptorInfo());
@@ -386,7 +388,7 @@ void VulkanRenderer::SetupSkybox()
         SkyboxPath + "front.jpg",   //
         SkyboxPath + "back.jpg"     //
     };
-    s_Data.DefaultSkybox.reset(new Skybox(Faces));
+    s_Data.DefaultSkybox = MakeRef<Skybox>(Faces);
 
     const auto CubeMapTextureBinding =
         Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -434,7 +436,7 @@ void VulkanRenderer::SetupSkybox()
     PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
 
     PipelineSpec.DescriptorSetLayouts = {s_Data.SkyboxDescriptorSetLayout};
-    s_Data.SkyboxPipeline.reset(new VulkanPipeline(PipelineSpec));
+    s_Data.SkyboxPipeline             = MakeRef<VulkanPipeline>(PipelineSpec);
 
     SkyboxVertexShader->Destroy();
     SkyboxFragmentShader->Destroy();

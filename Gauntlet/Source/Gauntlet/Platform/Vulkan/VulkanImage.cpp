@@ -234,7 +234,7 @@ VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap textureWrap)
     switch (textureWrap)
     {
         case ETextureWrap::REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        case ETextureWrap::CLAMP: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case ETextureWrap::CLAMP: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     }
 
     GNT_ASSERT(false, "Unknown texture wrap!");
@@ -295,8 +295,9 @@ void VulkanImage::Invalidate()
     {
         if (!m_DescriptorSet.Handle)  // Preventing allocating on image resizing, just simply update descriptor set
         {
-            VK_CHECK(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, VulkanRenderer::GetStorageData().ImageDescriptorSetLayout),
-                     "Failed to allocate texture/image descriptor set!");
+            GNT_ASSERT(
+                Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, VulkanRenderer::GetStorageData().ImageDescriptorSetLayout),
+                "Failed to allocate texture/image descriptor set!");
         }
 
         auto TextureWriteDescriptorSet =

@@ -54,7 +54,7 @@ void VulkanTextureCube::Create()
     ImageSpec.Width              = Width;
     ImageSpec.Height             = Height;
     ImageSpec.Layers             = s_MaxCubeMapImages;
-    m_Image.reset(new VulkanImage(ImageSpec));
+    m_Image                      = MakeRef<VulkanImage>(ImageSpec);
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make it
     // readable from fragment shader.

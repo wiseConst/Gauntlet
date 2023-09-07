@@ -49,10 +49,4 @@ void main()
 	OutViewVector = normalize(VertexWorldPosition.xyz - InCameraDataBuffer.Position);
 	OutFragmentPosition = VertexWorldPosition.xyz;
 	OutLightSpaceFragPos = InShadowsBuffer.LightSpaceMatrix * vec4(OutFragmentPosition, 1.0);
-
-// Converting to camera space
-//	const vec3 T =  normalize((CameraViewProjectionMatrix * vec4(InTangent, 0.0f)).rgb);
-//	const vec3 B = normalize((CameraViewProjectionMatrix * vec4(InBitangent, 0.0f)).rgb);
-//	const vec3 N = normalize((CameraViewProjectionMatrix * vec4(InNormal, 0.0f)).rgb);
-//	const mat3 TBN = mat3(T, B, N);
 }

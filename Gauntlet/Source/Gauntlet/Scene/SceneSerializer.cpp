@@ -14,11 +14,11 @@ namespace Gauntlet
 
 static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
 {
-    static uint32_t tempEntityID = 0;
-    std::string entityProperty   = "Entity " + std::to_string(tempEntityID);
-    ++tempEntityID;
-    out.emplace(entityProperty, out.object());
-    auto& node = out[entityProperty];
+    GNT_ASSERT(entity.HasComponent<IDComponent>(), "Every entity should have ID!");
+
+    const std::string UUIDstring = std::to_string(entity.GetUUID());
+    out.emplace(UUIDstring, out.object());
+    auto& node = out[UUIDstring];
 
     // Each entity has it whatever happens.
     if (entity.HasComponent<TagComponent>())
@@ -72,8 +72,8 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
         node["DirectionalLightComponent"].emplace(
             "AmbientSpecularShininess",
             std::initializer_list<float>({dlc.AmbientSpecularShininess.x, dlc.AmbientSpecularShininess.y, dlc.AmbientSpecularShininess.z}));
-        node["DirectionalLightComponent"].emplace("Direction",
-                                                  std::initializer_list<float>({dlc.Direction.x, dlc.Direction.y, dlc.Direction.z}));
+        /* node["DirectionalLightComponent"].emplace("Direction",
+                                                     std::initializer_list<float>({dlc.Direction.x, dlc.Direction.y, dlc.Direction.z})); */
     }
 }
 
@@ -125,7 +125,7 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
         return false;
     }
 
-    const auto json = nlohmann::json::parse(in);
+    const nlohmann::ordered_json json = nlohmann::json::parse(in);
     in.close();
 
     std::string sceneName = json["Scene"];
@@ -136,72 +136,65 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
     nlohmann::json entities = json["Entities"];
     for (auto& item : entities.items())
     {
-        const nlohmann::json& value = item.value();
-        const std::string tag       = value["TagComponent"].get<std::string>();
+        const nlohmann::json& node = item.value();
 
-        Entity entity = m_Scene->CreateEntity(tag);
+        const std::string tag = node["TagComponent"].get<std::string>();
+        const uint64_t id     = std::stoull(item.key());
+        Entity entity         = m_Scene->CreateEntityWithUUID(id, tag);
 
-        // TransformComponent
         {
             auto& tc                         = entity.GetComponent<TransformComponent>();
-            std::array<float, 3> translation = value["TransformComponent"]["Translation"].get<std::array<float, 3>>();
+            std::array<float, 3> translation = node["TransformComponent"]["Translation"].get<std::array<float, 3>>();
             tc.Translation                   = glm::vec3(translation[0], translation[1], translation[2]);
 
-            std::array<float, 3> rotation = value["TransformComponent"]["Rotation"].get<std::array<float, 3>>();
+            std::array<float, 3> rotation = node["TransformComponent"]["Rotation"].get<std::array<float, 3>>();
             tc.Rotation                   = glm::vec3(rotation[0], rotation[1], rotation[2]);
 
-            std::array<float, 3> scale = value["TransformComponent"]["Scale"].get<std::array<float, 3>>();
+            std::array<float, 3> scale = node["TransformComponent"]["Scale"].get<std::array<float, 3>>();
             tc.Scale                   = glm::vec3(scale[0], scale[1], scale[2]);
         }
 
-        // SpriteRendererComponent
-        if (value.contains("SpriteRendererComponent"))
+        if (node.contains("SpriteRendererComponent"))
         {
             auto& src                  = entity.AddComponent<SpriteRendererComponent>();
-            std::array<float, 4> color = value["SpriteRendererComponent"]["Color"].get<std::array<float, 4>>();
+            std::array<float, 4> color = node["SpriteRendererComponent"]["Color"].get<std::array<float, 4>>();
             src.Color                  = glm::vec4(color[0], color[1], color[2], color[3]);
         }
 
         // TODO: Add camera component
 
-        // MeshComponent
-        if (value.contains("MeshComponent"))
+        if (node.contains("MeshComponent"))
         {
             auto& mc                 = entity.AddComponent<MeshComponent>();
-            std::string meshFilePath = value["MeshComponent"]["Name"].get<std::string>();
+            std::string meshFilePath = node["MeshComponent"]["Name"].get<std::string>();
             mc.Mesh                  = Mesh::Create("Resources/Models/" + meshFilePath);
         }
 
-        // PointLightComponent
-        if (value.contains("PointLightComponent"))
+        if (node.contains("PointLightComponent"))
         {
             auto& plc = entity.AddComponent<PointLightComponent>();
 
-            std::array<float, 3> color = value["PointLightComponent"]["Color"].get<std::array<float, 3>>();
+            std::array<float, 3> color = node["PointLightComponent"]["Color"].get<std::array<float, 3>>();
             plc.Color                  = glm::vec3(color[0], color[1], color[2]);
 
             std::array<float, 3> ambientSpecularShininess =
-                value["PointLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
+                node["PointLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
             plc.AmbientSpecularShininess = glm::vec3(ambientSpecularShininess[0], ambientSpecularShininess[1], ambientSpecularShininess[2]);
 
-            std::array<float, 3> CLQ = value["PointLightComponent"]["Constant/Linear/Quadratic"].get<std::array<float, 3>>();
+            std::array<float, 3> CLQ = node["PointLightComponent"]["Constant/Linear/Quadratic"].get<std::array<float, 3>>();
             plc.CLQ                  = glm::vec3(CLQ[0], CLQ[1], CLQ[2]);
         }
 
-        // DirectionalLightComponent
-        if (value.contains("DirectionalLightComponent"))
+        if (node.contains("DirectionalLightComponent"))
         {
             auto& dlc = entity.AddComponent<DirectionalLightComponent>();
 
-            std::array<float, 3> color = value["DirectionalLightComponent"]["Color"].get<std::array<float, 3>>();
+            std::array<float, 3> color = node["DirectionalLightComponent"]["Color"].get<std::array<float, 3>>();
             dlc.Color                  = glm::vec3(color[0], color[1], color[2]);
 
             std::array<float, 3> ambientSpecularShininess =
-                value["DirectionalLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
+                node["DirectionalLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
             dlc.AmbientSpecularShininess = glm::vec3(ambientSpecularShininess[0], ambientSpecularShininess[1], ambientSpecularShininess[2]);
-
-            std::array<float, 3> direction = value["DirectionalLightComponent"]["Direction"].get<std::array<float, 3>>();
-            dlc.Direction                  = glm::vec3(direction[0], direction[1], direction[2]);
         }
     }
 

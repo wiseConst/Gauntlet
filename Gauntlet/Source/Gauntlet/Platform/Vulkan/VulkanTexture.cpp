@@ -61,7 +61,7 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     ImageSpec.Height             = textureCreateInfo.Height;
     ImageSpec.Layers             = 1;
     ImageSpec.CreateTextureID    = textureCreateInfo.CreateTextureID;
-    m_Image.reset(new VulkanImage(ImageSpec));
+    m_Image                      = MakeRef<VulkanImage>(ImageSpec);
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make
     // it readable from fragment shader.

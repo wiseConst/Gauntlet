@@ -5,6 +5,7 @@
 namespace Gauntlet
 {
 #define SPONZA_TEST 1
+#define TEST_BED 0
 
 extern const std::filesystem::path g_AssetsPath = "Resources";
 
@@ -27,6 +28,11 @@ void EditorLayer::OnAttach()
     SceneSerializer serializer(m_ActiveScene);
     GNT_ASSERT(serializer.Deserialize("Resources/Scenes/SponzaTest.gntlt"), "Failed to deserialize scene!");
 
+#endif
+
+#if TEST_BED
+    SceneSerializer serializer(m_ActiveScene);
+    GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
 #endif
 
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
@@ -90,7 +96,7 @@ void EditorLayer::OnImGuiRender()
 
     m_bIsViewportFocused = ImGui::IsWindowFocused();
     m_bIsViewportHovered = ImGui::IsWindowHovered();
-    m_GUILayer->BlockEvents(!m_bIsViewportFocused || !m_bIsViewportHovered);
+    m_GUILayer->BlockEvents(m_bIsViewportFocused && !m_bIsViewportHovered);
 
     ImGui::Image(Renderer::GetFinalImage()->GetTextureID(), m_ViewportSize);
 
@@ -140,6 +146,9 @@ void EditorLayer::OnImGuiRender()
     ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
     ImGui::Checkbox("Display ShadowMap", &rs.DisplayShadowMapRenderTarget);
     ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.6f, "%0.1f");
+    ImGui::End();
+
+    ImGui::Begin("Renderer Outputs");
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();

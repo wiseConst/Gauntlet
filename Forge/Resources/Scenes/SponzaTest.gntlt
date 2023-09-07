@@ -1,7 +1,7 @@
 {
   "Scene": "SponzaTest",
   "Entities": {
-    "Entity 0": {
+    "15445115217175449651": {
       "TagComponent": "Sponza",
       "TransformComponent": {
         "Translation": [
@@ -24,18 +24,18 @@
         "Name": "Sponza/sponza.gltf"
       }
     },
-    "Entity 1": {
+    "10838440854488139647": {
       "TagComponent": "Directional Light",
       "TransformComponent": {
         "Translation": [
-          -12.0,
-          -6.0,
-          -17.0
+          0.0,
+          0.0,
+          0.0
         ],
         "Rotation": [
-          0.0,
-          -90.0,
-          0.0
+          -6.5,
+          -7.75,
+          -3.4000000953674316
         ],
         "Scale": [
           1.0,
@@ -43,29 +43,16 @@
           1.0
         ]
       },
-      "SpriteRendererComponent": {
-        "Color": [
-          0.6754520535469055,
-          0.760617733001709,
-          0.0,
-          1.0
-        ]
-      },
       "DirectionalLightComponent": {
         "Color": [
-          0.93388432264328,
-          0.6483162641525269,
-          0.0
+          0.9523809552192688,
+          0.5127437710762024,
+          0.1011686697602272
         ],
         "AmbientSpecularShininess": [
           0.10000000149011612,
-          0.699999988079071,
-          32.0
-        ],
-        "Direction": [
-          -12.0,
-          -6.0,
-          -17.0
+          1.0,
+          64.0
         ]
       }
     }

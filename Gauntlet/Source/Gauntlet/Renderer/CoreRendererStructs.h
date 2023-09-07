@@ -46,6 +46,7 @@ struct CameraDataBuffer
 // Lighting
 static constexpr uint32_t s_MAX_POINT_LIGHTS = 16;
 
+// TODO: Add bool CastShadows;
 struct PointLight
 {
     glm::vec4 Position                 = glm::vec4(0.0f);
@@ -54,6 +55,7 @@ struct PointLight
     glm::vec4 CLQ                      = glm::vec4(1.0f, glm::vec3(0.0f));  // Attenuation: Constant Linear Quadratic
 };
 
+// TODO: Add bool CastShadows;
 struct DirectionalLight
 {
     glm::vec4 Color                    = glm::vec4(0.0f);

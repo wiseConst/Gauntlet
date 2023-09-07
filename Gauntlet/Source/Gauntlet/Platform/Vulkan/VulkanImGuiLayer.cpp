@@ -71,7 +71,7 @@ void VulkanImGuiLayer::OnAttach()
         CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
         CommandPoolSpec.QueueFamilyIndex         = Device->GetQueueFamilyIndices().GraphicsFamily;
 
-        m_ImGuiCommandPool.reset(new VulkanCommandPool(CommandPoolSpec));
+        m_ImGuiCommandPool = MakeRef<VulkanCommandPool>(CommandPoolSpec);
     }
 
     const uint32_t ImageCount = Swapchain->GetImageCount();
