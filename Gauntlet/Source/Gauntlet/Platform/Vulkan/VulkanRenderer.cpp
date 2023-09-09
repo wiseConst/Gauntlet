@@ -52,7 +52,7 @@ void VulkanRenderer::Create()
 
     {
         const uint32_t WhiteTexutreData = 0xffffffff;
-        s_Data.MeshWhiteTexture = MakeRef<VulkanTexture2D>(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
+        s_Data.MeshWhiteTexture         = MakeRef<VulkanTexture2D>(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
     }
 
     {
@@ -95,12 +95,8 @@ void VulkanRenderer::Create()
 
     {
         FramebufferSpecification setupFramebufferSpec = {};
-        for (auto& colorAttachment : s_Data.GeometryFramebuffer->GetColorAttachments())
-        {
-            setupFramebufferSpec.AliveAttachments.push_back(std::static_pointer_cast<Image>(colorAttachment));
-        }
-        setupFramebufferSpec.AliveAttachments.push_back(std::static_pointer_cast<Image>(s_Data.GeometryFramebuffer->GetDepthAttachment()));
-        setupFramebufferSpec.Name = "Setup";
+        setupFramebufferSpec.ExistingAttachments      = s_Data.GeometryFramebuffer->GetAttachments();
+        setupFramebufferSpec.Name                     = "Setup";
 
         s_Data.SetupFramebuffer = MakeRef<VulkanFramebuffer>(setupFramebufferSpec);
     }
@@ -732,7 +728,8 @@ void VulkanRenderer::ResizeFramebuffersImpl(uint32_t width, uint32_t height)
 
 const Ref<Image> VulkanRenderer::GetFinalImageImpl()
 {
-    return s_Data.GeometryFramebuffer->GetColorAttachments()[m_Context.GetSwapchain()->GetCurrentImageIndex()];
+    // TODO: Return actually color attachment
+    return s_Data.GeometryFramebuffer->GetAttachments()[0].Attachments[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
 }
 
 void VulkanRenderer::Destroy()

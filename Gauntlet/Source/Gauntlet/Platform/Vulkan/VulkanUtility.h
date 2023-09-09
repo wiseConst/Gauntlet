@@ -14,7 +14,6 @@ namespace Gauntlet
 #define LOG_VMA_INFO 0
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
-static constexpr uint32_t FRAMES_IN_FLIGHT   = 2;
 
 const std::vector<const char*> VulkanLayers     = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DeviceExtensions = {

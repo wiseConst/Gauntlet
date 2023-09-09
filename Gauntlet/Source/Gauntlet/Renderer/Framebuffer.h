@@ -21,6 +21,7 @@ enum class EStoreOp : uint8_t
     DONT_CARE
 };
 
+// Always specify depth attachment as last element.
 struct FramebufferAttachmentSpecification
 {
   public:
@@ -34,11 +35,19 @@ struct FramebufferAttachmentSpecification
     EStoreOp StoreOp      = EStoreOp::STORE;
 };
 
+struct FramebufferAttachment
+{
+    std::array<Ref<Image>, FRAMES_IN_FLIGHT> Attachments;  // Per-frame
+    FramebufferAttachmentSpecification Specification;
+};
+
 struct FramebufferSpecification
 {
   public:
+    // Always specify depth attachment as last element.
     std::vector<FramebufferAttachmentSpecification> Attachments;
-    std::vector<Ref<Image>> AliveAttachments;
+
+    std::vector<FramebufferAttachment> ExistingAttachments;
 
     uint32_t Width   = 0;
     uint32_t Height  = 0;
@@ -56,8 +65,6 @@ class Framebuffer : private Uncopyable, private Unmovable
 
     virtual const uint32_t GetWidth() const  = 0;
     virtual const uint32_t GetHeight() const = 0;
-
-  private:
 };
 
 }  // namespace Gauntlet

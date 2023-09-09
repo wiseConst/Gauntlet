@@ -2,13 +2,13 @@
 
 #include "Gauntlet/Renderer/Framebuffer.h"
 
+#include "VulkanUtility.h"
 #include <volk/volk.h>
 
 namespace Gauntlet
 {
 
 class VulkanImage;
-class VulkanRenderPass;
 class VulkanCommandBuffer;
 
 class VulkanFramebuffer final : public Framebuffer
@@ -18,16 +18,12 @@ class VulkanFramebuffer final : public Framebuffer
     ~VulkanFramebuffer() = default;
 
     FORCEINLINE const auto& GetRenderPass() const { return m_RenderPass; }
-    FORCEINLINE const auto& GetColorAttachments() const { return m_ColorAttachments; }
-    FORCEINLINE const auto& GetDepthAttachment() const { return m_DepthAttachment; }
+    FORCEINLINE const auto& GetAttachments() const { return m_Attachments; }
+    const Ref<VulkanImage> GetDepthAttachment() const;
     FORCEINLINE FramebufferSpecification& GetSpec() final override { return m_Specification; }
     const VkFramebuffer& Get() const;
 
-    FORCEINLINE void SetDepthStencilClearColor(const float depth, const uint32_t stencil)
-    {
-        if (!m_ColorAttachments.empty() && m_DepthAttachment) m_ClearValues[1].depthStencil = {depth, stencil};
-        if (m_DepthAttachment && m_ColorAttachments.empty()) m_ClearValues[0].depthStencil = {depth, stencil};
-    }
+    void SetDepthStencilClearColor(const float depth, const uint32_t stencil);
 
     void BeginRenderPass(const VulkanCommandBuffer& commandBuffer, const VkSubpassContents subpassContents = VK_SUBPASS_CONTENTS_INLINE);
     FORCEINLINE void EndRenderPass(const VkCommandBuffer& commandBuffer) { vkCmdEndRenderPass(commandBuffer); }
@@ -37,23 +33,24 @@ class VulkanFramebuffer final : public Framebuffer
         m_Specification.Width  = width;
         m_Specification.Height = height;
         Invalidate();
-        // LOG_INFO("Framebuffer <%s> resized (%u, %u).", m_Specification.Name.data(), width, height);
     }
 
     void Invalidate();
     void Destroy() final override;
 
-    const uint32_t GetWidth() const final override;
-    const uint32_t GetHeight() const final override;
+    FORCEINLINE const uint32_t GetWidth() const final override { return m_Specification.Width; }
+    FORCEINLINE const uint32_t GetHeight() const final override { return m_Specification.Height; }
 
   private:
     FramebufferSpecification m_Specification;
     std::vector<VkClearValue> m_ClearValues;
 
     VkRenderPass m_RenderPass = VK_NULL_HANDLE;
-    std::vector<VkFramebuffer> m_Framebuffers;
+    std::vector<VkFramebuffer> m_Framebuffers;  // Per-frame
 
-    std::vector<Ref<VulkanImage>> m_ColorAttachments;
-    Ref<VulkanImage> m_DepthAttachment;
+    std::vector<FramebufferAttachment> m_Attachments;
+
+    // Called only once when creating.
+    void Create();
 };
 }  // namespace Gauntlet
