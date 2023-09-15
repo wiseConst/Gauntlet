@@ -12,14 +12,17 @@ namespace Gauntlet
 
 #define LOG_VULKAN_INFO 0
 #define LOG_VMA_INFO 0
+#define RENDERDOC_DEBUG 1
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
 
 const std::vector<const char*> VulkanLayers     = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DeviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME,                // Swapchain creation (array of images that we render into, and present to screen)
-    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,        // For advanced GPU info
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,          // Swapchain creation (array of images that we render into, and present to screen)
+    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,  // For advanced GPU info
+#if !RENDERDOC_DEBUG
     VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME  // For useful pipeline features that can be changed real-time.
+#endif
 };
 
 #ifdef GNT_DEBUG

@@ -32,9 +32,11 @@ struct PipelineSpecification
         PrimitiveTopology      = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // No depth testing by default.
-        bDepthTest     = VK_FALSE;
-        bDepthWrite    = VK_FALSE;
-        DepthCompareOp = VK_COMPARE_OP_ALWAYS;
+        bDepthTest          = VK_FALSE;
+        bDepthWrite         = VK_FALSE;
+        bDynamicPolygonMode = VK_FALSE;
+        bBlendEnable        = VK_FALSE;
+        DepthCompareOp      = VK_COMPARE_OP_ALWAYS;
     }
     ~PipelineSpecification() = default;
 
@@ -65,6 +67,8 @@ struct PipelineSpecification
 
     VkBool32 bDepthTest;   // If we should do any z-culling at all
     VkBool32 bDepthWrite;  // Allows the depth to be written.
+    VkBool32 bDynamicPolygonMode;
+    VkBool32 bBlendEnable;
     VkCompareOp DepthCompareOp;
 };
 

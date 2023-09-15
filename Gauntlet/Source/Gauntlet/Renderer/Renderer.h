@@ -14,6 +14,12 @@ class PerspectiveCamera;
 class Image;
 class Texture2D;
 
+struct RendererOutput
+{
+    Ref<Image> Attachment;
+    std::string Name;
+};
+
 class Renderer : private Uncopyable, private Unmovable
 {
   public:
@@ -50,8 +56,10 @@ class Renderer : private Uncopyable, private Unmovable
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
     FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
 
-    FORCEINLINE static const Ref<Image> GetFinalImage() { return s_Renderer->GetFinalImageImpl(); }
+    FORCEINLINE static const Ref<Image>& GetFinalImage() { return s_Renderer->GetFinalImageImpl(); }
     FORCEINLINE static std::mutex& GetResourceAccessMutex() { return s_ResourceAccessMutex; }
+
+    FORCEINLINE static std::vector<RendererOutput> GetRendererOutput() { return s_Renderer->GetRendererOutputImpl(); }
 
   protected:
     static Renderer* s_Renderer;
@@ -103,7 +111,8 @@ class Renderer : private Uncopyable, private Unmovable
     virtual void BeginImpl() = 0;
     virtual void FlushImpl() = 0;
 
-    virtual const Ref<Image> GetFinalImageImpl() = 0;
+    virtual const Ref<Image>& GetFinalImageImpl()               = 0;
+    virtual std::vector<RendererOutput> GetRendererOutputImpl() = 0;
 };
 
 }  // namespace Gauntlet

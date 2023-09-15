@@ -144,7 +144,8 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         Vertex.TexCoord = glm::vec2(0.0f);
         if (mesh->HasTextureCoords(0)) Vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
 
-        Vertex.Tangent = glm::vec3(0.0f);
+        Vertex.Tangent   = glm::vec3(0.0f);
+        Vertex.Bitangent = glm::vec3(0.0f);
         if (mesh->HasTangentsAndBitangents())
         {
             Vertex.Tangent   = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);

@@ -113,7 +113,7 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
         case EImageFormat::RGB: return VK_FORMAT_R8G8B8_UNORM;
         case EImageFormat::RGBA: return VK_FORMAT_R8G8B8A8_UNORM;
         case EImageFormat::SRGB: return VK_FORMAT_R8G8B8A8_SRGB;
-        case EImageFormat::RGBA16F: return VK_FORMAT_R16G16B16A16_UNORM;
+        case EImageFormat::RGBA16F: return VK_FORMAT_R16G16B16A16_SFLOAT;
         case EImageFormat::R32F: return VK_FORMAT_R32_SFLOAT;
         case EImageFormat::DEPTH32F: return VK_FORMAT_D32_SFLOAT;
         case EImageFormat::DEPTH24STENCIL8: return VK_FORMAT_D24_UNORM_S8_UINT;
@@ -173,6 +173,14 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
         // Shader reads should wait on transfer writes, specifically the shader reads in the fragment shader, because that's
         // where we're going to use the texture.
         ImageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        ImageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
+        PipelineDestinationStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+        ImageMemoryBarrier.srcAccessMask = 0;
         ImageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     }
     else
@@ -306,6 +314,9 @@ void VulkanImage::Invalidate()
             Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet.Handle, 1, &m_DescriptorImageInfo);
         vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteDescriptorSet, 0, nullptr);
     }
+
+    if (!ImageUtils::IsDepthFormat(m_Specification.Format))
+        ImageUtils::TransitionImageLayout(m_Image.Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void VulkanImage::CreateSampler()

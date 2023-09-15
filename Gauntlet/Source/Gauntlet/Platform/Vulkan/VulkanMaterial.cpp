@@ -12,6 +12,8 @@
 
 namespace Gauntlet
 {
+// TODO: Refactor
+
 VulkanMaterial::VulkanMaterial()
 {
     // Invalidate();
@@ -24,7 +26,8 @@ void VulkanMaterial::Invalidate()
 
     if (!m_DescriptorSet.Handle)
     {
-        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, RendererStorageData.MeshDescriptorSetLayout),
+        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet,
+                                                              RendererStorageData.DefferedDescriptorSetLayout /*MeshDescriptorSetLayout*/),
                    "Failed to allocate descriptor sets!");
     }
 
@@ -61,6 +64,7 @@ void VulkanMaterial::Invalidate()
         Writes.push_back(WhiteTextureWriteSet);
     }
 
+#if 0
     if (!m_EmissiveTextures.empty())
     {
         auto EmissiveImageInfo = std::static_pointer_cast<VulkanTexture2D>(m_EmissiveTextures[0])->GetImageDescriptorInfo();
@@ -89,23 +93,25 @@ void VulkanMaterial::Invalidate()
         WhiteTextureWriteSet.dstBinding = 3;
         Writes.push_back(WhiteTextureWriteSet);
     }
+#endif
 
-    const uint32_t CurrentFrameIndex = Context.GetSwapchain()->GetCurrentFrameIndex();
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
         VkDescriptorBufferInfo CameraDataBufferInfo = {};
-        CameraDataBufferInfo.buffer                 = RendererStorageData.UniformCameraDataBuffers[CurrentFrameIndex].Buffer;
+        CameraDataBufferInfo.buffer                 = RendererStorageData.UniformCameraDataBuffers[i].Buffer;
         CameraDataBufferInfo.range                  = sizeof(CameraDataBuffer);
         CameraDataBufferInfo.offset                 = 0;
 
         // CameraWrite
         auto CameraDataBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4, m_DescriptorSet.Handle, 1, &CameraDataBufferInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 /*4*/, m_DescriptorSet.Handle, 1, &CameraDataBufferInfo);
 
         Writes.push_back(CameraDataBufferWriteSet);
-
+        vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
+                               VK_NULL_HANDLE);
+#if 0
         VkDescriptorBufferInfo LightingModelBufferInfo = {};
-        LightingModelBufferInfo.buffer                 = RendererStorageData.UniformPhongModelBuffers[CurrentFrameIndex].Buffer;
+        LightingModelBufferInfo.buffer                 = RendererStorageData.UniformPhongModelBuffers[i].Buffer;
         LightingModelBufferInfo.range                  = sizeof(LightingModelBuffer);
         LightingModelBufferInfo.offset                 = 0;
 
@@ -146,6 +152,8 @@ void VulkanMaterial::Invalidate()
         Writes.pop_back();
         Writes.pop_back();
         Writes.pop_back();
+#endif
+
         Writes.pop_back();
     }
 }

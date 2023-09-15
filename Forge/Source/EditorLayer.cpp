@@ -114,8 +114,8 @@ void EditorLayer::OnImGuiRender()
 
     ImGui::End();
 
-    /*static bool ShowDemoWindow = true;
-   if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);*/
+    // static bool ShowDemoWindow = true;
+    // if (ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);
 
     static bool bShowAppStats = true;
     if (bShowAppStats)
@@ -149,6 +149,14 @@ void EditorLayer::OnImGuiRender()
     ImGui::End();
 
     ImGui::Begin("Renderer Outputs");
+    for (auto& rendererOuput : Renderer::GetRendererOutput())
+    {
+        ImGui::Text(rendererOuput.Name.data());
+        ImGui::Image(rendererOuput.Attachment->GetTextureID(),
+                     {ImGui::GetContentRegionAvail().x / 2, ImGui::GetContentRegionAvail().x / 2});
+        ImGui::Separator();
+    }
+
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();

@@ -392,7 +392,7 @@ void VulkanRenderer2D::FlushImpl()
 
     auto& GeneralStorageData = VulkanRenderer::GetStorageData();
     GeneralStorageData.CurrentCommandBuffer->BeginDebugLabel("2D-Batch", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-    GeneralStorageData.GeometryFramebuffer->BeginRenderPass(*GeneralStorageData.CurrentCommandBuffer);
+    GeneralStorageData.GeometryFramebuffer->BeginRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
 
     GeneralStorageData.CurrentCommandBuffer->BindPipeline(s_Data2D.QuadPipeline);
 

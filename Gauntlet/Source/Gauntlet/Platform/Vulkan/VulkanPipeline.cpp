@@ -190,7 +190,7 @@ void VulkanPipeline::CreatePipeline()
     RasterizationState.depthBiasClamp          = 0.0f;
     RasterizationState.depthBiasSlopeFactor    = 0.0f;
 
-    // TODO: Make it configurable?
+    // TODO: Make it configurable
     VkPipelineMultisampleStateCreateInfo MultisampleState = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     MultisampleState.sampleShadingEnable                  = VK_FALSE;
     MultisampleState.rasterizationSamples                 = VK_SAMPLE_COUNT_1_BIT;
@@ -198,19 +198,27 @@ void VulkanPipeline::CreatePipeline()
     MultisampleState.alphaToCoverageEnable                = VK_FALSE;
     MultisampleState.alphaToOneEnable                     = VK_FALSE;
 
-    // TODO: Make it configurable? Now by default it has alpha-blending
-    VkPipelineColorBlendAttachmentState ColorBlendAttachment = {};
-    ColorBlendAttachment.blendEnable                         = TRUE;
-    ColorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    // Color.rgb = (src.a * src.rgb) + ((1-src.a) * dst.rgb)
-    ColorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    ColorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    ColorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    // Optional
-    ColorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    ColorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    ColorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+    // TODO: Make it configurable
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates;
+
+    uint32_t attachmentCount = (uint32_t)m_Specification.TargetFramebuffer->GetAttachments().size();
+    if (m_Specification.TargetFramebuffer->GetDepthAttachment()) --attachmentCount;
+
+    for (uint32_t i = 0; i < attachmentCount; ++i)
+    {
+        VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
+        colorBlendAttachmentState.blendEnable                         = m_Specification.bBlendEnable;
+        colorBlendAttachmentState.colorWriteMask                      = 0xf;
+        // Color.rgb = (src.a * src.rgb) + ((1-src.a) * dst.rgb)
+        colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachmentState.colorBlendOp        = VK_BLEND_OP_ADD;
+        // Optional
+        colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachmentState.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachmentStates.push_back(colorBlendAttachmentState);
+    }
 
     // Controls how this pipeline blends into a given attachment.
     /*
@@ -218,8 +226,8 @@ void VulkanPipeline::CreatePipeline()
      * the blending is just "no blend", but we do write to the color attachment
      */
     VkPipelineColorBlendStateCreateInfo ColorBlendState = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-    ColorBlendState.attachmentCount                     = 1;
-    ColorBlendState.pAttachments                        = &ColorBlendAttachment;
+    ColorBlendState.attachmentCount                     = static_cast<uint32_t>(colorBlendAttachmentStates.size());
+    ColorBlendState.pAttachments                        = colorBlendAttachmentStates.data();
     ColorBlendState.logicOpEnable                       = VK_FALSE;
     ColorBlendState.logicOp                             = VK_LOGIC_OP_COPY;
 
@@ -258,7 +266,9 @@ void VulkanPipeline::CreatePipeline()
     DepthStencilState.minDepthBounds = 0.0f;
     DepthStencilState.maxDepthBounds = 1.0f;
 
-    std::vector<VkDynamicState> DynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_POLYGON_MODE_EXT};
+    std::vector<VkDynamicState> DynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+
+    if (m_Specification.bDynamicPolygonMode && !RENDERDOC_DEBUG) DynamicStates.push_back(VK_DYNAMIC_STATE_POLYGON_MODE_EXT);
 
     // TODO: Make it configurable?
     VkPipelineDynamicStateCreateInfo DynamicState = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};

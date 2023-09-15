@@ -1,6 +1,6 @@
 #version 460
 
-// From Sascha Willems, he's vulkan beast
+// From Sascha Willems
 
 layout (location = 0) out vec2 outUV;
 

@@ -16,8 +16,8 @@ static VkAttachmentLoadOp GauntletLoadOpToVulkan(ELoadOp loadOp)
 {
     switch (loadOp)
     {
-        case ELoadOp::CLEAR: return VK_ATTACHMENT_LOAD_OP_CLEAR;
         case ELoadOp::DONT_CARE: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        case ELoadOp::CLEAR: return VK_ATTACHMENT_LOAD_OP_CLEAR;
         case ELoadOp::LOAD: return VK_ATTACHMENT_LOAD_OP_LOAD;
     }
 
@@ -336,6 +336,7 @@ void VulkanFramebuffer::Invalidate()
     }
 
     std::vector<VkSubpassDependency> dependencies;
+
     if (bHaveColorAttachment)
     {
         VkSubpassDependency colorDependency = {};
@@ -370,8 +371,7 @@ void VulkanFramebuffer::Invalidate()
     renderPassCreateInfo.subpassCount           = 1;
     renderPassCreateInfo.pSubpasses             = &subpassDesc;
 
-    VK_CHECK(vkCreateRenderPass(logicalDevice, &renderPassCreateInfo, nullptr, &m_RenderPass),
-             "Failed to create render pass!");
+    VK_CHECK(vkCreateRenderPass(logicalDevice, &renderPassCreateInfo, nullptr, &m_RenderPass), "Failed to create render pass!");
 
     // Framebuffers creation
     VkFramebufferCreateInfo framebufferCreateInfo = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
@@ -393,12 +393,11 @@ void VulkanFramebuffer::Invalidate()
         framebufferCreateInfo.attachmentCount = imageViews.size();
         framebufferCreateInfo.pAttachments    = imageViews.data();
 
-        VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[i]),
-                 "Failed to create framebuffer!");
+        VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[i]), "Failed to create framebuffer!");
     }
 }
 
-void VulkanFramebuffer::BeginRenderPass(const VulkanCommandBuffer& commandBuffer, const VkSubpassContents subpassContents)
+void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer, const VkSubpassContents subpassContents)
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
@@ -414,7 +413,7 @@ void VulkanFramebuffer::BeginRenderPass(const VulkanCommandBuffer& commandBuffer
     RenderArea.extent              = VkExtent2D{m_Specification.Width, m_Specification.Height};
     RenderPassBeginInfo.renderArea = RenderArea;
 
-    vkCmdBeginRenderPass(commandBuffer.Get(), &RenderPassBeginInfo, subpassContents);
+    vkCmdBeginRenderPass(commandBuffer, &RenderPassBeginInfo, subpassContents);
 }
 
 void VulkanFramebuffer::Destroy()
@@ -448,8 +447,7 @@ const Ref<VulkanImage> VulkanFramebuffer::GetDepthAttachment() const
             return static_pointer_cast<VulkanImage>(framebufferAttachment.Attachments[context.GetSwapchain()->GetCurrentFrameIndex()]);
     }
 
-    GNT_ASSERT("No depth formats found!");
-    return static_pointer_cast<VulkanImage>(m_Attachments[0].Attachments[context.GetSwapchain()->GetCurrentFrameIndex()]);
+    return nullptr;
 }
 
 const VkFramebuffer& VulkanFramebuffer::Get() const

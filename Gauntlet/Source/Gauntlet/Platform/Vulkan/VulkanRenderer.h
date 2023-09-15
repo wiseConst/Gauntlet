@@ -33,20 +33,25 @@ class VulkanRenderer final : public Renderer
 
     struct VulkanRendererStorage
     {
-        // Deffered rendering
-        Ref<VulkanFramebuffer> DefferedFramebuffer;
-
         // Framebuffers && RenderPasses
-        Ref<VulkanFramebuffer> GeometryFramebuffer{nullptr};
         Ref<VulkanFramebuffer> ShadowMapFramebuffer{nullptr};
+        Ref<VulkanFramebuffer> GeometryFramebuffer{nullptr};
         Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};  // Clear pass
+        Ref<VulkanFramebuffer> LightingFramebuffer{nullptr};
 
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {1280, 720};
 
+        // Deffered stuff
+        DescriptorSet LightingSet;
+        VkDescriptorSetLayout LightingDescriptorSetLayout = VK_NULL_HANDLE;
+        VkDescriptorSetLayout DefferedDescriptorSetLayout = VK_NULL_HANDLE;
+
         // Pipelines
         Ref<VulkanPipeline> ShadowMapPipeline = nullptr;
         Ref<VulkanPipeline> GeometryPipeline  = nullptr;
+        Ref<VulkanPipeline> DefferedPipeline  = nullptr;
+        Ref<VulkanPipeline> LightingPipeline  = nullptr;
 
         // Mesh
         Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
@@ -110,7 +115,8 @@ class VulkanRenderer final : public Renderer
     void FlushImpl() final override;
     void ResizeFramebuffersImpl(uint32_t width, uint32_t height) final override;
 
-    const Ref<Image> GetFinalImageImpl() final override;
+    const Ref<Image>& GetFinalImageImpl() final override;
+    std::vector<RendererOutput> GetRendererOutputImpl() final override;
 
     FORCEINLINE static VulkanRendererStorage& GetStorageData() { return s_Data; }
 

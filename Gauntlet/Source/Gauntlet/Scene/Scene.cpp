@@ -31,13 +31,15 @@ Entity Scene::CreateEntity(const std::string& name)
 
 Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name)
 {
-    GNT_ASSERT(name.data(), "Invalid entity name!");
+    GNT_ASSERT(!name.empty(), "Entity name is empty!");
 
     Entity entity{m_Registry.create(), this};
     entity.AddComponent<IDComponent>(uuid);
+
     auto& tag = entity.AddComponent<TagComponent>();
+    tag.Tag   = name;
+
     entity.AddComponent<TransformComponent>();
-    tag.Tag = name;
 
     return entity;
 }

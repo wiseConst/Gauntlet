@@ -36,6 +36,7 @@ namespace Gauntlet
 static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
 #define MAX_WORKER_THREADS 8
+#define GRAPHICS_PREFER_INTEGRATED_GPU 0
 
 #define FORCEINLINE __forceinline
 #define NODISCARD [[nodiscard]]

@@ -9,7 +9,6 @@ namespace Gauntlet
 {
 
 class VulkanImage;
-class VulkanCommandBuffer;
 
 class VulkanFramebuffer final : public Framebuffer
 {
@@ -18,14 +17,14 @@ class VulkanFramebuffer final : public Framebuffer
     ~VulkanFramebuffer() = default;
 
     FORCEINLINE const auto& GetRenderPass() const { return m_RenderPass; }
-    FORCEINLINE const auto& GetAttachments() const { return m_Attachments; }
+    FORCEINLINE const std::vector<FramebufferAttachment>& GetAttachments() const { return m_Attachments; }
     const Ref<VulkanImage> GetDepthAttachment() const;
     FORCEINLINE FramebufferSpecification& GetSpec() final override { return m_Specification; }
     const VkFramebuffer& Get() const;
 
     void SetDepthStencilClearColor(const float depth, const uint32_t stencil);
 
-    void BeginRenderPass(const VulkanCommandBuffer& commandBuffer, const VkSubpassContents subpassContents = VK_SUBPASS_CONTENTS_INLINE);
+    void BeginRenderPass(const VkCommandBuffer& commandBuffer, const VkSubpassContents subpassContents = VK_SUBPASS_CONTENTS_INLINE);
     FORCEINLINE void EndRenderPass(const VkCommandBuffer& commandBuffer) { vkCmdEndRenderPass(commandBuffer); }
 
     FORCEINLINE void Resize(uint32_t width, uint32_t height)

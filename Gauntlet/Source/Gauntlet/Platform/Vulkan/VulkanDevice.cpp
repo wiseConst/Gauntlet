@@ -105,10 +105,19 @@ void VulkanDevice::PickPhysicalDevice(const VkInstance& instance, const VkSurfac
         Candidates.insert(std::make_pair(Score, CurrentGPU));
     }
 
-    if (Candidates.rbegin()->first > 0)
+    if (!GRAPHICS_PREFER_INTEGRATED_GPU)
     {
         m_GPUInfo = Candidates.rbegin()->second;
     }
+    else
+    {
+        for (auto& candidate : Candidates)
+        {
+            m_GPUInfo = candidate.second;
+            if (candidate.second.GPUProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) break;
+        }
+    }
+
     GNT_ASSERT(m_GPUInfo.PhysicalDevice, "Failed to find suitable GPU");
     LOG_INFO("Renderer: %s", m_GPUInfo.GPUProperties.deviceName);
     LOG_INFO(" Vendor: %s", GetVendorNameCString(m_GPUInfo.GPUProperties.vendorID));

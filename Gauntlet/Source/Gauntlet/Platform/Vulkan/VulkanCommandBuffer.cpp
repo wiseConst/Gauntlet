@@ -12,11 +12,12 @@ void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags command
 {
     VkCommandBufferBeginInfo commandBufferBeginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
 
-    const bool bIsSecondary                 = m_Level == VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-    commandBufferBeginInfo.flags            = bIsSecondary ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
-                                                           : VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | commandBufferUsageFlags;
-    commandBufferBeginInfo.pInheritanceInfo = inheritanceInfo;
+    if (m_Level == VK_COMMAND_BUFFER_LEVEL_SECONDARY)
+        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+    else
+        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | commandBufferUsageFlags;
 
+    commandBufferBeginInfo.pInheritanceInfo = inheritanceInfo;
     VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &commandBufferBeginInfo), "Failed to begin command buffer recording!");
 }
 
@@ -59,7 +60,9 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipeline
         Viewport.height = -static_cast<float>(Scissor.extent.height);
     }
 
-    vkCmdSetPolygonModeEXT(m_CommandBuffer, PipelineUtils::GauntletPolygonModeToVulkan(pipeline->GetSpecification().PolygonMode));
+    if (pipeline->GetSpecification().bDynamicPolygonMode && !RENDERDOC_DEBUG)
+        vkCmdSetPolygonModeEXT(m_CommandBuffer, PipelineUtils::GauntletPolygonModeToVulkan(pipeline->GetSpecification().PolygonMode));
+
     vkCmdBindPipeline(m_CommandBuffer, pipelineBindPoint, pipeline->Get());
     vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);
     vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
