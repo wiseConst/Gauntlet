@@ -56,7 +56,6 @@ class VulkanRenderer final : public Renderer
         // Mesh
         Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
 
-        BufferLayout MeshVertexBufferLayout;
         VkDescriptorSetLayout MeshDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Camera UBO
@@ -82,10 +81,7 @@ class VulkanRenderer final : public Renderer
         VkDescriptorSetLayout ImageDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Misc
-        VulkanCommandBuffer* CurrentCommandBuffer  = nullptr;
-        Ref<VulkanPipeline> DebugShadowMapPipeline = nullptr;
-        VkDescriptorSetLayout DebugShadowMapDescriptorSetLayout;
-        DescriptorSet DebugShadowMapDescriptorSet;
+        VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         std::vector<GeometryData> SortedGeometry;
 
         // Light UBO

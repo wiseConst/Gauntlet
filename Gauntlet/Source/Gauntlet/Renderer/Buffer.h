@@ -100,6 +100,7 @@ class BufferLayout final
     ~BufferLayout() = default;
 
     BufferLayout(const std::initializer_list<BufferElement>& elements) : m_Elements(elements), m_Stride(0) { CalculateOffsetsAndStride(); }
+    BufferLayout(const std::vector<BufferElement>& elements) : m_Elements(elements), m_Stride(0) { CalculateOffsetsAndStride(); }
 
     FORCEINLINE auto GetStride() const { return m_Stride; }
     FORCEINLINE const auto& GetElements() const { return m_Elements; }

@@ -16,7 +16,8 @@ IncludeDir["stb"] =      "Gauntlet/vendor/stb"
 IncludeDir["glm"] =      "Gauntlet/vendor/glm"
 IncludeDir["assimp"] =   "Gauntlet/vendor/assimp"
 IncludeDir["entt"] =     "Gauntlet/vendor/entt/single_include"
-IncludeDir["json"] =     "Gauntlet/vendor/json/single_include" 
+IncludeDir["json"] =     "Gauntlet/vendor/json/single_include"
+IncludeDir["spirv_reflect"] =     "Gauntlet/vendor/spirv-reflect"
 
 Binaries = {}
 Binaries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
@@ -32,6 +33,7 @@ group "Dependencies"
     include "Gauntlet/vendor/GLFW"
     include "Gauntlet/vendor/imgui"
     include "Gauntlet/vendor/vma"
+    include "Gauntlet/vendor/spirv-reflect"
 group ""
 
 group "Engine"
@@ -69,14 +71,16 @@ project "Gauntlet"
         "%{IncludeDir.vma}/Include",
         "%{IncludeDir.assimp}/Include",
         "%{IncludeDir.entt}",
-        "%{IncludeDir.json}"
+        "%{IncludeDir.json}",
+        "%{IncludeDir.spirv_reflect}"
     }
 
     links
     {
         "GLFW",
         "ImGui",
-        "VulkanMemoryAllocator"
+        "VulkanMemoryAllocator",
+        "spirv-reflect"
     }
 
 	filter "system:windows"

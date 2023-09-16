@@ -10,6 +10,7 @@ std::mutex Renderer::s_ResourceAccessMutex;
 
 Renderer::RendererStats Renderer::s_RendererStats;
 Renderer::RendererSettings Renderer::s_RendererSettings;
+Renderer::RendererStorage Renderer::s_RendererStorage;
 
 void Renderer::Init()
 {

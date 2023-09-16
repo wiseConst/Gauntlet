@@ -3,6 +3,7 @@
 #include "RendererAPI.h"
 
 #include <glm/glm.hpp>
+#include "Buffer.h"
 
 namespace Gauntlet
 {
@@ -60,6 +61,7 @@ class Renderer : private Uncopyable, private Unmovable
     FORCEINLINE static std::mutex& GetResourceAccessMutex() { return s_ResourceAccessMutex; }
 
     FORCEINLINE static std::vector<RendererOutput> GetRendererOutput() { return s_Renderer->GetRendererOutputImpl(); }
+    FORCEINLINE static const auto& GetStorageData() { return s_RendererStorage; }
 
   protected:
     static Renderer* s_Renderer;
@@ -67,11 +69,10 @@ class Renderer : private Uncopyable, private Unmovable
 
     struct RendererSettings
     {
-        bool ShowWireframes               = false;
-        bool VSync                        = false;
-        bool RenderShadows                = true;
-        bool DisplayShadowMapRenderTarget = false;
-        float Gamma                       = 1.1f;
+        bool ShowWireframes = false;
+        bool VSync          = false;
+        bool RenderShadows  = true;
+        float Gamma         = 1.1f;
     } static s_RendererSettings;
 
     struct RendererStats
@@ -93,6 +94,11 @@ class Renderer : private Uncopyable, private Unmovable
         float GPUWaitTime = 0.0f;
         float FrameTime   = 0.0f;
     } static s_RendererStats;
+
+    struct RendererStorage
+    {
+        BufferLayout MeshVertexBufferLayout;
+    } static s_RendererStorage;
 
   protected:
     virtual void Create()  = 0;

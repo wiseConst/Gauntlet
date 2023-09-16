@@ -40,7 +40,7 @@ bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDesc
         if (AllocationResult == VK_SUCCESS)
         {
             ++m_AllocatedDescriptorSets;
-            outDescriptorSet.PoolID                      = m_Pools.size() - 1;
+            outDescriptorSet.PoolID                      = static_cast<uint32_t>(m_Pools.size()) - 1;
             Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
             return true;
         }
@@ -78,7 +78,7 @@ bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDesc
         if (AllocationResult == VK_SUCCESS)
         {
             ++m_AllocatedDescriptorSets;
-            outDescriptorSet.PoolID                      = m_Pools.size() - 1;
+            outDescriptorSet.PoolID                      = static_cast<uint32_t>(m_Pools.size()) - 1;
             Renderer::GetStats().AllocatedDescriptorSets = m_AllocatedDescriptorSets;
             return true;
         }
@@ -117,7 +117,7 @@ VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t count, VkD
     for (uint32_t i = 0; i < PoolSizes.size(); ++i)
     {
         PoolSizes[i].type            = m_DefaultPoolSizes[i].first;
-        PoolSizes[i].descriptorCount = m_DefaultPoolSizes[i].second * count;
+        PoolSizes[i].descriptorCount = static_cast<uint32_t>(m_DefaultPoolSizes[i].second * count);
     }
 
     const auto DescriptorPoolCreateInfo =

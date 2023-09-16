@@ -4,6 +4,7 @@
 
 namespace Gauntlet
 {
+
 class Shader
 {
   public:

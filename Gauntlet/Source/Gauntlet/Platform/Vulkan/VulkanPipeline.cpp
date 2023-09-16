@@ -12,80 +12,6 @@
 namespace Gauntlet
 {
 
-namespace PipelineUtils
-{
-
-VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology)
-{
-    switch (primitiveTopology)
-    {
-        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_POINT_LIST: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_LINE_LIST: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_LINE_STRIP: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_FAN: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-    }
-
-    GNT_ASSERT(false, "Unknown primitve topology flag!");
-    return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-}
-
-VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage)
-{
-    switch (shaderStage)
-    {
-        case EShaderStage::SHADER_STAGE_VERTEX: return VK_SHADER_STAGE_VERTEX_BIT;
-        case EShaderStage::SHADER_STAGE_GEOMETRY: return VK_SHADER_STAGE_GEOMETRY_BIT;
-        case EShaderStage::SHADER_STAGE_FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
-        case EShaderStage::SHADER_STAGE_COMPUTE: return VK_SHADER_STAGE_COMPUTE_BIT;
-    }
-
-    GNT_ASSERT(false, "Unknown shader stage flag!");
-    return VK_SHADER_STAGE_VERTEX_BIT;
-}
-
-VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode)
-{
-    switch (cullMode)
-    {
-        case ECullMode::CULL_MODE_NONE: return VK_CULL_MODE_NONE;
-        case ECullMode::CULL_MODE_FRONT: return VK_CULL_MODE_FRONT_BIT;
-        case ECullMode::CULL_MODE_BACK: return VK_CULL_MODE_BACK_BIT;
-        case ECullMode::CULL_MODE_FRONT_AND_BACK: return VK_CULL_MODE_FRONT_AND_BACK;
-    }
-
-    GNT_ASSERT(false, "Unknown cull mode flag!");
-    return VK_CULL_MODE_NONE;
-}
-
-VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode)
-{
-    switch (polygonMode)
-    {
-        case EPolygonMode::POLYGON_MODE_FILL: return VK_POLYGON_MODE_FILL;
-        case EPolygonMode::POLYGON_MODE_LINE: return VK_POLYGON_MODE_LINE;
-        case EPolygonMode::POLYGON_MODE_POINT: return VK_POLYGON_MODE_POINT;
-        case EPolygonMode::POLYGON_MODE_FILL_RECTANGLE_NV: return VK_POLYGON_MODE_FILL_RECTANGLE_NV;
-    }
-
-    GNT_ASSERT(false, "Unknown polygon mode flag!");
-    return VK_POLYGON_MODE_FILL;
-}
-
-VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
-{
-    switch (frontFace)
-    {
-        case EFrontFace::FRONT_FACE_CLOCKWISE: return VK_FRONT_FACE_CLOCKWISE;
-        case EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE: return VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    }
-
-    GNT_ASSERT(false, "Unknown front face flag!");
-    return VK_FRONT_FACE_CLOCKWISE;
-}
-}  // namespace PipelineUtils
-
 VulkanPipeline::VulkanPipeline(const PipelineSpecification& pipelineSpecification) : m_Specification(pipelineSpecification)
 {
     Invalidate();
@@ -102,24 +28,27 @@ void VulkanPipeline::Invalidate()
     const float PipelineCreationEnd = Application::Get().GetTimeNow();
     LOG_INFO("Took %0.3f ms to create <%s> pipeline!", (PipelineCreationEnd - PipelineCreationBegin) * 1000.0f,
              m_Specification.Name.data());
+
+    // Destroying linked shaders here.
+    // TODO: Maybe I shouldn't? What if I need to recreate pipeline? Shaders are already deleted.
 }
 
 void VulkanPipeline::CreatePipelineLayout()
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     /*
-     * Pipeline layouts contains the information about shader inputs of a given pipeline.
+     * Pipeline layout contains the information about shader inputs of a given pipeline.
      * It’s here where you would configure your push constants and descriptor sets.
      */
     VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(m_Specification.DescriptorSetLayouts.size());
-    PipelineLayoutCreateInfo.pSetLayouts                = m_Specification.DescriptorSetLayouts.data();
-    PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(m_Specification.PushConstantRanges.size());
-    PipelineLayoutCreateInfo.pPushConstantRanges        = m_Specification.PushConstantRanges.data();
+    PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(m_Specification.Shader->GetDescriptorSetLayouts().size());
+    PipelineLayoutCreateInfo.pSetLayouts                = m_Specification.Shader->GetDescriptorSetLayouts().data();
+    PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(m_Specification.Shader->GetPushConstants().size());
+    PipelineLayoutCreateInfo.pPushConstantRanges        = m_Specification.Shader->GetPushConstants().data();
 
-    VK_CHECK(vkCreatePipelineLayout(Context.GetDevice()->GetLogicalDevice(), &PipelineLayoutCreateInfo, nullptr, &m_PipelineLayout),
+    VK_CHECK(vkCreatePipelineLayout(context.GetDevice()->GetLogicalDevice(), &PipelineLayoutCreateInfo, nullptr, &m_PipelineLayout),
              "Failed to create pipeline layout!");
 }
 
@@ -128,6 +57,7 @@ void VulkanPipeline::CreatePipeline()
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
     GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
+    GNT_ASSERT(m_Specification.Shader, "Not valid shader passed!");
 
     // Creating pipeline cache
     {
@@ -144,35 +74,47 @@ void VulkanPipeline::CreatePipeline()
     // Contains the configuration for what kind of topology will be drawn.
     VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     InputAssemblyState.primitiveRestartEnable                 = m_Specification.PrimitiveRestartEnable;
-    InputAssemblyState.topology = PipelineUtils::GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
+    InputAssemblyState.topology = Utility::GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
 
-    std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(m_Specification.ShaderStages.size());
-    for (size_t i = 0; i < m_Specification.ShaderStages.size(); ++i)
+    std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(m_Specification.Shader->GetStages().size());
+    for (size_t i = 0; i < ShaderStages.size(); ++i)
     {
         ShaderStages[i].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         ShaderStages[i].pName  = "main";
-        ShaderStages[i].module = m_Specification.ShaderStages[i].Shader->GetModule();
-        ShaderStages[i].stage  = PipelineUtils::GauntletShaderStageToVulkan(m_Specification.ShaderStages[i].Stage);
+        ShaderStages[i].module = m_Specification.Shader->GetStages()[i].Module;
+        ShaderStages[i].stage  = Utility::GauntletShaderStageToVulkan(m_Specification.Shader->GetStages()[i].Stage);
     }
 
-    // Contains the information for vertex buffers and vertex formats.
-    // This is equivalent to the VAO configuration in OpenGL.
+    // VertexInputState
     VkPipelineVertexInputStateCreateInfo VertexInputState = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    VertexInputState.vertexAttributeDescriptionCount      = static_cast<uint32_t>(m_Specification.ShaderAttributeDescriptions.size());
-    VertexInputState.pVertexAttributeDescriptions         = m_Specification.ShaderAttributeDescriptions.data();
-    VertexInputState.vertexBindingDescriptionCount        = static_cast<uint32_t>(m_Specification.ShaderBindingDescriptions.size());
-    VertexInputState.pVertexBindingDescriptions           = m_Specification.ShaderBindingDescriptions.data();
+    BufferLayout layout                                   = m_Specification.Shader->GetVertexBufferLayout();
 
-    // Breakes primitives into small ones
+    std::vector<VkVertexInputAttributeDescription> shaderAttributeDescriptions;
+    shaderAttributeDescriptions.reserve(layout.GetElements().size());
+
+    for (uint32_t i = 0; i < shaderAttributeDescriptions.capacity(); ++i)
+    {
+        const auto& CurrentBufferElement = layout.GetElements()[i];
+        shaderAttributeDescriptions.emplace_back(i, 0, Utility::GauntletShaderDataTypeToVulkan(CurrentBufferElement.Type),
+                                                 CurrentBufferElement.Offset);
+    }
+    VertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(shaderAttributeDescriptions.size());
+    VertexInputState.pVertexAttributeDescriptions    = shaderAttributeDescriptions.data();
+
+    VertexInputState.vertexBindingDescriptionCount = 1;
+    const auto vertexBindingDescription            = Utility::GetShaderBindingDescription(0, layout.GetStride());
+    VertexInputState.pVertexBindingDescriptions    = &vertexBindingDescription;
+
+    // TessellationState
     VkPipelineTessellationStateCreateInfo TessellationState = {VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO};
 
     // Configuration for the fixed-function rasterization. In here is where we enable or disable backface culling, and set line width or
     // wireframe drawing.
     VkPipelineRasterizationStateCreateInfo RasterizationState = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-    RasterizationState.cullMode                               = PipelineUtils::GauntletCullModeToVulkan(m_Specification.CullMode);
+    RasterizationState.cullMode                               = Utility::GauntletCullModeToVulkan(m_Specification.CullMode);
     RasterizationState.lineWidth                              = m_Specification.LineWidth;
-    RasterizationState.polygonMode                            = PipelineUtils::GauntletPolygonModeToVulkan(m_Specification.PolygonMode);
-    RasterizationState.frontFace                              = PipelineUtils::GauntletFrontFaceToVulkan(m_Specification.FrontFace);
+    RasterizationState.polygonMode                            = Utility::GauntletPolygonModeToVulkan(m_Specification.PolygonMode);
+    RasterizationState.frontFace                              = Utility::GauntletFrontFaceToVulkan(m_Specification.FrontFace);
 
     /*
      *  If rasterizerDiscardEnable is enabled, primitives (triangles in our case) are discarded
@@ -311,6 +253,18 @@ void VulkanPipeline::Destroy()
 
     vkDestroyPipelineLayout(LogicalDevice, m_PipelineLayout, nullptr);
     vkDestroyPipeline(LogicalDevice, m_Pipeline, nullptr);
+
+    m_Specification.Shader->Destroy();
+}
+
+const VkShaderStageFlags& VulkanPipeline::GetPushConstantsShaderStageFlags(const uint32_t Index)
+{
+    return m_Specification.Shader->GetPushConstants()[Index].stageFlags;
+}
+
+uint32_t VulkanPipeline::GetPushConstantsSize(const uint32_t Index)
+{
+    return m_Specification.Shader->GetPushConstants()[Index].size;
 }
 
 }  // namespace Gauntlet

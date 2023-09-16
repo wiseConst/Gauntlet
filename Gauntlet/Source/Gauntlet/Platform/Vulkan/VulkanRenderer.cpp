@@ -33,24 +33,15 @@ VulkanRenderer::VulkanRenderer() : m_Context((VulkanContext&)VulkanContext::Get(
 
 void VulkanRenderer::Create()
 {
-    s_Data.MeshVertexBufferLayout = {
-        {EShaderDataType::Vec3, "InPosition"},  //
-        {EShaderDataType::Vec3, "InNormal"},    //
-        {EShaderDataType::Vec4, "InColor"},     //
-        {EShaderDataType::Vec2, "InTexCoord"},  //
-        {EShaderDataType::Vec3, "InTangent"},   //
-        {EShaderDataType::Vec3, "InBitangent"}  //
-    };
-
-    const auto TextureDescriptorSetLayoutBinding =
-        Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-    VkDescriptorSetLayoutCreateInfo ImageDescriptorSetLayoutCreateInfo =
-        Utility::GetDescriptorSetLayoutCreateInfo(1, &TextureDescriptorSetLayoutBinding);
-    VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &ImageDescriptorSetLayoutCreateInfo, nullptr,
-                                         &s_Data.ImageDescriptorSetLayout),
-             "Failed to create texture(UI) descriptor set layout!");
-
     {
+        const auto TextureDescriptorSetLayoutBinding =
+            Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+        VkDescriptorSetLayoutCreateInfo ImageDescriptorSetLayoutCreateInfo =
+            Utility::GetDescriptorSetLayoutCreateInfo(1, &TextureDescriptorSetLayoutBinding);
+        VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &ImageDescriptorSetLayoutCreateInfo, nullptr,
+                                             &s_Data.ImageDescriptorSetLayout),
+                 "Failed to create texture(UI) descriptor set layout!");
+
         const uint32_t WhiteTexutreData = 0xffffffff;
         s_Data.MeshWhiteTexture         = MakeRef<VulkanTexture2D>(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
     }
@@ -128,34 +119,6 @@ void VulkanRenderer::Create()
         s_Data.LightingFramebuffer   = MakeRef<VulkanFramebuffer>(lightingFramebufferSpec);
     }
 
-    {
-        constexpr auto DiffuseTextureBinding =
-            Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto NormalTextureBinding =
-            Utility::GetDescriptorSetLayoutBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto EmissiveTextureBinding =
-            Utility::GetDescriptorSetLayoutBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto EnvironmentMapBinding =
-            Utility::GetDescriptorSetLayoutBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto CameraDataBufferBinding =
-            Utility::GetDescriptorSetLayoutBinding(4, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-        constexpr auto PhongModelBufferBinding =
-            Utility::GetDescriptorSetLayoutBinding(5, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto ShadowMapBinding =
-            Utility::GetDescriptorSetLayoutBinding(6, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto ShadowsBufferBinding =
-            Utility::GetDescriptorSetLayoutBinding(7, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-
-        std::vector<VkDescriptorSetLayoutBinding> Bindings = {DiffuseTextureBinding, NormalTextureBinding,    EmissiveTextureBinding,
-                                                              EnvironmentMapBinding, CameraDataBufferBinding, PhongModelBufferBinding,
-                                                              ShadowMapBinding,      ShadowsBufferBinding};
-        auto MeshDescriptorSetLayoutCreateInfo =
-            Utility::GetDescriptorSetLayoutCreateInfo(static_cast<uint32_t>(Bindings.size()), Bindings.data());
-        VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &MeshDescriptorSetLayoutCreateInfo, nullptr,
-                                             &s_Data.MeshDescriptorSetLayout),
-                 "Failed to create mesh descriptor set layout!");
-    }
-
     // Geometry pipeline
     {
         PipelineSpecification PipelineSpec = {};
@@ -169,32 +132,13 @@ void VulkanRenderer::Create()
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
         PipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
 
-        auto GeometryVertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Mesh.vert.spv"));
-        auto GeometryFragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Mesh.frag.spv"));
+        auto MeshShader                          = MakeRef<VulkanShader>("Resources/Cached/Shaders/Mesh");
+        s_RendererStorage.MeshVertexBufferLayout = MeshShader->GetVertexBufferLayout();
+        s_Data.MeshDescriptorSetLayout           = MeshShader->GetDescriptorSetLayouts()[0];
 
-        PipelineSpec.ShaderStages = {
-            {GeometryVertexShader, EShaderStage::SHADER_STAGE_VERTEX},     //
-            {GeometryFragmentShader, EShaderStage::SHADER_STAGE_FRAGMENT}  //
-        };
+        PipelineSpec.Shader = MeshShader;
 
-        PipelineSpec.PushConstantRanges        = {Utility::GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(MeshPushConstants))};
-        PipelineSpec.ShaderBindingDescriptions = {Utility::GetShaderBindingDescription(0, s_Data.MeshVertexBufferLayout.GetStride())};
-
-        std::vector<VkVertexInputAttributeDescription> ShaderAttributeDescriptions;
-        ShaderAttributeDescriptions.reserve(s_Data.MeshVertexBufferLayout.GetElements().size());
-        for (uint32_t i = 0; i < ShaderAttributeDescriptions.capacity(); ++i)
-        {
-            const auto& CurrentBufferElement = s_Data.MeshVertexBufferLayout.GetElements()[i];
-            ShaderAttributeDescriptions.emplace_back(i, 0, Utility::GauntletShaderDataTypeToVulkan(CurrentBufferElement.Type),
-                                                     CurrentBufferElement.Offset);
-        }
-        PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
-
-        PipelineSpec.DescriptorSetLayouts = {s_Data.MeshDescriptorSetLayout};
-        s_Data.GeometryPipeline           = MakeRef<VulkanPipeline>(PipelineSpec);
-
-        GeometryFragmentShader->Destroy();
-        GeometryVertexShader->Destroy();
+        s_Data.GeometryPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
     }
 
     SetupSkybox();
@@ -233,38 +177,30 @@ void VulkanRenderer::Create()
 
     // ShadowMap pipeline
     {
-        auto DepthVertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Depth.vert.spv"));
-        auto DepthFragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Depth.frag.spv"));
+        auto DepthShader = MakeRef<VulkanShader>("Resources/Cached/Shaders/Depth");
 
         PipelineSpecification PipelineSpec = {};
         PipelineSpec.Name                  = "ShadowMap";
         PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.CullMode              = ECullMode::CULL_MODE_FRONT;  // BACK was
+        PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
         PipelineSpec.bDepthWrite           = VK_TRUE;
         PipelineSpec.bDepthTest            = VK_TRUE;
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
         PipelineSpec.TargetFramebuffer     = s_Data.ShadowMapFramebuffer;
-        PipelineSpec.PushConstantRanges    = {Utility::GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(LightPushConstants))};
-        PipelineSpec.ShaderStages          = {{DepthVertexShader, EShaderStage::SHADER_STAGE_VERTEX},
-                                     {DepthFragmentShader, EShaderStage::SHADER_STAGE_FRAGMENT}};
-
-        PipelineSpec.ShaderBindingDescriptions = {Utility::GetShaderBindingDescription(0, s_Data.MeshVertexBufferLayout.GetStride())};
-        PipelineSpec.ShaderAttributeDescriptions.emplace_back(0, 0, Utility::GauntletShaderDataTypeToVulkan(EShaderDataType::Vec3), 0);
+        PipelineSpec.Shader                = DepthShader;
 
         s_Data.ShadowMapPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
-
-        DepthVertexShader->Destroy();
-        DepthFragmentShader->Destroy();
     }
 
-    // Debug ShadowMap pipeline
+    // Deferred pipeline
     {
-        auto DepthVertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/DebugShadowQuad.vert.spv"));
-        auto DepthFragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/DebugShadowQuad.frag.spv"));
+        auto DeferredShader                      = MakeRef<VulkanShader>("Resources/Cached/Shaders/Deferred");
+        s_Data.DefferedDescriptorSetLayout       = DeferredShader->GetDescriptorSetLayouts()[0];
+        s_RendererStorage.MeshVertexBufferLayout = DeferredShader->GetVertexBufferLayout();  // Remove it?
 
         PipelineSpecification PipelineSpec = {};
-        PipelineSpec.Name                  = "DebugShadowMap";
+        PipelineSpec.Name                  = "Deferred";
         PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
@@ -272,105 +208,15 @@ void VulkanRenderer::Create()
         PipelineSpec.bDepthTest            = VK_TRUE;
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
         PipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
-        PipelineSpec.ShaderStages          = {{DepthVertexShader, EShaderStage::SHADER_STAGE_VERTEX},
-                                     {DepthFragmentShader, EShaderStage::SHADER_STAGE_FRAGMENT}};
-
-        auto DebugShadowMapDescriptorSetLayoutBinding =
-            Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        auto DebugShadowMapDescriptorSetLayoutCreateInfo =
-            Utility::GetDescriptorSetLayoutCreateInfo(1, &DebugShadowMapDescriptorSetLayoutBinding);
-        VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &DebugShadowMapDescriptorSetLayoutCreateInfo,
-                                             VK_NULL_HANDLE, &s_Data.DebugShadowMapDescriptorSetLayout),
-                 "Failed to create debug shadow map descriptor set layout!");
-        PipelineSpec.DescriptorSetLayouts = {s_Data.DebugShadowMapDescriptorSetLayout};
-
-        s_Data.DebugShadowMapPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
-
-        DepthVertexShader->Destroy();
-        DepthFragmentShader->Destroy();
-
-        GNT_ASSERT(
-            m_Context.GetDescriptorAllocator()->Allocate(s_Data.DebugShadowMapDescriptorSet, s_Data.DebugShadowMapDescriptorSetLayout),
-            "Failed to allocate debug shadow map descriptor set!");
-        auto debugShadowMapWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, s_Data.DebugShadowMapDescriptorSet.Handle, 1,
-                                           &s_Data.ShadowMapFramebuffer->GetDepthAttachment()->GetDescriptorInfo());
-        vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &debugShadowMapWriteSet, 0, nullptr);
-    }
-
-    // Deffered pipeline
-    {
-        auto DefferedVertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/mrt.vert.spv"));
-        auto DefferedFragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/mrt.frag.spv"));
-
-        constexpr auto AlbedoBinding =
-            Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto NormalMapBinding =
-            Utility::GetDescriptorSetLayoutBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto cameraBufferBinding =
-            Utility::GetDescriptorSetLayoutBinding(2, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-
-        std::vector<VkDescriptorSetLayoutBinding> bindings = {AlbedoBinding, NormalMapBinding, cameraBufferBinding};
-        auto DefferedDescriptorSetLayoutCreateInfo         = Utility::GetDescriptorSetLayoutCreateInfo(bindings.size(), bindings.data());
-        VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &DefferedDescriptorSetLayoutCreateInfo, nullptr,
-                                             &s_Data.DefferedDescriptorSetLayout),
-                 "Failed to create deffered descriptor set layout!");
-
-        PipelineSpecification PipelineSpec = {};
-        PipelineSpec.Name                  = "Deffered";
-        PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;  // BACK was
-        PipelineSpec.bDepthWrite           = VK_TRUE;
-        PipelineSpec.bDepthTest            = VK_TRUE;
-        PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
-        PipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
-
-        PipelineSpec.PushConstantRanges = {Utility::GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(MeshPushConstants))};
-        PipelineSpec.ShaderStages       = {{DefferedVertexShader, EShaderStage::SHADER_STAGE_VERTEX},
-                                     {DefferedFragmentShader, EShaderStage::SHADER_STAGE_FRAGMENT}};
-
-        PipelineSpec.DescriptorSetLayouts = {s_Data.DefferedDescriptorSetLayout};
-
-        // layout
-        BufferLayout defferedLayout = {
-            {EShaderDataType::Vec3, "InPosition"}, {EShaderDataType::Vec3, "InNormal"},  {EShaderDataType::Vec4, "InColor"},
-            {EShaderDataType::Vec2, "InTexCoord"}, {EShaderDataType::Vec3, "InTangent"}, {EShaderDataType::Vec3, "InBitangent"},
-        };
-        PipelineSpec.ShaderBindingDescriptions = {Utility::GetShaderBindingDescription(0, defferedLayout.GetStride())};
-        for (uint32_t i = 0; i < defferedLayout.GetElements().size(); ++i)
-        {
-            PipelineSpec.ShaderAttributeDescriptions.emplace_back(
-                i, 0, Utility::GauntletShaderDataTypeToVulkan(defferedLayout.GetElements()[i].Type),
-                defferedLayout.GetElements()[i].Offset);
-        }
+        PipelineSpec.Shader                = DeferredShader;
 
         s_Data.DefferedPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
-
-        DefferedVertexShader->Destroy();
-        DefferedFragmentShader->Destroy();
     }
 
-    // Lighting(using mrt) pipeline
+    // Lighting pipeline
     {
-        auto LightingVertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Deferred.vert.spv"));
-        auto LightingFragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Deferred.frag.spv"));
-
-        constexpr auto PositionTextureBinding =
-            Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto NormalTextureBinding =
-            Utility::GetDescriptorSetLayoutBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto AlbedoTextureBinding =
-            Utility::GetDescriptorSetLayoutBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        constexpr auto LightingBufferBinding =
-            Utility::GetDescriptorSetLayoutBinding(3, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
-
-        std::vector<VkDescriptorSetLayoutBinding> bindings = {PositionTextureBinding, NormalTextureBinding, AlbedoTextureBinding,
-                                                              LightingBufferBinding};
-        auto LightingDescriptorSetLayoutCreateInfo         = Utility::GetDescriptorSetLayoutCreateInfo(bindings.size(), bindings.data());
-        VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &LightingDescriptorSetLayoutCreateInfo, nullptr,
-                                             &s_Data.LightingDescriptorSetLayout),
-                 "Failed to create lighting descriptor set layout!");
+        auto LightingShader                = MakeRef<VulkanShader>("Resources/Cached/Shaders/Lighting");
+        s_Data.LightingDescriptorSetLayout = LightingShader->GetDescriptorSetLayouts()[0];
 
         GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(s_Data.LightingSet, s_Data.LightingDescriptorSetLayout),
                    "Failed to allocate lighting descriptor set!");
@@ -405,20 +251,12 @@ void VulkanRenderer::Create()
 
         PipelineSpecification PipelineSpec = {};
         PipelineSpec.Name                  = "Lighting";
-        PipelineSpec.TargetFramebuffer     = s_Data.LightingFramebuffer;
         PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-
-        PipelineSpec.PushConstantRanges = {Utility::GetPushConstantRange(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(MeshPushConstants))};
-        PipelineSpec.ShaderStages       = {{LightingVertexShader, EShaderStage::SHADER_STAGE_VERTEX},
-                                     {LightingFragmentShader, EShaderStage::SHADER_STAGE_FRAGMENT}};
-
-        PipelineSpec.DescriptorSetLayouts = {s_Data.LightingDescriptorSetLayout};
+        PipelineSpec.TargetFramebuffer     = s_Data.LightingFramebuffer;
+        PipelineSpec.Shader                = LightingShader;
 
         s_Data.LightingPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
-
-        LightingVertexShader->Destroy();
-        LightingFragmentShader->Destroy();
     }
 }
 
@@ -573,20 +411,10 @@ void VulkanRenderer::SetupSkybox()
     };
     s_Data.DefaultSkybox = MakeRef<Skybox>(Faces);
 
-    const auto CubeMapTextureBinding =
-        Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+    auto SkyboxShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Skybox"));
 
-    auto SkyboxDescriptorSetLayoutCreateInfo = Utility::GetDescriptorSetLayoutCreateInfo(1, &CubeMapTextureBinding, 0);
-    VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &SkyboxDescriptorSetLayoutCreateInfo, nullptr,
-                                         &s_Data.SkyboxDescriptorSetLayout),
-             "Failed to create skybox descriptor set layout!");
-
-    auto SkyboxVertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Skybox.vert.spv"));
-    auto SkyboxFragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/Skybox.frag.spv"));
-
-    s_Data.SkyboxVertexBufferLayout = {
-        {EShaderDataType::Vec3, "InPosition"}  //
-    };
+    s_Data.SkyboxDescriptorSetLayout = SkyboxShader->GetDescriptorSetLayouts()[0];
+    s_Data.SkyboxVertexBufferLayout  = SkyboxShader->GetVertexBufferLayout();
 
     // Base skybox pipeline creation
     PipelineSpecification PipelineSpec = {};
@@ -600,29 +428,10 @@ void VulkanRenderer::SetupSkybox()
         VK_FALSE;  // I think there's no need to write depth in framebuffer because skybox rendered in the end of all passes
     PipelineSpec.DepthCompareOp = VK_COMPARE_OP_LESS;
 
-    PipelineSpec.TargetFramebuffer = s_Data.GeometryFramebuffer /*m_Context.GetMainRenderPass()*/;
-    PipelineSpec.ShaderStages      = {
-        {SkyboxVertexShader, EShaderStage::SHADER_STAGE_VERTEX},     //
-        {SkyboxFragmentShader, EShaderStage::SHADER_STAGE_FRAGMENT}  //
-    };
+    PipelineSpec.TargetFramebuffer = s_Data.GeometryFramebuffer;
+    PipelineSpec.Shader            = SkyboxShader;
 
-    PipelineSpec.PushConstantRanges        = {Utility::GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(MeshPushConstants))};
-    PipelineSpec.ShaderBindingDescriptions = {Utility::GetShaderBindingDescription(0, s_Data.SkyboxVertexBufferLayout.GetStride())};
-
-    std::vector<VkVertexInputAttributeDescription> ShaderAttributeDescriptions;
-    for (uint32_t i = 0; i < s_Data.SkyboxVertexBufferLayout.GetElements().size(); ++i)
-    {
-        const auto& CurrentBufferElement = s_Data.SkyboxVertexBufferLayout.GetElements()[i];
-        ShaderAttributeDescriptions.emplace_back(Utility::GetShaderAttributeDescription(
-            0, Utility::GauntletShaderDataTypeToVulkan(CurrentBufferElement.Type), i, CurrentBufferElement.Offset));
-    }
-    PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
-
-    PipelineSpec.DescriptorSetLayouts = {s_Data.SkyboxDescriptorSetLayout};
-    s_Data.SkyboxPipeline             = MakeRef<VulkanPipeline>(PipelineSpec);
-
-    SkyboxVertexShader->Destroy();
-    SkyboxFragmentShader->Destroy();
+    s_Data.SkyboxPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
 
     GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(s_Data.SkyboxDescriptorSet, s_Data.SkyboxDescriptorSetLayout),
                "Failed to allocate descriptor sets!");
@@ -668,8 +477,6 @@ void VulkanRenderer::DrawSkybox()
 
 void VulkanRenderer::DestroySkybox()
 {
-    vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.SkyboxDescriptorSetLayout, nullptr);
-
     m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&s_Data.SkyboxDescriptorSet, 1);
     s_Data.SkyboxPipeline->Destroy();
     s_Data.DefaultSkybox->Destroy();
@@ -789,7 +596,8 @@ void VulkanRenderer::EndSceneImpl()
             if (!recordedSecondaryShadowMapCommandBuffers.empty())
             {
                 JobSystem::Wait();
-                vkCmdExecuteCommands(s_Data.CurrentCommandBuffer->Get(), recordedSecondaryShadowMapCommandBuffers.size(),
+                vkCmdExecuteCommands(s_Data.CurrentCommandBuffer->Get(),
+                                     static_cast<uint32_t>(recordedSecondaryShadowMapCommandBuffers.size()),
                                      recordedSecondaryShadowMapCommandBuffers.data());
             }
         }
@@ -802,103 +610,91 @@ void VulkanRenderer::EndSceneImpl()
     {
         s_Data.CurrentCommandBuffer->BeginDebugLabel("GeometryPass", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
 
-        if (GetSettings().DisplayShadowMapRenderTarget)
+        s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+
+        //// Set shadow buffer(only contains light space mvp mat4)
+        // memcpy(s_Data.MappedUniformShadowsBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshShadowsBuffer,
+        //        sizeof(ShadowsBuffer));
+
+        // Set lighting stuff
+        memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
+               sizeof(LightingModelBuffer));
+
+        const auto inheritanceInfo =
+            Utility::GetCommandBufferInheritanceInfo(s_Data.GeometryFramebuffer->GetRenderPass(), s_Data.GeometryFramebuffer->Get());
+
+        // TODO: Handle while there's no multithreading.
+        uint32_t currentGeometryIndex = 0;
+        std::vector<VkCommandBuffer> recordedSecondaryGeometryCommandBuffers;
+
+        for (uint32_t t = 0; t < threadCount; ++t)
         {
-            s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
-            s_Data.CurrentCommandBuffer->BindPipeline(s_Data.DebugShadowMapPipeline);
-            s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.DebugShadowMapPipeline->GetLayout(), 0, 1,
-                                                            &s_Data.DebugShadowMapDescriptorSet.Handle);  // set no layout
-
-            s_Data.CurrentCommandBuffer->Draw(3, 1);
-        }
-        else
-        {
-            s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-
-            //// Set shadow buffer(only contains light space mvp mat4)
-            // memcpy(s_Data.MappedUniformShadowsBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshShadowsBuffer,
-            //        sizeof(ShadowsBuffer));
-
-            // Set lighting stuff
-            memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
-                   sizeof(LightingModelBuffer));
-
-            const auto inheritanceInfo =
-                Utility::GetCommandBufferInheritanceInfo(s_Data.GeometryFramebuffer->GetRenderPass(), s_Data.GeometryFramebuffer->Get());
-
-            // TODO: Handle while there's no multithreading.
-            uint32_t currentGeometryIndex = 0;
-            std::vector<VkCommandBuffer> recordedSecondaryGeometryCommandBuffers;
-
-            for (uint32_t t = 0; t < threadCount; ++t)
+            std::vector<GeometryData> objects;
+            for (uint32_t i = 0; i < objectsPerThread; ++i)
             {
-                std::vector<GeometryData> objects;
-                for (uint32_t i = 0; i < objectsPerThread; ++i)
+                if (currentGeometryIndex >= s_Data.SortedGeometry.size())
+                    break;
+                else
                 {
-                    if (currentGeometryIndex >= s_Data.SortedGeometry.size())
-                        break;
-                    else
-                    {
-                        objects.push_back(s_Data.SortedGeometry[currentGeometryIndex]);
-                        ++currentGeometryIndex;
-                    }
+                    objects.push_back(s_Data.SortedGeometry[currentGeometryIndex]);
+                    ++currentGeometryIndex;
                 }
+            }
 
-                if (objects.empty()) break;
+            if (objects.empty()) break;
 
-                auto& currentSecondaryCommandBuffer =
-                    threadData[t].SecondaryGeometryCommandBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
-                recordedSecondaryGeometryCommandBuffers.push_back(currentSecondaryCommandBuffer.Get());
-                threads[t].Submit(
-                    [=]
+            auto& currentSecondaryCommandBuffer =
+                threadData[t].SecondaryGeometryCommandBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
+            recordedSecondaryGeometryCommandBuffers.push_back(currentSecondaryCommandBuffer.Get());
+            threads[t].Submit(
+                [=]
+                {
+                    currentSecondaryCommandBuffer.BeginRecording(0, &inheritanceInfo);
+                    // currentSecondaryCommandBuffer.SetPipelinePolygonMode(s_Data.GeometryPipeline, GetSettings().ShowWireframes
+                    //                                                                                   ?
+                    //                                                                                   EPolygonMode::POLYGON_MODE_LINE
+                    //                                                                                   :
+                    //                                                                                   EPolygonMode::POLYGON_MODE_FILL);
+                    //  currentSecondaryCommandBuffer.BindPipeline(s_Data.GeometryPipeline);
+                    currentSecondaryCommandBuffer.BindPipeline(s_Data.DefferedPipeline);
+
+                    for (auto& object : objects)
                     {
-                        currentSecondaryCommandBuffer.BeginRecording(0, &inheritanceInfo);
-                        // currentSecondaryCommandBuffer.SetPipelinePolygonMode(s_Data.GeometryPipeline, GetSettings().ShowWireframes
-                        //                                                                                   ?
-                        //                                                                                   EPolygonMode::POLYGON_MODE_LINE
-                        //                                                                                   :
-                        //                                                                                   EPolygonMode::POLYGON_MODE_FILL);
-                        //  currentSecondaryCommandBuffer.BindPipeline(s_Data.GeometryPipeline);
-                        currentSecondaryCommandBuffer.BindPipeline(s_Data.DefferedPipeline);
+                        MeshPushConstants PushConstants = {};
+                        PushConstants.TransformMatrix   = object.Transform;
 
-                        for (auto& object : objects)
-                        {
-                            MeshPushConstants PushConstants = {};
-                            PushConstants.TransformMatrix   = object.Transform;
+                        /*currentSecondaryCommandBuffer.BindPushConstants(s_Data.GeometryPipeline->GetLayout(),
+                                                                        s_Data.GeometryPipeline->GetPushConstantsShaderStageFlags(),
+                           0, s_Data.GeometryPipeline->GetPushConstantsSize(), &PushConstants);*/
 
-                            /*currentSecondaryCommandBuffer.BindPushConstants(s_Data.GeometryPipeline->GetLayout(),
-                                                                            s_Data.GeometryPipeline->GetPushConstantsShaderStageFlags(),
-                               0, s_Data.GeometryPipeline->GetPushConstantsSize(), &PushConstants);*/
+                        currentSecondaryCommandBuffer.BindPushConstants(s_Data.DefferedPipeline->GetLayout(),
+                                                                        s_Data.DefferedPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                                        s_Data.DefferedPipeline->GetPushConstantsSize(), &PushConstants);
 
-                            currentSecondaryCommandBuffer.BindPushConstants(
-                                s_Data.DefferedPipeline->GetLayout(), s_Data.DefferedPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                s_Data.DefferedPipeline->GetPushConstantsSize(), &PushConstants);
+                        auto MaterialDescriptorSet = object.Material->GetDescriptorSet();
+                        /*          currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.GeometryPipeline->GetLayout(), 0, 1,
+                                                                                   &MaterialDescriptorSet);*/
 
-                            auto MaterialDescriptorSet = object.Material->GetDescriptorSet();
-                            /*          currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.GeometryPipeline->GetLayout(), 0, 1,
-                                                                                       &MaterialDescriptorSet);*/
+                        currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.DefferedPipeline->GetLayout(), 0, 1,
+                                                                         &MaterialDescriptorSet);
 
-                            currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.DefferedPipeline->GetLayout(), 0, 1,
-                                                                             &MaterialDescriptorSet);
+                        VkDeviceSize Offset = 0;
+                        currentSecondaryCommandBuffer.BindVertexBuffers(0, 1, &object.VulkanVertexBuffer->Get(), &Offset);
 
-                            VkDeviceSize Offset = 0;
-                            currentSecondaryCommandBuffer.BindVertexBuffers(0, 1, &object.VulkanVertexBuffer->Get(), &Offset);
+                        currentSecondaryCommandBuffer.BindIndexBuffer(object.VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+                        currentSecondaryCommandBuffer.DrawIndexed(static_cast<uint32_t>(object.VulkanIndexBuffer->GetCount()));
+                        ++Renderer::GetStats().DrawCalls;
+                    }
 
-                            currentSecondaryCommandBuffer.BindIndexBuffer(object.VulkanIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
-                            currentSecondaryCommandBuffer.DrawIndexed(static_cast<uint32_t>(object.VulkanIndexBuffer->GetCount()));
-                            ++Renderer::GetStats().DrawCalls;
-                        }
+                    currentSecondaryCommandBuffer.EndRecording();
+                });
+        }
 
-                        currentSecondaryCommandBuffer.EndRecording();
-                    });
-            }
-
-            if (!recordedSecondaryGeometryCommandBuffers.empty())
-            {
-                JobSystem::Wait();
-                vkCmdExecuteCommands(s_Data.CurrentCommandBuffer->Get(), recordedSecondaryGeometryCommandBuffers.size(),
-                                     recordedSecondaryGeometryCommandBuffers.data());
-            }
+        if (!recordedSecondaryGeometryCommandBuffers.empty())
+        {
+            JobSystem::Wait();
+            vkCmdExecuteCommands(s_Data.CurrentCommandBuffer->Get(), static_cast<uint32_t>(recordedSecondaryGeometryCommandBuffers.size()),
+                                 recordedSecondaryGeometryCommandBuffers.data());
         }
 
         s_Data.GeometryFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
@@ -986,15 +782,10 @@ void VulkanRenderer::Destroy()
 
     s_Data.GeometryPipeline->Destroy();
     s_Data.ShadowMapPipeline->Destroy();
-    s_Data.DebugShadowMapPipeline->Destroy();
     s_Data.DefferedPipeline->Destroy();
     s_Data.LightingPipeline->Destroy();
 
-    vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.DebugShadowMapDescriptorSetLayout, nullptr);
-    vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.MeshDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);
-    vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.DefferedDescriptorSetLayout, nullptr);
-    vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.LightingDescriptorSetLayout, nullptr);
 
     s_Data.MeshWhiteTexture->Destroy();
     s_Data.CurrentCommandBuffer = nullptr;

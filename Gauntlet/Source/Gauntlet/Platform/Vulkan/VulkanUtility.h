@@ -80,8 +80,9 @@ static const char* GetStringVulkanResult(VkResult InResult)
 #define VK_CHECK(x, message)                                                                                                               \
     do                                                                                                                                     \
     {                                                                                                                                      \
-        VkResult result          = x;                                                                                                      \
-        std::string FinalMessage = std::string(message) + std::string(" The result is: ") + std::string(GetStringVulkanResult(result));    \
+        VkResult result = x;                                                                                                               \
+        const std::string FinalMessage =                                                                                                   \
+            std::string(message) + std::string(" The result is: ") + std::string(GetStringVulkanResult(result));                           \
         if (result != VK_SUCCESS)                                                                                                          \
         {                                                                                                                                  \
             GNT_ASSERT(false, FinalMessage.data(), GetStringVulkanResult(result), __LINE__);                                               \
@@ -168,6 +169,76 @@ enum class EFrontFace : uint8_t
 
 namespace Utility
 {
+
+static VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology)
+{
+    switch (primitiveTopology)
+    {
+        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_POINT_LIST: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_LINE_LIST: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_LINE_STRIP: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        case EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_FAN: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+    }
+
+    GNT_ASSERT(false, "Unknown primitve topology flag!");
+    return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+}
+
+static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage)
+{
+    switch (shaderStage)
+    {
+        case EShaderStage::SHADER_STAGE_VERTEX: return VK_SHADER_STAGE_VERTEX_BIT;
+        case EShaderStage::SHADER_STAGE_GEOMETRY: return VK_SHADER_STAGE_GEOMETRY_BIT;
+        case EShaderStage::SHADER_STAGE_FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
+        case EShaderStage::SHADER_STAGE_COMPUTE: return VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+
+    GNT_ASSERT(false, "Unknown shader stage flag!");
+    return VK_SHADER_STAGE_VERTEX_BIT;
+}
+
+static VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode)
+{
+    switch (cullMode)
+    {
+        case ECullMode::CULL_MODE_NONE: return VK_CULL_MODE_NONE;
+        case ECullMode::CULL_MODE_FRONT: return VK_CULL_MODE_FRONT_BIT;
+        case ECullMode::CULL_MODE_BACK: return VK_CULL_MODE_BACK_BIT;
+        case ECullMode::CULL_MODE_FRONT_AND_BACK: return VK_CULL_MODE_FRONT_AND_BACK;
+    }
+
+    GNT_ASSERT(false, "Unknown cull mode flag!");
+    return VK_CULL_MODE_NONE;
+}
+
+static VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode)
+{
+    switch (polygonMode)
+    {
+        case EPolygonMode::POLYGON_MODE_FILL: return VK_POLYGON_MODE_FILL;
+        case EPolygonMode::POLYGON_MODE_LINE: return VK_POLYGON_MODE_LINE;
+        case EPolygonMode::POLYGON_MODE_POINT: return VK_POLYGON_MODE_POINT;
+        case EPolygonMode::POLYGON_MODE_FILL_RECTANGLE_NV: return VK_POLYGON_MODE_FILL_RECTANGLE_NV;
+    }
+
+    GNT_ASSERT(false, "Unknown polygon mode flag!");
+    return VK_POLYGON_MODE_FILL;
+}
+
+static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
+{
+    switch (frontFace)
+    {
+        case EFrontFace::FRONT_FACE_CLOCKWISE: return VK_FRONT_FACE_CLOCKWISE;
+        case EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE: return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    }
+
+    GNT_ASSERT(false, "Unknown front face flag!");
+    return VK_FRONT_FACE_CLOCKWISE;
+}
 
 NODISCARD static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& CommandPool, const VkDevice& Device)
 {

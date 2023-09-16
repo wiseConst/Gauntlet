@@ -25,20 +25,7 @@ VulkanRenderer2D::VulkanRenderer2D() : m_Context((VulkanContext&)VulkanContext::
 
 void VulkanRenderer2D::Create()
 {
-    // TODO: Apply normals in 2D
-
-    // Vertex buffer creation
-    {
-        s_Data2D.VertexBufferLayout = {
-            {EShaderDataType::Vec3, "InPostion"},    //
-            {EShaderDataType::Vec3, "InNormal"},     //
-            {EShaderDataType::Vec4, "InColor"},      //
-            {EShaderDataType::Vec2, "InTexCoord"},   //
-            {EShaderDataType::FLOAT, "InTextureId"}  //
-        };                                           //
-
-        s_Data2D.QuadVertexBufferBase = new QuadVertex[s_Data2D.MaxVertices];
-    }
+    s_Data2D.QuadVertexBufferBase = new QuadVertex[s_Data2D.MaxVertices];
 
     // Index Buffer creation
     {
@@ -71,65 +58,21 @@ void VulkanRenderer2D::Create()
 
     s_Data2D.TextureSlots[0] = VulkanRenderer::GetStorageData().MeshWhiteTexture;
 
-    // Setting up things all the things that related to uniforms in shader
-    const auto TextureBinding = Utility::GetDescriptorSetLayoutBinding(
-        0, VulkanRenderer2DStorage::MaxTextureSlots, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-
-    // Vulkan 1.2 Features for texture batching in my case
-    VkDescriptorBindingFlags BindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
-
-    VkDescriptorSetLayoutBindingFlagsCreateInfo BindingFlagsInfo = {};
-    BindingFlagsInfo.sType                                       = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-    BindingFlagsInfo.bindingCount                                = 1;
-    BindingFlagsInfo.pBindingFlags                               = &BindingFlags;
-
-    auto QuadDescriptorSetLayoutCreateInfo = Utility::GetDescriptorSetLayoutCreateInfo(1, &TextureBinding, 0, &BindingFlagsInfo);
-    VK_CHECK(vkCreateDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), &QuadDescriptorSetLayoutCreateInfo, nullptr,
-                                         &s_Data2D.QuadDescriptorSetLayout),
-             "Failed to create descriptor set layout!");
-
     // Default 2D graphics pipeline creation
     {
+        auto FlatColorShader             = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/FlatColor"));
+        s_Data2D.VertexBufferLayout      = FlatColorShader->GetVertexBufferLayout();
+        s_Data2D.QuadDescriptorSetLayout = FlatColorShader->GetDescriptorSetLayouts()[0];
+
         PipelineSpecification PipelineSpec = {};
         PipelineSpec.Name                  = "Quad2D";
-        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetStorageData().GeometryFramebuffer;
         PipelineSpec.bDepthTest            = true;
         PipelineSpec.bDepthWrite           = true;
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
-
-        const std::vector<VkVertexInputBindingDescription> ShaderBindingDescriptions = {
-            Utility::GetShaderBindingDescription(0, s_Data2D.VertexBufferLayout.GetStride())};
-        PipelineSpec.ShaderBindingDescriptions = ShaderBindingDescriptions;
-
-        std::vector<VkVertexInputAttributeDescription> ShaderAttributeDescriptions(s_Data2D.VertexBufferLayout.GetElements().size());
-        for (uint32_t i = 0; i < ShaderAttributeDescriptions.size(); ++i)
-        {
-            ShaderAttributeDescriptions[i] = Utility::GetShaderAttributeDescription(
-                0, Utility::GauntletShaderDataTypeToVulkan(s_Data2D.VertexBufferLayout.GetElements()[i].Type), i,
-                s_Data2D.VertexBufferLayout.GetElements()[i].Offset);
-        }
-
-        PipelineSpec.ShaderAttributeDescriptions = ShaderAttributeDescriptions;
-
-        auto VertexShader   = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/FlatColor.vert.spv"));
-        auto FragmentShader = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/FlatColor.frag.spv"));
-
-        std::vector<PipelineSpecification::ShaderStage> ShaderStages(2);
-        ShaderStages[0].Stage  = EShaderStage::SHADER_STAGE_VERTEX;
-        ShaderStages[0].Shader = VertexShader;
-
-        ShaderStages[1].Stage  = EShaderStage::SHADER_STAGE_FRAGMENT;
-        ShaderStages[1].Shader = FragmentShader;
-
-        PipelineSpec.ShaderStages       = ShaderStages;
-        PipelineSpec.PushConstantRanges = {Utility::GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(MeshPushConstants))};
-
-        PipelineSpec.DescriptorSetLayouts = {s_Data2D.QuadDescriptorSetLayout};
+        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetStorageData().GeometryFramebuffer;
+        PipelineSpec.Shader                = FlatColorShader;
 
         s_Data2D.QuadPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
-
-        VertexShader->Destroy();
-        FragmentShader->Destroy();
     }
 
     // Initially 1 staging buffer
@@ -161,9 +104,10 @@ void VulkanRenderer2D::BeginImpl()
     {
         if (s_Data2D.QuadDescriptorSets.size() > s_Data2D.CurrentDescriptorSetIndex)
         {
-            const uint64_t descriptorSetsToFree = s_Data2D.QuadDescriptorSets.size() - s_Data2D.CurrentDescriptorSetIndex;
+            const uint64_t descriptorSetsToFree =
+                s_Data2D.QuadDescriptorSets.size() - static_cast<uint64_t>(s_Data2D.CurrentDescriptorSetIndex);
             m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(s_Data2D.QuadDescriptorSets.data() + descriptorSetsToFree,
-                                                                      descriptorSetsToFree);
+                                                                      static_cast<uint32_t>(descriptorSetsToFree));
         }
     }
 
@@ -421,8 +365,8 @@ void VulkanRenderer2D::Destroy()
 {
     m_Context.GetDevice()->WaitDeviceOnFinish();
 
-    vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data2D.QuadDescriptorSetLayout, nullptr);
-    m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(s_Data2D.QuadDescriptorSets.data(), s_Data2D.QuadDescriptorSets.size());
+    m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(s_Data2D.QuadDescriptorSets.data(),
+                                                              static_cast<uint32_t>(s_Data2D.QuadDescriptorSets.size()));
 
     delete[] s_Data2D.QuadVertexBufferBase;
     s_Data2D.QuadPipeline->Destroy();

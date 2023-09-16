@@ -144,7 +144,6 @@ void EditorLayer::OnImGuiRender()
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("VSync", &rs.VSync);
     ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
-    ImGui::Checkbox("Display ShadowMap", &rs.DisplayShadowMapRenderTarget);
     ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.6f, "%0.1f");
     ImGui::End();
 

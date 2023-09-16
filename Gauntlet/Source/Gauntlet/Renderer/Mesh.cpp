@@ -52,15 +52,7 @@ Mesh::Mesh(const std::string& meshPath)
 
             BufferInfo VertexBufferInfo = {};
             VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
-
-            VertexBufferInfo.Layout = {
-                {EShaderDataType::Vec3, "InPosition"},  //
-                {EShaderDataType::Vec3, "InNormal"},    //
-                {EShaderDataType::Vec4, "InColor"},     //
-                {EShaderDataType::Vec2, "InTexCoord"},  //
-                {EShaderDataType::Vec3, "InTangent"},   //
-                {EShaderDataType::Vec3, "InBitangent"}  //
-            };
+            VertexBufferInfo.Layout     = Renderer::GetStorageData().MeshVertexBufferLayout;
 
             BufferInfo IndexBufferInfo = {};
             IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
@@ -133,13 +125,13 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         MeshVertex Vertex;
         Vertex.Position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
 
-        Vertex.Normal = glm::vec3(0.0f);
-        if (mesh->HasNormals()) Vertex.Normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
-
         Vertex.Color = glm::vec4(1.0f);
         if (mesh->HasVertexColors(0))
             Vertex.Color = glm::vec4((float)mesh->mColors[0][i].r, (float)mesh->mColors[0][i].g, (float)mesh->mColors[0][i].b,
                                      (float)mesh->mColors[0][i].a);
+
+        Vertex.Normal = glm::vec3(0.0f);
+        if (mesh->HasNormals()) Vertex.Normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
 
         Vertex.TexCoord = glm::vec2(0.0f);
         if (mesh->HasTextureCoords(0)) Vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);

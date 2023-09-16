@@ -1,9 +1,9 @@
 #version 460
 
 layout(location = 0) in vec3 InPosition;
-layout(location = 1) in vec3 InNormal;
-layout(location = 2) in vec4 InColor;
-layout(location = 3) in vec2 InTexCoord;
+layout(location = 1) in vec4 InColor;
+layout(location = 2) in vec2 InTexCoord;
+layout(location = 3) in vec3 InNormal;
 layout(location = 4) in vec3 InTangent;
 layout(location = 5) in vec3 InBitangent;
 

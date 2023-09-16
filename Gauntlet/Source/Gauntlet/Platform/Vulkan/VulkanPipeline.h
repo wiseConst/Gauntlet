@@ -12,64 +12,27 @@ class VulkanFramebuffer;
 struct PipelineSpecification
 {
   public:
-    PipelineSpecification()
-    {
-        ShaderStages.resize(0);
-
-        DescriptorSetLayouts.resize(0);
-        PushConstantRanges.resize(0);
-
-        ShaderAttributeDescriptions.resize(0);
-        ShaderBindingDescriptions.resize(0);
-
-        LineWidth   = 1.0f;
-        FrontFace   = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PolygonMode = EPolygonMode::POLYGON_MODE_FILL;
-        CullMode    = ECullMode::CULL_MODE_NONE;
-
-        TargetFramebuffer      = nullptr;
-        PrimitiveRestartEnable = VK_FALSE;
-        PrimitiveTopology      = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-        // No depth testing by default.
-        bDepthTest          = VK_FALSE;
-        bDepthWrite         = VK_FALSE;
-        bDynamicPolygonMode = VK_FALSE;
-        bBlendEnable        = VK_FALSE;
-        DepthCompareOp      = VK_COMPARE_OP_ALWAYS;
-    }
+    PipelineSpecification()  = default;
     ~PipelineSpecification() = default;
 
     std::string Name = "None";
 
-    std::vector<VkDescriptorSetLayout> DescriptorSetLayouts;
-    std::vector<VkPushConstantRange> PushConstantRanges;
+    Ref<VulkanShader> Shader                 = nullptr;
+    Ref<VulkanFramebuffer> TargetFramebuffer = nullptr;
 
-    VkBool32 PrimitiveRestartEnable;
-    EPrimitiveTopology PrimitiveTopology;
+    VkBool32 PrimitiveRestartEnable      = VK_FALSE;
+    EPrimitiveTopology PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    struct ShaderStage
-    {
-        Ref<VulkanShader> Shader;
-        EShaderStage Stage;
-    };
-    std::vector<ShaderStage> ShaderStages;
+    ECullMode CullMode       = ECullMode::CULL_MODE_NONE;
+    float LineWidth          = 1.0f;
+    EPolygonMode PolygonMode = EPolygonMode::POLYGON_MODE_FILL;
+    EFrontFace FrontFace     = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
 
-    std::vector<VkVertexInputAttributeDescription>
-        ShaderAttributeDescriptions;                                         // Per-vertex attribute data(all 'in' attributes description)
-    std::vector<VkVertexInputBindingDescription> ShaderBindingDescriptions;  // Description of per-vertex data(it's stride)
-    Ref<VulkanFramebuffer> TargetFramebuffer;
-
-    ECullMode CullMode;
-    float LineWidth;  // By default should be 1.0f
-    EPolygonMode PolygonMode;
-    EFrontFace FrontFace;
-
-    VkBool32 bDepthTest;   // If we should do any z-culling at all
-    VkBool32 bDepthWrite;  // Allows the depth to be written.
-    VkBool32 bDynamicPolygonMode;
-    VkBool32 bBlendEnable;
-    VkCompareOp DepthCompareOp;
+    VkBool32 bDepthTest          = VK_FALSE;  // If we should do any z-culling at all
+    VkBool32 bDepthWrite         = VK_FALSE;  // Allows the depth to be written.
+    VkBool32 bDynamicPolygonMode = VK_FALSE;
+    VkBool32 bBlendEnable        = VK_FALSE;
+    VkCompareOp DepthCompareOp   = VK_COMPARE_OP_ALWAYS;
 };
 
 class VulkanPipeline final
@@ -79,18 +42,14 @@ class VulkanPipeline final
     VulkanPipeline()  = delete;
     ~VulkanPipeline() = default;
 
-    void Invalidate();
     void Destroy();
 
     FORCEINLINE auto& Get() { return m_Pipeline; }
     FORCEINLINE auto& GetLayout() { return m_PipelineLayout; }
 
-    FORCEINLINE const auto& GetPushConstantsShaderStageFlags(const uint32_t Index = 0)
-    {
-        return m_Specification.PushConstantRanges[Index].stageFlags;
-    }
+    const VkShaderStageFlags& GetPushConstantsShaderStageFlags(const uint32_t Index = 0);
+    uint32_t GetPushConstantsSize(const uint32_t Index = 0);
 
-    FORCEINLINE const auto& GetPushConstantsSize(const uint32_t Index = 0) { return m_Specification.PushConstantRanges[Index].size; }
     FORCEINLINE auto& GetSpecification() { return m_Specification; }
 
   private:
@@ -99,22 +58,10 @@ class VulkanPipeline final
     VkPipelineCache m_Cache           = VK_NULL_HANDLE;
     VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
 
+    void Invalidate();  // No longer invalidating pipeline in runtime, only creating it once.
+
     void CreatePipelineLayout();
     void CreatePipeline();
 };
-
-namespace PipelineUtils
-{
-VkPrimitiveTopology GauntletPrimitiveTopologyToVulkan(EPrimitiveTopology primitiveTopology);
-
-VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStage);
-
-VkCullModeFlagBits GauntletCullModeToVulkan(ECullMode cullMode);
-
-VkPolygonMode GauntletPolygonModeToVulkan(EPolygonMode polygonMode);
-
-VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace);
-
-}  // namespace PipelineUtils
 
 }  // namespace Gauntlet

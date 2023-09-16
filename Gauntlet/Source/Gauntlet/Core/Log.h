@@ -17,7 +17,8 @@ enum class ELogLevel : uint8_t
     LL_ERROR,
     LL_WARN,
     LL_INFO,
-    LL_TRACE
+    LL_TRACE,
+    LL_DEBUG
 };
 
 class Log final
@@ -39,9 +40,11 @@ class Log final
 #if GNT_DEBUG
 #define LOG_FATAL(message, ...) Gauntlet::Log::Output(Gauntlet::ELogLevel::LL_FATAL, message, ##__VA_ARGS__)
 #define LOG_ERROR(message, ...) Gauntlet::Log::Output(Gauntlet::ELogLevel::LL_ERROR, message, ##__VA_ARGS__)
+#define LOG_DEBUG(message, ...) Gauntlet::Log::Output(Gauntlet::ELogLevel::LL_DEBUG, message, ##__VA_ARGS__)
 #elif GNT_RELEASE
 #define LOG_FATAL(message, ...)
 #define LOG_ERROR(message, ...)
+#define LOG_DEBUG(message, ...)
 #endif
 
 #if LOG_WARN_ENABLED

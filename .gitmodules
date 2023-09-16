@@ -22,3 +22,6 @@
 [submodule "Gauntlet/vendor/json"]
 	path = Gauntlet/vendor/json
 	url = https://github.com/nlohmann/json.git
+[submodule "Gauntlet/vendor/spirv-reflect"]
+	path = Gauntlet/vendor/spirv-reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect.git

@@ -32,7 +32,7 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
     // Call after render pass end
     FORCEINLINE void EndDebugLabel() const
     {
-        if (s_bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
+        /*if (s_bEnableValidationLayers)*/ vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
     }
 
     void BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags = 0,

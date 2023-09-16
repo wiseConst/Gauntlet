@@ -23,7 +23,7 @@ void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags command
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const
 {
-    if (!s_bEnableValidationLayers) return;
+    //if (!s_bEnableValidationLayers) return;
 
     VkDebugUtilsLabelEXT CommandBufferLabelEXT = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;
@@ -61,7 +61,7 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipeline
     }
 
     if (pipeline->GetSpecification().bDynamicPolygonMode && !RENDERDOC_DEBUG)
-        vkCmdSetPolygonModeEXT(m_CommandBuffer, PipelineUtils::GauntletPolygonModeToVulkan(pipeline->GetSpecification().PolygonMode));
+        vkCmdSetPolygonModeEXT(m_CommandBuffer, Utility::GauntletPolygonModeToVulkan(pipeline->GetSpecification().PolygonMode));
 
     vkCmdBindPipeline(m_CommandBuffer, pipelineBindPoint, pipeline->Get());
     vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);

@@ -137,7 +137,7 @@ void VulkanFramebuffer::Create()
 
     if (bHaveColorAttachment)
     {
-        subpassDesc.colorAttachmentCount = m_Attachments.size() - (uint32_t)bHaveDepthAttachment;
+        subpassDesc.colorAttachmentCount = static_cast<uint32_t>(m_Attachments.size()) - (uint32_t)bHaveDepthAttachment;
         subpassDesc.pColorAttachments    = &attachmentRefs[0];
     }
 
@@ -226,7 +226,7 @@ void VulkanFramebuffer::Create()
             Ref<VulkanImage> vulkanImage = static_pointer_cast<VulkanImage>(m_Attachments[k].Attachments[i]);
             imageViews.push_back(vulkanImage->GetView());
         }
-        framebufferCreateInfo.attachmentCount = imageViews.size();
+        framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(imageViews.size());
         framebufferCreateInfo.pAttachments    = imageViews.data();
 
         VK_CHECK(vkCreateFramebuffer(context.GetDevice()->GetLogicalDevice(), &framebufferCreateInfo, nullptr, &m_Framebuffers[i]),
@@ -326,7 +326,7 @@ void VulkanFramebuffer::Invalidate()
 
     if (bHaveColorAttachment)
     {
-        subpassDesc.colorAttachmentCount = m_Attachments.size() - (uint32_t)bHaveDepthAttachment;
+        subpassDesc.colorAttachmentCount = static_cast<uint32_t>(m_Attachments.size()) - (uint32_t)bHaveDepthAttachment;
         subpassDesc.pColorAttachments    = &attachmentRefs[0];
     }
 
@@ -390,7 +390,7 @@ void VulkanFramebuffer::Invalidate()
             Ref<VulkanImage> vulkanImage = static_pointer_cast<VulkanImage>(m_Attachments[k].Attachments[i]);
             imageViews.push_back(vulkanImage->GetView());
         }
-        framebufferCreateInfo.attachmentCount = imageViews.size();
+        framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(imageViews.size());
         framebufferCreateInfo.pAttachments    = imageViews.data();
 
         VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[i]), "Failed to create framebuffer!");
@@ -404,7 +404,7 @@ void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer, co
 
     VkRenderPassBeginInfo RenderPassBeginInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     RenderPassBeginInfo.framebuffer           = m_Framebuffers[context.GetSwapchain()->GetCurrentFrameIndex()];
-    RenderPassBeginInfo.clearValueCount       = m_ClearValues.size();
+    RenderPassBeginInfo.clearValueCount       = static_cast<uint32_t>(m_ClearValues.size());
     RenderPassBeginInfo.pClearValues          = m_ClearValues.data();
     RenderPassBeginInfo.renderPass            = m_RenderPass;
 

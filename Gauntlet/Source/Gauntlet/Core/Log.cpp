@@ -31,7 +31,7 @@ void Log::Output(ELogLevel logLevel, const char* message, ...)
 {
     std::scoped_lock m_Lock(s_LogMutex);
     s_Output                          = std::ofstream("Gauntlet.log", std::ios::out | std::ios::app);
-    static const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: "};
+    static const char* LevelStrings[] = {"[FATAL]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[TRACE]: ", "[DEBUG]: "};
 
     auto hConsole      = GetStdHandle(STD_OUTPUT_HANDLE);
     int32_t LevelIndex = 0;
@@ -65,6 +65,12 @@ void Log::Output(ELogLevel logLevel, const char* message, ...)
         {
             LevelIndex = 4;
             SetConsoleTextAttribute(hConsole, 15);
+            break;
+        }
+        case ELogLevel::LL_DEBUG:
+        {
+            LevelIndex = 5;
+            SetConsoleTextAttribute(hConsole, 10);
             break;
         }
     }
