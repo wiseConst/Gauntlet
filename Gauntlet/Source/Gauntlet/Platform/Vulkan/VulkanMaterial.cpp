@@ -27,7 +27,7 @@ void VulkanMaterial::Invalidate()
     if (!m_DescriptorSet.Handle)
     {
         GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet,
-                                                              RendererStorageData.DefferedDescriptorSetLayout /*MeshDescriptorSetLayout*/),
+                                                              RendererStorageData.GeometryDescriptorSetLayout /*MeshDescriptorSetLayout*/),
                    "Failed to allocate descriptor sets!");
     }
 

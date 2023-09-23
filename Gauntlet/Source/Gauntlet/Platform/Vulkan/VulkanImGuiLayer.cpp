@@ -27,6 +27,7 @@ void VulkanImGuiLayer::OnAttach()
 {
     const auto& Device = m_Context.GetDevice();
 
+    // Create descriptor pool for imgui needs
     VkDescriptorPoolSize PoolSizes[]                    = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
                                         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
@@ -47,7 +48,7 @@ void VulkanImGuiLayer::OnAttach()
     VK_CHECK(vkCreateDescriptorPool(Device->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &m_ImGuiDescriptorPool),
              "Failed to create imgui descriptor pool!");
 
-    // Setup Dear ImGui context
+    // Setup Dear ImGui context && style
     IMGUI_CHECKVERSION();
     ImGui::SetCurrentContext(ImGui::CreateContext());
     ImGuiIO& io = ImGui::GetIO();
@@ -59,11 +60,11 @@ void VulkanImGuiLayer::OnAttach()
     SetCustomUIStyle();
 
     const auto& App = Application::Get();
-    ImGui_ImplVulkan_LoadFunctions([](const char* FunctionName, void* VulkanInstance)
-                                   { return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(VulkanInstance)), FunctionName); },
-                                   &m_Context.GetInstance());
-
-    const auto& Swapchain = m_Context.GetSwapchain();
+    GNT_ASSERT(
+        ImGui_ImplVulkan_LoadFunctions([](const char* FunctionName, void* VulkanInstance)
+                                       { return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(VulkanInstance)), FunctionName); },
+                                       &m_Context.GetInstance()),
+        "Failed to load functions into ImGui!");
 
     // ImGui CommandBuffers
     {
@@ -74,6 +75,7 @@ void VulkanImGuiLayer::OnAttach()
         m_ImGuiCommandPool = MakeRef<VulkanCommandPool>(CommandPoolSpec);
     }
 
+    const auto& Swapchain     = m_Context.GetSwapchain();
     const uint32_t ImageCount = Swapchain->GetImageCount();
 
     // Setup Platform/Renderer backends

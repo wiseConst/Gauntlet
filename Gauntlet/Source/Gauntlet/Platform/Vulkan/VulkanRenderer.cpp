@@ -46,25 +46,7 @@ void VulkanRenderer::Create()
         s_Data.MeshWhiteTexture         = MakeRef<VulkanTexture2D>(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
     }
 
-    {
-        FramebufferSpecification shadowMapFramebufferSpec = {};
-
-        FramebufferAttachmentSpecification shadowMapAttachment = {};
-        shadowMapAttachment.ClearColor                         = glm::vec4(1.0f, glm::vec3(0.0f));
-        shadowMapAttachment.Format                             = EImageFormat::DEPTH32F;
-        shadowMapAttachment.LoadOp                             = ELoadOp::CLEAR;
-        shadowMapAttachment.StoreOp                            = EStoreOp::STORE;
-        shadowMapAttachment.Filter                             = ETextureFilter::NEAREST;
-        shadowMapAttachment.Wrap                               = ETextureWrap::CLAMP;
-
-        shadowMapFramebufferSpec.Attachments = {shadowMapAttachment};
-        shadowMapFramebufferSpec.Name        = "ShadowMap";
-        shadowMapFramebufferSpec.Width       = 4096;
-        shadowMapFramebufferSpec.Height      = 4096;
-
-        s_Data.ShadowMapFramebuffer = MakeRef<VulkanFramebuffer>(shadowMapFramebufferSpec);
-    }
-
+    // Geometry pipeline
     {
         FramebufferSpecification geometryFramebufferSpec = {};
 
@@ -93,6 +75,24 @@ void VulkanRenderer::Create()
         geometryFramebufferSpec.Name = "Geometry";
 
         s_Data.GeometryFramebuffer = MakeRef<VulkanFramebuffer>(geometryFramebufferSpec);
+
+        auto GeometryShader = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Geometry"));
+        s_Data.GeometryDescriptorSetLayout       = GeometryShader->GetDescriptorSetLayouts()[0];
+        s_RendererStorage.MeshVertexBufferLayout = GeometryShader->GetVertexBufferLayout();
+
+        PipelineSpecification geometryPipelineSpec = {};
+        geometryPipelineSpec.Name                  = "Geometry";
+        geometryPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
+        geometryPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
+        geometryPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
+        geometryPipelineSpec.bDepthWrite           = VK_TRUE;
+        geometryPipelineSpec.bDepthTest            = VK_TRUE;
+        geometryPipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
+        geometryPipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
+        geometryPipelineSpec.Shader                = GeometryShader;
+        geometryPipelineSpec.bDynamicPolygonMode   = VK_TRUE;
+
+        s_Data.GeometryPipeline = MakeRef<VulkanPipeline>(geometryPipelineSpec);
     }
 
     {
@@ -103,41 +103,27 @@ void VulkanRenderer::Create()
         s_Data.SetupFramebuffer = MakeRef<VulkanFramebuffer>(setupFramebufferSpec);
     }
 
+    // Forward
     {
-        FramebufferSpecification lightingFramebufferSpec = {};
 
-        FramebufferAttachmentSpecification attachment = {};
+        PipelineSpecification forwardPipelineSpec = {};
+        forwardPipelineSpec.Name                  = "ForwardPass";
+        forwardPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
+        forwardPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
+        forwardPipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        forwardPipelineSpec.CullMode              = ECullMode::CULL_MODE_NONE;
+        forwardPipelineSpec.bDepthTest            = VK_TRUE;
+        forwardPipelineSpec.bDepthWrite           = VK_TRUE;
+        forwardPipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
+        forwardPipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
 
-        attachment.ClearColor = glm::vec4(glm::vec3(0.1f), 1.0f);
-        attachment.Format     = EImageFormat::RGBA;
-        // attachment.LoadOp     = ELoadOp::LOAD;
-        attachment.StoreOp = EStoreOp::STORE;
-        lightingFramebufferSpec.Attachments.push_back(attachment);
-
-        lightingFramebufferSpec.Name = "FinalPass";
-        s_Data.LightingFramebuffer   = MakeRef<VulkanFramebuffer>(lightingFramebufferSpec);
-    }
-
-    // Geometry pipeline
-    {
-        PipelineSpecification PipelineSpec = {};
-        PipelineSpec.Name                  = "Geometry";
-        PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        PipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        PipelineSpec.CullMode              = ECullMode::CULL_MODE_NONE;
-        PipelineSpec.bDepthTest            = VK_TRUE;
-        PipelineSpec.bDepthWrite           = VK_TRUE;
-        PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
-        PipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
-
-        auto MeshShader = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Mesh"));
+        auto MeshShader = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Forward"));
         s_RendererStorage.MeshVertexBufferLayout = MeshShader->GetVertexBufferLayout();
         s_Data.MeshDescriptorSetLayout           = MeshShader->GetDescriptorSetLayouts()[0];
 
-        PipelineSpec.Shader = MeshShader;
+        forwardPipelineSpec.Shader = MeshShader;
 
-        s_Data.GeometryPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
+        s_Data.ForwardPassPipeline = MakeRef<VulkanPipeline>(forwardPipelineSpec);
     }
 
     SetupSkybox();
@@ -174,46 +160,64 @@ void VulkanRenderer::Create()
         s_Data.MappedUniformShadowsBuffers[frame] = m_Context.GetAllocator()->Map(s_Data.UniformShadowsBuffers[frame].Allocation);
     }
 
-    // ShadowMap pipeline
+    // ShadowMap
     {
-        PipelineSpecification PipelineSpec = {};
-        PipelineSpec.Name                  = "ShadowMap";
-        PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
-        PipelineSpec.bDepthWrite           = VK_TRUE;
-        PipelineSpec.bDepthTest            = VK_TRUE;
-        PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
-        PipelineSpec.TargetFramebuffer     = s_Data.ShadowMapFramebuffer;
-        PipelineSpec.Layout                = Renderer::GetStorageData().MeshVertexBufferLayout;
-        PipelineSpec.Shader                = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Depth"));
+        FramebufferSpecification shadowMapFramebufferSpec = {};
 
-        s_Data.ShadowMapPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
+        FramebufferAttachmentSpecification shadowMapAttachment = {};
+        shadowMapAttachment.ClearColor                         = glm::vec4(1.0f, glm::vec3(0.0f));
+        shadowMapAttachment.Format                             = EImageFormat::DEPTH32F;
+        shadowMapAttachment.LoadOp                             = ELoadOp::CLEAR;
+        shadowMapAttachment.StoreOp                            = EStoreOp::STORE;
+        shadowMapAttachment.Filter                             = ETextureFilter::NEAREST;
+        shadowMapAttachment.Wrap                               = ETextureWrap::CLAMP;
+
+        shadowMapFramebufferSpec.Attachments = {shadowMapAttachment};
+        shadowMapFramebufferSpec.Name        = "ShadowMap";
+        shadowMapFramebufferSpec.Width       = 4096;
+        shadowMapFramebufferSpec.Height      = 4096;
+
+        s_Data.ShadowMapFramebuffer = MakeRef<VulkanFramebuffer>(shadowMapFramebufferSpec);
+
+        PipelineSpecification geometryPipelineSpec = {};
+        geometryPipelineSpec.Name                  = "ShadowMap";
+        geometryPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
+        geometryPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
+        geometryPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
+        geometryPipelineSpec.bDepthWrite           = VK_TRUE;
+        geometryPipelineSpec.bDepthTest            = VK_TRUE;
+        geometryPipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
+        geometryPipelineSpec.TargetFramebuffer     = s_Data.ShadowMapFramebuffer;
+        geometryPipelineSpec.Layout                = Renderer::GetStorageData().MeshVertexBufferLayout;
+        geometryPipelineSpec.Shader = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Depth"));
+
+        s_Data.ShadowMapPipeline = MakeRef<VulkanPipeline>(geometryPipelineSpec);
     }
 
-    // Deferred pipeline
+    // SSAO
     {
-        auto DeferredShader = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Deferred"));
-        s_Data.DefferedDescriptorSetLayout       = DeferredShader->GetDescriptorSetLayouts()[0];
-        s_RendererStorage.MeshVertexBufferLayout = DeferredShader->GetVertexBufferLayout();  // Remove it?
+        /* FramebufferSpecification ssaoFramebufferSpec = {};
 
-        PipelineSpecification PipelineSpec = {};
-        PipelineSpec.Name                  = "Deferred";
-        PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
-        PipelineSpec.bDepthWrite           = VK_TRUE;
-        PipelineSpec.bDepthTest            = VK_TRUE;
-        PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
-        PipelineSpec.TargetFramebuffer     = s_Data.GeometryFramebuffer;
-        PipelineSpec.Shader                = DeferredShader;
-        PipelineSpec.bDynamicPolygonMode   = VK_TRUE;
+         s_Data.SSAOFramebuffer = MakeRef<VulkanFramebuffer>(ssaoFramebufferSpec);
 
-        s_Data.DefferedPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
+         PipelineSpecification ssaoPipelineSpec = {};
+
+         s_Data.SSAOPipeline = MakeRef<VulkanPipeline>(ssaoPipelineSpec);*/
     }
 
-    // Lighting pipeline
+    // Lighting
     {
+        FramebufferSpecification lightingFramebufferSpec = {};
+
+        FramebufferAttachmentSpecification attachment = {};
+        attachment.ClearColor                         = glm::vec4(glm::vec3(0.1f), 1.0f);
+        attachment.Format                             = EImageFormat::RGBA;
+        // attachment.LoadOp     = ELoadOp::LOAD;
+        attachment.StoreOp = EStoreOp::STORE;
+        lightingFramebufferSpec.Attachments.push_back(attachment);
+
+        lightingFramebufferSpec.Name = "FinalPass";
+        s_Data.LightingFramebuffer   = MakeRef<VulkanFramebuffer>(lightingFramebufferSpec);
 
         auto LightingShader = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Lighting"));
         s_Data.LightingDescriptorSetLayout = LightingShader->GetDescriptorSetLayouts()[0];
@@ -249,14 +253,14 @@ void VulkanRenderer::Create()
                                    nullptr);
         }
 
-        PipelineSpecification PipelineSpec = {};
-        PipelineSpec.Name                  = "Lighting";
-        PipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        PipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        PipelineSpec.TargetFramebuffer     = s_Data.LightingFramebuffer;
-        PipelineSpec.Shader                = LightingShader;
+        PipelineSpecification lightingPipelineSpec = {};
+        lightingPipelineSpec.Name                  = "Lighting";
+        lightingPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
+        lightingPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
+        lightingPipelineSpec.TargetFramebuffer     = s_Data.LightingFramebuffer;
+        lightingPipelineSpec.Shader                = LightingShader;
 
-        s_Data.LightingPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
+        s_Data.LightingPipeline = MakeRef<VulkanPipeline>(lightingPipelineSpec);
     }
 }
 
@@ -637,22 +641,22 @@ void VulkanRenderer::EndSceneImpl()
                 [=]
                 {
                     currentSecondaryCommandBuffer.BeginRecording(0, &inheritanceInfo);
-                    currentSecondaryCommandBuffer.SetPipelinePolygonMode(s_Data.DefferedPipeline, GetSettings().ShowWireframes
+                    currentSecondaryCommandBuffer.SetPipelinePolygonMode(s_Data.GeometryPipeline, GetSettings().ShowWireframes
                                                                                                       ? EPolygonMode::POLYGON_MODE_LINE
                                                                                                       : EPolygonMode::POLYGON_MODE_FILL);
-                    currentSecondaryCommandBuffer.BindPipeline(s_Data.DefferedPipeline);
+                    currentSecondaryCommandBuffer.BindPipeline(s_Data.GeometryPipeline);
 
                     for (auto& object : objects)
                     {
                         MeshPushConstants PushConstants = {};
                         PushConstants.TransformMatrix   = object.Transform;
 
-                        currentSecondaryCommandBuffer.BindPushConstants(s_Data.DefferedPipeline->GetLayout(),
-                                                                        s_Data.DefferedPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                                        s_Data.DefferedPipeline->GetPushConstantsSize(), &PushConstants);
+                        currentSecondaryCommandBuffer.BindPushConstants(s_Data.GeometryPipeline->GetLayout(),
+                                                                        s_Data.GeometryPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                                        s_Data.GeometryPipeline->GetPushConstantsSize(), &PushConstants);
 
                         auto MaterialDescriptorSet = object.Material->GetDescriptorSet();
-                        currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.DefferedPipeline->GetLayout(), 0, 1,
+                        currentSecondaryCommandBuffer.BindDescriptorSets(s_Data.GeometryPipeline->GetLayout(), 0, 1,
                                                                          &MaterialDescriptorSet);
 
                         VkDeviceSize Offset = 0;
@@ -753,13 +757,15 @@ void VulkanRenderer::Destroy()
     }
 
     s_Data.ShadowMapFramebuffer->Destroy();
-    s_Data.GeometryFramebuffer->Destroy();
     s_Data.SetupFramebuffer->Destroy();
+    s_Data.GeometryFramebuffer->Destroy();
+    //  s_Data.SSAOFramebuffer->Destroy();
     s_Data.LightingFramebuffer->Destroy();
 
-    s_Data.GeometryPipeline->Destroy();
+    s_Data.ForwardPassPipeline->Destroy();
     s_Data.ShadowMapPipeline->Destroy();
-    s_Data.DefferedPipeline->Destroy();
+    s_Data.GeometryPipeline->Destroy();
+    //  s_Data.SSAOPipeline->Destroy();
     s_Data.LightingPipeline->Destroy();
 
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);

@@ -35,10 +35,10 @@ class VulkanRenderer final : public Renderer
     {
         // Framebuffers && RenderPasses
         Ref<VulkanFramebuffer> ShadowMapFramebuffer = nullptr;
-        Ref<VulkanFramebuffer> GeometryFramebuffer  = nullptr;
         Ref<VulkanFramebuffer> SetupFramebuffer     = nullptr;  // Clear pass
-        Ref<VulkanFramebuffer> LightingFramebuffer  = nullptr;
+        Ref<VulkanFramebuffer> GeometryFramebuffer  = nullptr;
         Ref<VulkanFramebuffer> SSAOFramebuffer      = nullptr;
+        Ref<VulkanFramebuffer> LightingFramebuffer  = nullptr;
 
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {1280, 720};
@@ -46,12 +46,12 @@ class VulkanRenderer final : public Renderer
         // Deffered stuff
         DescriptorSet LightingSet;
         VkDescriptorSetLayout LightingDescriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorSetLayout DefferedDescriptorSetLayout = VK_NULL_HANDLE;
+        VkDescriptorSetLayout GeometryDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Pipelines
         Ref<VulkanPipeline> ShadowMapPipeline = nullptr;
+        Ref<VulkanPipeline> ForwardPassPipeline  = nullptr;
         Ref<VulkanPipeline> GeometryPipeline  = nullptr;
-        Ref<VulkanPipeline> DefferedPipeline  = nullptr;
         Ref<VulkanPipeline> LightingPipeline  = nullptr;
         Ref<VulkanPipeline> SSAOPipeline      = nullptr;
 
@@ -85,7 +85,7 @@ class VulkanRenderer final : public Renderer
         VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         std::vector<GeometryData> SortedGeometry;
 
-        // SamplerHandling
+        // Sampler handling
         struct SamplerKeyHash
         {
             size_t operator()(const VkSamplerCreateInfo& samplerCreateInfo) const
