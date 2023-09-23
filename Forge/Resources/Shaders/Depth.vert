@@ -1,6 +1,6 @@
 #version 460
 
-layout(location = 0) in vec3 aPos;
+layout(location = 0) in vec3 InPos;
 
 layout(push_constant) uniform LightSpaceUBO
 {
@@ -10,5 +10,5 @@ layout(push_constant) uniform LightSpaceUBO
 
 void main()
 {
-	gl_Position = u_LightSpaceUBO.LightSpaceProjection * u_LightSpaceUBO.Model * vec4(aPos, 1.0f);
+	gl_Position = u_LightSpaceUBO.LightSpaceProjection * u_LightSpaceUBO.Model * vec4(InPos, 1.0f);
 }

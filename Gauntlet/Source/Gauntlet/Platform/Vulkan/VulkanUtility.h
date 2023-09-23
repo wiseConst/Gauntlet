@@ -13,6 +13,7 @@ namespace Gauntlet
 #define LOG_VULKAN_INFO 0
 #define LOG_VMA_INFO 0
 #define RENDERDOC_DEBUG 1
+#define VK_PREFER_IGPU 0
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
 
@@ -67,30 +68,17 @@ static const char* GetStringVulkanResult(VkResult InResult)
 
 #ifdef GNT_ENABLE_ASSERTS
 
-#define VK_CHECK(x)                                                                                                                        \
-    do                                                                                                                                     \
-    {                                                                                                                                      \
-        VkResult result = x;                                                                                                               \
-        if (result != VK_SUCCESS)                                                                                                          \
-        {                                                                                                                                  \
-            GNT_ASSERT(false, "VkResult is: %s on #%u line.", GetStringVulkanResult(result), __LINE__);                                    \
-        }                                                                                                                                  \
-    } while (0);
-
 #define VK_CHECK(x, message)                                                                                                               \
     do                                                                                                                                     \
     {                                                                                                                                      \
-        VkResult result = x;                                                                                                               \
-        const std::string FinalMessage =                                                                                                   \
+        const VkResult result = x;                                                                                                         \
+        const std::string finalMessage =                                                                                                   \
             std::string(message) + std::string(" The result is: ") + std::string(GetStringVulkanResult(result));                           \
-        if (result != VK_SUCCESS)                                                                                                          \
-        {                                                                                                                                  \
-            GNT_ASSERT(false, FinalMessage.data(), GetStringVulkanResult(result), __LINE__);                                               \
-        }                                                                                                                                  \
+        if (result != VK_SUCCESS) GNT_ASSERT(false, finalMessage.data(), GetStringVulkanResult(result), __LINE__);                         \
+                                                                                                                                           \
     } while (0);
 
 #else
-#define VK_CHECK(x) (x)
 #define VK_CHECK(x, message) (x)
 #endif
 
@@ -415,9 +403,9 @@ NODISCARD static VkPushConstantRange GetPushConstantRange(const VkShaderStageFla
     return PushConstants;
 }
 
-NODISCARD static std::vector<uint32_t> LoadDataFromDisk(const std::string& filePath)
+static std::vector<uint8_t> LoadDataFromDisk(const std::string& filePath)
 {
-    std::vector<uint32_t> data;
+    std::vector<uint8_t> data;
 
     std::ifstream in(filePath.data(), std::ios::in | std::ios::binary | std::ios::ate);
     if (!in.is_open())
@@ -434,29 +422,29 @@ NODISCARD static std::vector<uint32_t> LoadDataFromDisk(const std::string& fileP
     return data;
 }
 
-NODISCARD static VkBool32 DropPipelineCacheToDisk(const VkDevice& Device, const VkPipelineCache& PipelineCache,
-                                                  const std::string& CacheFilePath)
+static VkBool32 DropPipelineCacheToDisk(const VkDevice& logicalDevice, const VkPipelineCache& pipelineCache,
+                                        const std::string& cacheFilePath)
 {
-    size_t CacheSize = 0;
-    VK_CHECK(vkGetPipelineCacheData(Device, PipelineCache, &CacheSize, nullptr), "Failed to retrieve pipeline cache data size!");
+    size_t ñacheSize = 0;
+    VK_CHECK(vkGetPipelineCacheData(logicalDevice, pipelineCache, &ñacheSize, nullptr), "Failed to retrieve pipeline cache data size!");
 
-    std::vector<uint8_t> CacheData(CacheSize);
-    VK_CHECK(vkGetPipelineCacheData(Device, PipelineCache, &CacheSize, CacheData.data()), "Failed to retrieve pipeline cache data!");
+    std::vector<char> ñacheData(ñacheSize);
+    VK_CHECK(vkGetPipelineCacheData(logicalDevice, pipelineCache, &ñacheSize, ñacheData.data()), "Failed to retrieve pipeline cache data!");
 
-    if (!CacheData.data() || CacheSize <= 0)
+    if (!ñacheData.data() || ñacheSize <= 0)
     {
-        LOG_WARN("Invalid cache data or size! %s", CacheFilePath.data());
+        LOG_WARN("Invalid cache data or size! %s", cacheFilePath.data());
         return VK_FALSE;
     }
 
-    std::ofstream out(CacheFilePath, std::ios::out | std::ios::trunc | std::ios::binary);
+    std::ofstream out(cacheFilePath, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!out.is_open())
     {
-        LOG_WARN("Failed to create pipeline cache file! %s", CacheFilePath.data());
+        LOG_WARN("Failed to create pipeline cache file! %s", cacheFilePath.data());
         return VK_FALSE;
     }
 
-    out.write(reinterpret_cast<char*>(CacheData.data()), CacheData.size());
+    out.write(ñacheData.data(), ñacheData.size());
     out.close();
     return VK_TRUE;
 }

@@ -321,44 +321,68 @@ void VulkanImage::Invalidate()
 
 void VulkanImage::CreateSampler()
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    VkSamplerCreateInfo SamplerCreateInfo     = {};
-    SamplerCreateInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    SamplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+    // Firstly check if sampler with the same specification already exists, otherwise create it.
+    VkSamplerCreateInfo samplerCreateInfo     = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
 
     const bool bIsCubeMap       = m_Specification.Layers == 6;
-    SamplerCreateInfo.minFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::GauntletTextureFilterToVulkan(m_Specification.Filter);
-    SamplerCreateInfo.magFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::GauntletTextureFilterToVulkan(m_Specification.Filter);
+    samplerCreateInfo.minFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::GauntletTextureFilterToVulkan(m_Specification.Filter);
+    samplerCreateInfo.magFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::GauntletTextureFilterToVulkan(m_Specification.Filter);
 
-    SamplerCreateInfo.addressModeU =
+    samplerCreateInfo.addressModeU =
         bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
-    SamplerCreateInfo.addressModeV =
+    samplerCreateInfo.addressModeV =
         bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
-    SamplerCreateInfo.addressModeW =
+    samplerCreateInfo.addressModeW =
         bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
 
-    SamplerCreateInfo.anisotropyEnable = VK_TRUE;
-    SamplerCreateInfo.maxAnisotropy    = Context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
+    samplerCreateInfo.anisotropyEnable = VK_TRUE;
+    samplerCreateInfo.maxAnisotropy    = context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
+    samplerCreateInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerCreateInfo.compareEnable    = VK_FALSE;
+    samplerCreateInfo.compareOp        = VK_COMPARE_OP_ALWAYS;
+    samplerCreateInfo.mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerCreateInfo.mipLodBias       = 0.0f;
+    samplerCreateInfo.minLod           = 0.0f;
+    samplerCreateInfo.maxLod           = 0.0f;
 
-    //  The <borderColor> specifies which color is returned when sampling beyond the image with clamp to border addressing mode. It is
-    //  possible to return black, white or transparent in either float or int formats. You cannot specify an arbitrary color.
-    SamplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    for (auto& sampler : VulkanRenderer::GetStorageData().Samplers)
+    {
+        if (sampler.first.unnormalizedCoordinates == samplerCreateInfo.unnormalizedCoordinates &&  //
 
-    // ShadowPasses only
-    // https://developer.nvidia.com/gpugems/gpugems/part-ii-lighting-and-shadows/chapter-11-shadow-map-antialiasing
-    SamplerCreateInfo.compareEnable = VK_FALSE;
-    SamplerCreateInfo.compareOp     = VK_COMPARE_OP_ALWAYS;
+            sampler.first.minFilter == samplerCreateInfo.minFilter &&  //
+            sampler.first.magFilter == samplerCreateInfo.magFilter &&  //
 
-    // Mipmapping
-    SamplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    SamplerCreateInfo.mipLodBias = 0.0f;
-    SamplerCreateInfo.minLod     = 0.0f;
-    SamplerCreateInfo.maxLod     = 0.0f;
+            sampler.first.addressModeU == samplerCreateInfo.addressModeU &&  //
+            sampler.first.addressModeV == samplerCreateInfo.addressModeV &&  //
+            sampler.first.addressModeW == samplerCreateInfo.addressModeW &&  //
 
-    VK_CHECK(vkCreateSampler(Context.GetDevice()->GetLogicalDevice(), &SamplerCreateInfo, nullptr, &m_Sampler),
-             "Failed to create an image sampler!");
+            sampler.first.anisotropyEnable == samplerCreateInfo.anisotropyEnable &&  //
+            sampler.first.maxAnisotropy == samplerCreateInfo.maxAnisotropy &&        //
+
+            sampler.first.borderColor == samplerCreateInfo.borderColor &&      //
+            sampler.first.compareEnable == samplerCreateInfo.compareEnable &&  //
+            sampler.first.compareOp == samplerCreateInfo.compareOp &&          //
+
+            sampler.first.mipmapMode == samplerCreateInfo.mipmapMode &&  //
+            sampler.first.mipLodBias == samplerCreateInfo.mipLodBias &&  //
+            sampler.first.minLod == samplerCreateInfo.minLod &&          //
+            sampler.first.maxLod == samplerCreateInfo.maxLod)
+        {
+            m_Sampler = sampler.second;
+            break;
+        }
+    }
+
+    if (!m_Sampler)
+    {
+        VK_CHECK(vkCreateSampler(context.GetDevice()->GetLogicalDevice(), &samplerCreateInfo, nullptr, &m_Sampler),
+                 "Failed to create an image sampler!");
+        VulkanRenderer::GetStorageData().Samplers[samplerCreateInfo] = m_Sampler;
+    }
 }
 
 void VulkanImage::Destroy()
@@ -366,10 +390,7 @@ void VulkanImage::Destroy()
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    if (m_DescriptorSet.Handle)
-    {
-        Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
-    }
+    if (m_DescriptorSet.Handle) Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
 
     GRAPHICS_GUARD_LOCK;
 
@@ -377,7 +398,7 @@ void VulkanImage::Destroy()
     Context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 
     vkDestroyImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);
-    vkDestroySampler(Context.GetDevice()->GetLogicalDevice(), m_Sampler, nullptr);
+    m_Image.ImageView = VK_NULL_HANDLE;
 }
 
 }  // namespace Gauntlet

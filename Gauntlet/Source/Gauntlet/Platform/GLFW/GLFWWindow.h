@@ -7,13 +7,13 @@ struct GLFWwindow;
 namespace Gauntlet
 {
 
-class WindowsWindow final : public Window
+class GLFWWindow final : public Window
 {
   public:
-    WindowsWindow() = delete;
-    WindowsWindow(const WindowSpecification& windowSpec);
+    GLFWWindow() = delete;
+    GLFWWindow(const WindowSpecification& windowSpec);
 
-    ~WindowsWindow();
+    ~GLFWWindow();
 
     void OnUpdate() final override;
     void HandleMinimized() final override;

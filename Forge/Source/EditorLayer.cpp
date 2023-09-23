@@ -4,7 +4,7 @@
 
 namespace Gauntlet
 {
-#define SPONZA_TEST 1
+#define SPONZA_TEST 0
 #define TEST_BED 0
 
 extern const std::filesystem::path g_AssetsPath = "Resources";
@@ -14,6 +14,7 @@ EditorLayer::EditorLayer() : Layer("EditorLayer"), m_GUILayer(Application::Get()
 void EditorLayer::OnAttach()
 {
     m_EditorCamera = EditorCamera::Create();
+    m_ActiveScene  = MakeRef<Scene>("EmptyScene");
 
 #if SPONZA_TEST
 #if 0
@@ -54,6 +55,8 @@ void EditorLayer::OnUpdate(const float deltaTime)
 {
     if (m_bIsViewportFocused) m_EditorCamera->OnUpdate(deltaTime);
 
+    UpdateViewportSize();
+
     Renderer::BeginScene(*m_EditorCamera);
 
     m_ActiveScene->OnUpdate(deltaTime);
@@ -85,8 +88,6 @@ void EditorLayer::OnKeyPressed(KeyButtonPressedEvent& e)
 
 void EditorLayer::OnImGuiRender()
 {
-    UpdateViewportSize();
-
     BeginDockspace();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, 0});
@@ -287,10 +288,7 @@ void EditorLayer::OpenScene()
 {
     const std::string filePath = FileDialogs::OpenFile("Gauntlet Scene (*.gntlt)\0*.gntlt\0");
 
-    if (filePath.empty())
-        LOG_WARN("Failed to open scene: %s", filePath.data());
-    else
-        OpenScene(filePath);
+    if (filePath.empty()) OpenScene(filePath);
 }
 
 void EditorLayer::OpenScene(const std::filesystem::path& path)

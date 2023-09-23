@@ -324,6 +324,8 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
         bIsSwapchainAdequate            = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
     }
 
+    if (VK_PREFER_IGPU && gpuInfo.GPUProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) return false;
+
     GNT_ASSERT(gpuInfo.GPUProperties.limits.maxSamplerAnisotropy > 0, "GPU has not valid Max Sampler Anisotropy!");
     return gpuInfo.GPUFeatures.samplerAnisotropy && gpuInfo.GPUFeatures.geometryShader && Indices.IsComplete() &&
            bIsDeviceExtensionsSupported && bIsSwapchainAdequate;

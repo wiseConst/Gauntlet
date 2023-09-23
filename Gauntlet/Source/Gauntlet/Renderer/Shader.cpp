@@ -7,7 +7,7 @@
 
 namespace Gauntlet
 {
-Ref<Shader> Shader::CreateShader(const std::string_view& filePath)
+Ref<Shader> Shader::Create(const std::string_view& filePath)
 {
     switch (RendererAPI::Get())
     {

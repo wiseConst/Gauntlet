@@ -76,29 +76,22 @@ void VulkanFramebuffer::Create()
         imageSpec.Filter                    = attachment.Filter;
         imageSpec.Wrap                      = attachment.Wrap;
 
-        for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
-        {
-            newAttachment.Attachments[i] = MakeRef<VulkanImage>(imageSpec);
-        }
+        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+            newAttachment.Attachments[frame] = MakeRef<VulkanImage>(imageSpec);
 
-        newAttachment.Specification.Format     = attachment.Format;
-        newAttachment.Specification.Filter     = attachment.Filter;
-        newAttachment.Specification.Wrap       = attachment.Wrap;
-        newAttachment.Specification.ClearColor = attachment.ClearColor;
-        newAttachment.Specification.LoadOp     = attachment.LoadOp;
-        newAttachment.Specification.StoreOp    = attachment.StoreOp;
-
+        newAttachment.Specification = attachment;
         m_Attachments.push_back(newAttachment);
     }
 
     for (uint32_t i = 0; i < m_Specification.ExistingAttachments.size(); ++i)
     {
         FramebufferAttachment framebufferAttachment = {};
-
-        for (uint32_t k = 0; k < FRAMES_IN_FLIGHT; ++k)
+        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
         {
-            framebufferAttachment.Specification.Format = m_Specification.ExistingAttachments[i].Attachments[k]->GetSpecification().Format;
-            framebufferAttachment.Attachments[k]       = m_Specification.ExistingAttachments[i].Attachments[k];
+            framebufferAttachment.Specification.Format =
+                m_Specification.ExistingAttachments[i].Attachments[frame]->GetSpecification().Format;
+            framebufferAttachment.Specification.ClearColor = m_Specification.ExistingAttachments[i].Specification.ClearColor;
+            framebufferAttachment.Attachments[frame]       = m_Specification.ExistingAttachments[i].Attachments[frame];
         }
         m_Attachments.push_back(framebufferAttachment);
     }
@@ -141,10 +134,7 @@ void VulkanFramebuffer::Create()
         subpassDesc.pColorAttachments    = &attachmentRefs[0];
     }
 
-    if (bHaveDepthAttachment)
-    {
-        subpassDesc.pDepthStencilAttachment = &attachmentRefs[m_Attachments.size() - 1];
-    }
+    if (bHaveDepthAttachment) subpassDesc.pDepthStencilAttachment = &attachmentRefs[m_Attachments.size() - 1];
 
     /* Some explanation about subpass dependency
      * srcSubpass:
@@ -181,6 +171,8 @@ void VulkanFramebuffer::Create()
         colorDependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         colorDependency.srcAccessMask       = 0;
         colorDependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        colorDependency.dependencyFlags     = VK_DEPENDENCY_BY_REGION_BIT;
+
         dependencies.push_back(colorDependency);
     }
 
@@ -193,6 +185,7 @@ void VulkanFramebuffer::Create()
         depthDependency.dstStageMask        = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         depthDependency.srcAccessMask       = 0;
         depthDependency.dstAccessMask       = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        depthDependency.dependencyFlags     = VK_DEPENDENCY_BY_REGION_BIT;
 
         dependencies.push_back(depthDependency);
     }
@@ -218,18 +211,18 @@ void VulkanFramebuffer::Create()
     framebufferCreateInfo.height = m_Specification.Height;
 
     m_Framebuffers.resize(FRAMES_IN_FLIGHT);
-    for (uint32_t i = 0; i < m_Framebuffers.size(); ++i)
+    for (uint32_t frame = 0; frame < m_Framebuffers.size(); ++frame)
     {
         std::vector<VkImageView> imageViews;
-        for (uint32_t k = 0; k < m_Attachments.size(); ++k)
+        for (uint32_t i = 0; i < m_Attachments.size(); ++i)
         {
-            Ref<VulkanImage> vulkanImage = static_pointer_cast<VulkanImage>(m_Attachments[k].Attachments[i]);
+            Ref<VulkanImage> vulkanImage = static_pointer_cast<VulkanImage>(m_Attachments[i].Attachments[frame]);
             imageViews.push_back(vulkanImage->GetView());
         }
         framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(imageViews.size());
         framebufferCreateInfo.pAttachments    = imageViews.data();
 
-        VK_CHECK(vkCreateFramebuffer(context.GetDevice()->GetLogicalDevice(), &framebufferCreateInfo, nullptr, &m_Framebuffers[i]),
+        VK_CHECK(vkCreateFramebuffer(context.GetDevice()->GetLogicalDevice(), &framebufferCreateInfo, nullptr, &m_Framebuffers[frame]),
                  "Failed to create framebuffer!");
     }
 
@@ -254,18 +247,12 @@ void VulkanFramebuffer::Create()
 
 void VulkanFramebuffer::Invalidate()
 {
+#if 0
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
 
     const auto& swapchain     = context.GetSwapchain();
     const auto& logicalDevice = context.GetDevice()->GetLogicalDevice();
-
-    /*newAttachment.Attachments[i]->GetSpecification().Width  = m_Specification.Width;
-    newAttachment.Attachments[i]->GetSpecification().Height = m_Specification.Height;
-    newAttachment.Attachments[i]->Invalidate();*/
-
-    // Destroy();
-    // Create();
 
     vkDestroyRenderPass(logicalDevice, m_RenderPass, nullptr);
 
@@ -346,6 +333,8 @@ void VulkanFramebuffer::Invalidate()
         colorDependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         colorDependency.srcAccessMask       = 0;
         colorDependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        colorDependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
         dependencies.push_back(colorDependency);
     }
 
@@ -358,6 +347,7 @@ void VulkanFramebuffer::Invalidate()
         depthDependency.dstStageMask        = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         depthDependency.srcAccessMask       = 0;
         depthDependency.dstAccessMask       = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        depthDependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
         dependencies.push_back(depthDependency);
     }
@@ -395,6 +385,56 @@ void VulkanFramebuffer::Invalidate()
 
         VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[i]), "Failed to create framebuffer!");
     }
+#endif
+
+#if 1
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
+
+    const auto& logicalDevice = context.GetDevice()->GetLogicalDevice();
+    context.GetDevice()->WaitDeviceOnFinish();
+
+    for (auto& framebuffer : m_Framebuffers)
+        vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+    m_Framebuffers.clear();
+
+    for (auto& attachment : m_Attachments)
+    {
+        // In case we own images. So we didn't specify any existing attachments.
+        if (!m_Specification.ExistingAttachments.empty()) break;
+
+        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+        {
+            attachment.Attachments[frame]->GetSpecification().Width  = m_Specification.Width;
+            attachment.Attachments[frame]->GetSpecification().Height = m_Specification.Height;
+            attachment.Attachments[frame]->Invalidate();
+        }
+    }
+
+    // Framebuffers creation
+    VkFramebufferCreateInfo framebufferCreateInfo = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    framebufferCreateInfo.renderPass              = m_RenderPass;
+    framebufferCreateInfo.layers                  = 1;
+
+    framebufferCreateInfo.width  = m_Specification.Width;
+    framebufferCreateInfo.height = m_Specification.Height;
+
+    m_Framebuffers.resize(FRAMES_IN_FLIGHT);
+    for (uint32_t frame = 0; frame < m_Framebuffers.size(); ++frame)
+    {
+        std::vector<VkImageView> imageViews;
+        for (uint32_t i = 0; i < m_Attachments.size(); ++i)
+        {
+            Ref<VulkanImage> vulkanImage = static_pointer_cast<VulkanImage>(m_Attachments[i].Attachments[frame]);
+            imageViews.push_back(vulkanImage->GetView());
+        }
+        framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(imageViews.size());
+        framebufferCreateInfo.pAttachments    = imageViews.data();
+
+        VK_CHECK(vkCreateFramebuffer(logicalDevice, &framebufferCreateInfo, nullptr, &m_Framebuffers[frame]),
+                 "Failed to create framebuffer!");
+    }
+#endif
 }
 
 void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer, const VkSubpassContents subpassContents)
@@ -418,6 +458,9 @@ void VulkanFramebuffer::BeginRenderPass(const VkCommandBuffer& commandBuffer, co
 
 void VulkanFramebuffer::Destroy()
 {
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    context.GetDevice()->WaitDeviceOnFinish();
+
     if (m_Specification.ExistingAttachments.empty())
     {
         for (auto& attachment : m_Attachments)
@@ -427,7 +470,6 @@ void VulkanFramebuffer::Destroy()
         }
     }
 
-    auto& context           = (VulkanContext&)VulkanContext::Get();
     VkDevice& logicalDevice = context.GetDevice()->GetLogicalDevice();
 
     vkDestroyRenderPass(logicalDevice, m_RenderPass, nullptr);

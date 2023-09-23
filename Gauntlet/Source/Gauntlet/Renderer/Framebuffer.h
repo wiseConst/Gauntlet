@@ -46,7 +46,6 @@ struct FramebufferSpecification
   public:
     // Always specify depth attachment as last element.
     std::vector<FramebufferAttachmentSpecification> Attachments;
-
     std::vector<FramebufferAttachment> ExistingAttachments;
 
     uint32_t Width   = 0;

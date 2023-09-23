@@ -44,7 +44,6 @@ class Application : private Uncopyable, private Unmovable
     void OnEvent(Event& e);
 
     FORCEINLINE static Application& Get() { return *s_Instance; }
-
     FORCEINLINE auto& GetGUILayer() { return m_ImGuiLayer; }
 
     FORCEINLINE const auto& GetSpecification() const { return m_Specification; }

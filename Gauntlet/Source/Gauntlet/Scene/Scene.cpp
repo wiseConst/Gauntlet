@@ -12,16 +12,17 @@ Scene::Scene(const std::string& name) : m_Name(name) {}
 
 Scene::~Scene()
 {
-    for (auto entityID : m_Registry.view<TagComponent>())
-    {
-        Entity entity{entityID, this};
-
-        if (entity.HasComponent<MeshComponent>())
+    m_Registry.each(
+        [this](entt::entity entityID)
         {
-            auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
-            Mesh->Destroy();
-        }
-    }
+            Entity entity{entityID, this};
+
+            if (entity.HasComponent<MeshComponent>())
+            {
+                auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
+                Mesh->Destroy();
+            }
+        });
 }
 
 Entity Scene::CreateEntity(const std::string& name)

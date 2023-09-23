@@ -23,7 +23,7 @@ void VulkanCommandBuffer::BeginRecording(const VkCommandBufferUsageFlags command
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const
 {
-    //if (!s_bEnableValidationLayers) return;
+    if (!s_bEnableValidationLayers) return;
 
     VkDebugUtilsLabelEXT CommandBufferLabelEXT = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;

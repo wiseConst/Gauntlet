@@ -1,5 +1,6 @@
 #include "GauntletPCH.h"
 #include "Renderer.h"
+#include "Shader.h"
 
 #include "Gauntlet/Platform/Vulkan/VulkanRenderer.h"
 
@@ -14,6 +15,8 @@ Renderer::RendererStorage Renderer::s_RendererStorage;
 
 void Renderer::Init()
 {
+    ShaderLibrary::Init();
+
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
@@ -32,6 +35,7 @@ void Renderer::Init()
 
 void Renderer::Shutdown()
 {
+    ShaderLibrary::Shutdown();
     s_Renderer->Destroy();
 
     delete s_Renderer;

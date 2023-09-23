@@ -26,7 +26,8 @@ bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDesc
         {
             m_CurrentPool = CreatePool(m_CurrentPoolSizeMultiplier);
             m_Pools.push_back(m_CurrentPool);
-            m_CurrentPoolSizeMultiplier *= 1.3f;  // TODO: Use dynamically calculated multiplier depending on m_Pools.size()
+            m_CurrentPoolSizeMultiplier =
+                (uint32_t)(m_CurrentPoolSizeMultiplier * 1.3f);  // TODO: Use dynamically calculated multiplier depending on m_Pools.size()
         }
     }
 
@@ -70,7 +71,7 @@ bool VulkanDescriptorAllocator::Allocate(DescriptorSet& outDescriptorSet, VkDesc
     {
         m_CurrentPool = CreatePool(m_CurrentPoolSizeMultiplier);
         m_Pools.push_back(m_CurrentPool);
-        m_CurrentPoolSizeMultiplier *= 1.3f;
+        m_CurrentPoolSizeMultiplier = (uint32_t)(m_CurrentPoolSizeMultiplier * 1.3f);
 
         // If it still fails then we have big issues
         const auto NewDescriptorSetAllocateInfo = Utility::GetDescriptorSetAllocateInfo(m_CurrentPool, 1, &descriptorSetLayout);

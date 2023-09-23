@@ -60,8 +60,8 @@ void VulkanRenderer2D::Create()
 
     // Default 2D graphics pipeline creation
     {
-        auto FlatColorShader             = Ref<VulkanShader>(new VulkanShader("Resources/Cached/Shaders/FlatColor"));
-        s_Data2D.VertexBufferLayout      = FlatColorShader->GetVertexBufferLayout();
+        auto FlatColorShader        = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/FlatColor"));
+        s_Data2D.VertexBufferLayout = FlatColorShader->GetVertexBufferLayout();
         s_Data2D.QuadDescriptorSetLayout = FlatColorShader->GetDescriptorSetLayouts()[0];
 
         PipelineSpecification PipelineSpec = {};
@@ -239,7 +239,7 @@ void VulkanRenderer2D::DrawQuadInternal(const glm::mat4& transform, const glm::v
     s_Data2D.QuadIndexCount += 6;
 
     s_Data2D.PushConstants.TransformMatrix = s_Data2D.CameraProjectionMatrix;
-    s_Data2D.PushConstants.Color           = blendColor;
+    s_Data2D.PushConstants.Data            = blendColor;
 
     ++Renderer::GetStats().QuadCount;
 }

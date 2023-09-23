@@ -205,7 +205,7 @@ VulkanShader::VulkanShader(const std::string_view& filePath)
     }
 }
 
-void VulkanShader::Reflect(const std::vector<uint32_t>& shaderCode)
+void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
 {
     GNT_ASSERT(m_ShaderStages.size() > 0);
 
@@ -417,7 +417,7 @@ BufferLayout VulkanShader::GetVertexBufferLayout()
     elements.reserve(count);
     for (auto& inputVar : inputVars)
     {
-        if (inputVar->built_in != -1) continue;  // Skipping default gl_VertexIndex etc..
+        if (inputVar->built_in >= 0) continue;  // Default vars like gl_VertexIndex marked as ints > 0.
 
         elements.emplace_back(ReflectionUtils::ConvertVulkanFormatToGauntlet(ReflectionUtils::ConvertSpvFormatToVulkan(inputVar->format)),
                               inputVar->name);
@@ -427,14 +427,14 @@ BufferLayout VulkanShader::GetVertexBufferLayout()
     return layout;
 }
 
-VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint32_t>& InShaderCode)
+VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint8_t>& InShaderCode)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkShaderModuleCreateInfo ShaderModuleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     ShaderModuleCreateInfo.codeSize                 = InShaderCode.size();
-    ShaderModuleCreateInfo.pCode                    = InShaderCode.data();
+    ShaderModuleCreateInfo.pCode                    = reinterpret_cast<const uint32_t*>(InShaderCode.data());
 
     VkShaderModule ShaderModule = VK_NULL_HANDLE;
     VK_CHECK(vkCreateShaderModule(Context.GetDevice()->GetLogicalDevice(), &ShaderModuleCreateInfo, nullptr, &ShaderModule),

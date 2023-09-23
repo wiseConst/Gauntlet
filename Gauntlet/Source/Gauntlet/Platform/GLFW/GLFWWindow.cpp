@@ -1,5 +1,5 @@
 #include <GauntletPCH.h>
-#include "WindowsWindow.h"
+#include "GLFWWindow.h"
 
 #include "Gauntlet/Event/Event.h"
 #include "Gauntlet/Event/KeyEvent.h"
@@ -26,16 +26,16 @@ static void GLFWErrorCallback(int error, const char* description)
 
 Window* Window::Create(const WindowSpecification& windowSpec)
 {
-    return new WindowsWindow(windowSpec);
+    return new GLFWWindow(windowSpec);
 }
 
-WindowsWindow::WindowsWindow(const WindowSpecification& windowSpec) : Window(windowSpec)
+GLFWWindow::GLFWWindow(const WindowSpecification& windowSpec) : Window(windowSpec)
 {
     Init();
     m_bIsRunning = true;
 }
 
-void WindowsWindow::Init()
+void GLFWWindow::Init()
 {
     LOG_INFO("Creating window %s (%u, %u)", m_WindowSpec.Title.data(), m_WindowSpec.Width, m_WindowSpec.Height);
 
@@ -66,12 +66,12 @@ void WindowsWindow::Init()
     SetPositionCentered();
 }
 
-void WindowsWindow::SetCallbacks()
+void GLFWWindow::SetCallbacks()
 {
     glfwSetCursorPosCallback(m_Window,
                              [](GLFWwindow* window, double x, double y)
                              {
-                                 auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
+                                 auto& Window = *(GLFWWindow*)glfwGetWindowUserPointer(window);
 
                                  MouseMovedEvent e((int)x, (int)y);
                                  Window.m_CallbackFn(e);
@@ -80,7 +80,7 @@ void WindowsWindow::SetCallbacks()
     glfwSetScrollCallback(m_Window,
                           [](GLFWwindow* window, double xoffset, double yoffset)
                           {
-                              auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
+                              auto& Window = *(GLFWWindow*)glfwGetWindowUserPointer(window);
 
                               MouseScrolledEvent e((int)xoffset, (int)yoffset);
                               Window.m_CallbackFn(e);
@@ -89,7 +89,7 @@ void WindowsWindow::SetCallbacks()
     glfwSetMouseButtonCallback(m_Window,
                                [](GLFWwindow* window, int button, int action, int mods)
                                {
-                                   auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
+                                   auto& Window = *(GLFWWindow*)glfwGetWindowUserPointer(window);
                                    switch (action)
                                    {
                                        case GLFW_PRESS:
@@ -116,7 +116,7 @@ void WindowsWindow::SetCallbacks()
     glfwSetKeyCallback(m_Window,
                        [](GLFWwindow* window, int key, int scancode, int action, int mods)
                        {
-                           auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
+                           auto& Window = *(GLFWWindow*)glfwGetWindowUserPointer(window);
 
                            switch (action)
                            {
@@ -144,7 +144,7 @@ void WindowsWindow::SetCallbacks()
     glfwSetWindowSizeCallback(m_Window,
                               [](GLFWwindow* window, int width, int height)
                               {
-                                  auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
+                                  auto& Window = *(GLFWWindow*)glfwGetWindowUserPointer(window);
 
                                   WindowResizeEvent e(width, height);
                                   Window.m_WindowSpec.Width  = (uint32_t)width;
@@ -155,14 +155,14 @@ void WindowsWindow::SetCallbacks()
     glfwSetWindowCloseCallback(m_Window,
                                [](GLFWwindow* window)
                                {
-                                   auto& Window = *(WindowsWindow*)glfwGetWindowUserPointer(window);
+                                   auto& Window = *(GLFWWindow*)glfwGetWindowUserPointer(window);
 
                                    WindowCloseEvent e;
                                    Window.m_CallbackFn(e);
                                });
 }
 
-void WindowsWindow::SetPositionCentered()
+void GLFWWindow::SetPositionCentered()
 {
     int32_t MonitorXpos = 0;
     int32_t MonitorYpos = 0;
@@ -177,7 +177,7 @@ void WindowsWindow::SetPositionCentered()
     glfwSetWindowPos(m_Window, NewXPos, NewYPos);
 }
 
-void WindowsWindow::OnUpdate()
+void GLFWWindow::OnUpdate()
 {
     glfwPollEvents();
 
@@ -189,7 +189,7 @@ void WindowsWindow::OnUpdate()
     }
 }
 
-void WindowsWindow::HandleMinimized()
+void GLFWWindow::HandleMinimized()
 {
     int32_t Width{0}, Height{0};
     glfwGetFramebufferSize(m_Window, &Width, &Height);
@@ -200,7 +200,7 @@ void WindowsWindow::HandleMinimized()
     }
 }
 
-void WindowsWindow::SetWindowLogo(const std::string_view& filePath)
+void GLFWWindow::SetWindowLogo(const std::string_view& filePath)
 {
     int32_t Width    = 0;
     int32_t Height   = 0;
@@ -216,7 +216,7 @@ void WindowsWindow::SetWindowLogo(const std::string_view& filePath)
     ImageUtils::UnloadImage(Pixels);
 }
 
-void WindowsWindow::SetVSync(bool bIsVsync)
+void GLFWWindow::SetVSync(bool bIsVsync)
 {
     if (m_bIsVSync == bIsVsync) return;
     m_bIsVSync = bIsVsync;
@@ -225,7 +225,7 @@ void WindowsWindow::SetVSync(bool bIsVsync)
     Context.SetVSync(bIsVsync);
 }
 
-void WindowsWindow::SetWindowTitle(const std::string_view& title)
+void GLFWWindow::SetWindowTitle(const std::string_view& title)
 {
     GNT_ASSERT(title.data(), "Window title is not valid!");
 
@@ -233,13 +233,13 @@ void WindowsWindow::SetWindowTitle(const std::string_view& title)
     m_WindowSpec.Title = title;
 }
 
-void WindowsWindow::Shutdown()
+void GLFWWindow::Shutdown()
 {
     glfwDestroyWindow(m_Window);
     glfwTerminate();
 }
 
-WindowsWindow::~WindowsWindow()
+GLFWWindow::~GLFWWindow()
 {
     Shutdown();
 }

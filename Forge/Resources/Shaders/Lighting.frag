@@ -7,6 +7,7 @@ layout(location = 0) out vec4 OutFragColor;
 layout(set = 0, binding = 0) uniform sampler2D PositionMap;
 layout(set = 0, binding = 1) uniform sampler2D NormalMap;
 layout(set = 0, binding = 2) uniform sampler2D AlbedoMap;
+// layout(set = 0, binding = 3) uniform sampler2D ShadowMap;
 
 layout( push_constant ) uniform PushConstants
 {	
@@ -39,7 +40,7 @@ layout(set = 0, binding = 3) uniform LightingModelBuffer
 	float Gamma;
 } InLightingModelBuffer;
 
-vec3 CalculateDirectionalLight(const vec3 albedo, const DirectionalLight DirLight, const vec3 ViewVector,const vec3 UnitNormal, const float shadow)
+vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 ViewVector, const vec3 UnitNormal, const float shadow)
 {
 	// Ambient
 	const vec3 AmbientColor = DirLight.AmbientSpecularShininess.x * vec3(DirLight.Color);
@@ -49,7 +50,7 @@ vec3 CalculateDirectionalLight(const vec3 albedo, const DirectionalLight DirLigh
 
 	// Diffuse
 	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
-	const vec3 DiffuseColor = albedo * DiffuseFactor * vec3(DirLight.Color);
+	const vec3 DiffuseColor = DiffuseFactor * vec3(DirLight.Color);	
 
 	// Specular Blinn-Phong
 	const vec3 HalfwayDir = normalize(-ViewVector + NormalizedLightDirection);
@@ -59,7 +60,7 @@ vec3 CalculateDirectionalLight(const vec3 albedo, const DirectionalLight DirLigh
 	return AmbientColor + (1.0f - shadow) * (DiffuseColor + SpecularColor);
 }
 
-vec3 CalculatePointLightColor(PointLight InPointLight,const vec3 FragPos, const vec3 ViewVector, const vec3 UnitNormal) {
+vec3 CalculatePointLightColor(PointLight InPointLight, const vec3 FragPos, const vec3 ViewVector, const vec3 UnitNormal) {
 	// Ambient
 	const vec3 AmbientColor = vec3(InPointLight.AmbientSpecularShininess.x * vec3(InPointLight.Color));
 	
@@ -92,12 +93,12 @@ void main()
 
 	const vec3 ViewVector = normalize(FragPos - MeshPushConstants.Color.xyz);
 
-	FinalColor.rgb += CalculateDirectionalLight(Albedo.xyz, InLightingModelBuffer.DirLight, ViewVector, Normal, 0);
+	FinalColor.rgb += CalculateDirectionalLight(InLightingModelBuffer.DirLight, ViewVector, Normal, 0);
 	
 	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
 		FinalColor.rgb += CalculatePointLightColor(InLightingModelBuffer.PointLights[i], FragPos, ViewVector, Normal);
 
-	FinalColor.rgb = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
-	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0f / InLightingModelBuffer.Gamma));
+	// FinalColor.rgb = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
+	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0 / InLightingModelBuffer.Gamma));
 	OutFragColor = FinalColor;
 }

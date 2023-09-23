@@ -14,6 +14,7 @@ class Material : private Unmovable
     ~Material() = default;
 
     virtual void Invalidate() = 0;
+    virtual void Destroy()    = 0;
 
     static Ref<Material> Create();
 

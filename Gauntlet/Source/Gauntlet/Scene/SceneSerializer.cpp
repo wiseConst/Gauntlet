@@ -2,6 +2,8 @@
 #include "SceneSerializer.h"
 
 #include "Gauntlet/Core/Application.h"
+#include "Gauntlet/Core/JobSystem.h"
+
 #include "Scene.h"
 #include "Entity.h"
 #include "Components.h"
@@ -72,8 +74,6 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
         node["DirectionalLightComponent"].emplace(
             "AmbientSpecularShininess",
             std::initializer_list<float>({dlc.AmbientSpecularShininess.x, dlc.AmbientSpecularShininess.y, dlc.AmbientSpecularShininess.z}));
-        /* node["DirectionalLightComponent"].emplace("Direction",
-                                                     std::initializer_list<float>({dlc.Direction.x, dlc.Direction.y, dlc.Direction.z})); */
     }
 }
 
@@ -128,8 +128,14 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
     const nlohmann::ordered_json json = nlohmann::json::parse(in);
     in.close();
 
-    std::string sceneName = json["Scene"];
-    m_Scene               = MakeRef<Scene>(sceneName.data());
+    std::string sceneName     = json["Scene"];
+    const size_t slashPos     = filePath.find_last_of("/\\");
+    const size_t extensionPos = filePath.find_last_of('.');
+
+    if (sceneName == "Default" && slashPos != std::string::npos && extensionPos != std::string::npos)
+        sceneName = std::string(filePath.begin() + slashPos + 1, filePath.begin() + extensionPos);
+
+    m_Scene = MakeRef<Scene>(sceneName);
 
     // nlohmann::json::iterator
     // TODO: Move to static void DeserializeEntity()
@@ -198,6 +204,7 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
         }
     }
 
+    JobSystem::Wait();
     const auto deserializeEnd = Application::Get().GetTimeNow();
     LOG_WARN("Time took to deserialize \"%s\", (%0.2f) ms.", filePath.data(), (deserializeEnd - deserializeBegin) * 1000.0f);
     return true;

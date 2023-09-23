@@ -19,12 +19,12 @@ VulkanPipeline::VulkanPipeline(const PipelineSpecification& pipelineSpecificatio
 
 void VulkanPipeline::Invalidate()
 {
-    if (m_Pipeline) Destroy();
+    if (m_Handle) Destroy();
 
-    CreatePipelineLayout();
+    CreateLayout();
 
     const float PipelineCreationBegin = Application::Get().GetTimeNow();
-    CreatePipeline();
+    Create();
     const float PipelineCreationEnd = Application::Get().GetTimeNow();
     LOG_INFO("Took %0.3f ms to create <%s> pipeline!", (PipelineCreationEnd - PipelineCreationBegin) * 1000.0f,
              m_Specification.Name.data());
@@ -33,7 +33,7 @@ void VulkanPipeline::Invalidate()
     // TODO: Maybe I shouldn't? What if I need to recreate pipeline? Shaders are already deleted.
 }
 
-void VulkanPipeline::CreatePipelineLayout()
+void VulkanPipeline::CreateLayout()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
@@ -48,27 +48,43 @@ void VulkanPipeline::CreatePipelineLayout()
     PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(m_Specification.Shader->GetPushConstants().size());
     PipelineLayoutCreateInfo.pPushConstantRanges        = m_Specification.Shader->GetPushConstants().data();
 
-    VK_CHECK(vkCreatePipelineLayout(context.GetDevice()->GetLogicalDevice(), &PipelineLayoutCreateInfo, nullptr, &m_PipelineLayout),
+    VK_CHECK(vkCreatePipelineLayout(context.GetDevice()->GetLogicalDevice(), &PipelineLayoutCreateInfo, nullptr, &m_Layout),
              "Failed to create pipeline layout!");
 }
 
-void VulkanPipeline::CreatePipeline()
+void VulkanPipeline::Create()
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
-    GNT_ASSERT(Context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    GNT_ASSERT(context.GetSwapchain()->IsValid(), "Vulkan swapchain is not valid!");
     GNT_ASSERT(m_Specification.Shader, "Not valid shader passed!");
+    auto& logicalDevice = context.GetDevice()->GetLogicalDevice();
 
-    // Creating pipeline cache
+    // Creating and validating pipeline cache
     {
-        std::vector<uint32_t> CacheData = Utility::LoadDataFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
-
+        std::vector<uint8_t> CacheData = Utility::LoadDataFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
         VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
-        PipelineCacheCreateInfo.initialDataSize           = CacheData.size();
-        PipelineCacheCreateInfo.pInitialData              = CacheData.data();
+        if (!CacheData.empty())
+        {
+            bool bSamePipelineUUID = true;
+            for (uint16_t i = 0; i < VK_UUID_SIZE; ++i)
+                if (context.GetDevice()->GetGPUProperties().pipelineCacheUUID[i] != CacheData[16 + i]) bSamePipelineUUID = false;
 
-        VK_CHECK(vkCreatePipelineCache(Context.GetDevice()->GetLogicalDevice(), &PipelineCacheCreateInfo, nullptr, &m_Cache),
-                 "Failed to create pipeline cache!");
+            bool bSameVendorID = true;
+            bool bSameDeviceID = true;
+            for (uint16_t i = 0; i < 4; ++i)
+            {
+                if (CacheData[8 + i] != ((context.GetDevice()->GetGPUProperties().vendorID >> (8 * i)) & 0xff)) bSameVendorID = false;
+                if (CacheData[12 + i] != ((context.GetDevice()->GetGPUProperties().deviceID >> (8 * i)) & 0xff)) bSameDeviceID = false;
+            }
+
+            if (bSamePipelineUUID && bSameVendorID && bSameDeviceID)
+            {
+                PipelineCacheCreateInfo.initialDataSize = CacheData.size();
+                PipelineCacheCreateInfo.pInitialData    = CacheData.data();
+            }
+        }
+        VK_CHECK(vkCreatePipelineCache(logicalDevice, &PipelineCacheCreateInfo, nullptr, &m_Cache), "Failed to create pipeline cache!");
     }
 
     // Contains the configuration for what kind of topology will be drawn.
@@ -87,7 +103,9 @@ void VulkanPipeline::CreatePipeline()
 
     // VertexInputState
     VkPipelineVertexInputStateCreateInfo VertexInputState = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    BufferLayout layout                                   = m_Specification.Shader->GetVertexBufferLayout();
+
+    BufferLayout layout =
+        m_Specification.Layout.GetElements().size() > 0 ? m_Specification.Layout : m_Specification.Shader->GetVertexBufferLayout();
 
     std::vector<VkVertexInputAttributeDescription> shaderAttributeDescriptions;
     shaderAttributeDescriptions.reserve(layout.GetElements().size());
@@ -176,16 +194,16 @@ void VulkanPipeline::CreatePipeline()
     // Unlike OpenGL([-1, 1]), Vulkan has depth range [0, 1]
     // Also flip up the viewport and set frontface to ccw
     VkViewport Viewport = {};
-    Viewport.height     = -static_cast<float>(Context.GetSwapchain()->GetImageExtent().height);
-    Viewport.width      = static_cast<float>(Context.GetSwapchain()->GetImageExtent().width);
+    Viewport.height     = -static_cast<float>(context.GetSwapchain()->GetImageExtent().height);
+    Viewport.width      = static_cast<float>(context.GetSwapchain()->GetImageExtent().width);
     Viewport.minDepth   = 0.0f;
     Viewport.maxDepth   = 1.0f;
     Viewport.x          = 0.0f;
-    Viewport.y          = static_cast<float>(Context.GetSwapchain()->GetImageExtent().height);
+    Viewport.y          = static_cast<float>(context.GetSwapchain()->GetImageExtent().height);
 
     VkRect2D Scissor = {};
     Scissor.offset   = {0, 0};
-    Scissor.extent   = Context.GetSwapchain()->GetImageExtent();
+    Scissor.extent   = context.GetSwapchain()->GetImageExtent();
 
     // TODO: Make it configurable?
     VkPipelineViewportStateCreateInfo ViewportState = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
@@ -218,7 +236,7 @@ void VulkanPipeline::CreatePipeline()
     DynamicState.pDynamicStates                   = DynamicStates.data();
 
     VkGraphicsPipelineCreateInfo PipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
-    PipelineCreateInfo.layout                       = m_PipelineLayout;
+    PipelineCreateInfo.layout                       = m_Layout;
     PipelineCreateInfo.renderPass                   = m_Specification.TargetFramebuffer->GetRenderPass();
     PipelineCreateInfo.pInputAssemblyState          = &InputAssemblyState;
     PipelineCreateInfo.stageCount                   = static_cast<uint32_t>(ShaderStages.size());
@@ -232,37 +250,34 @@ void VulkanPipeline::CreatePipeline()
     PipelineCreateInfo.pColorBlendState             = &ColorBlendState;
     PipelineCreateInfo.pDynamicState                = &DynamicState;
 
-    VK_CHECK(
-        vkCreateGraphicsPipelines(Context.GetDevice()->GetLogicalDevice(), m_Cache, 1, &PipelineCreateInfo, VK_NULL_HANDLE, &m_Pipeline),
-        "Failed to create pipeline!");
+    VK_CHECK(vkCreateGraphicsPipelines(logicalDevice, m_Cache, 1, &PipelineCreateInfo, VK_NULL_HANDLE, &m_Handle),
+             "Failed to create pipeline!");
+
+    {
+        GNT_ASSERT(Utility::DropPipelineCacheToDisk(logicalDevice, m_Cache,
+                                                    "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
+                   "Failed to save pipeline cache to disk!");
+
+        vkDestroyPipelineCache(logicalDevice, m_Cache, nullptr);
+    }
 }
 
 void VulkanPipeline::Destroy()
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
-    auto& LogicalDevice = Context.GetDevice()->GetLogicalDevice();
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& logicalDevice = context.GetDevice()->GetLogicalDevice();
 
-    {
-        GNT_ASSERT(Utility::DropPipelineCacheToDisk(LogicalDevice, m_Cache,
-                                                    "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
-                   "Failed to save pipeline cache to disk!");
-
-        vkDestroyPipelineCache(LogicalDevice, m_Cache, nullptr);
-    }
-
-    vkDestroyPipelineLayout(LogicalDevice, m_PipelineLayout, nullptr);
-    vkDestroyPipeline(LogicalDevice, m_Pipeline, nullptr);
-
-    m_Specification.Shader->Destroy();
+    vkDestroyPipelineLayout(logicalDevice, m_Layout, nullptr);
+    vkDestroyPipeline(logicalDevice, m_Handle, nullptr);
 }
 
-const VkShaderStageFlags& VulkanPipeline::GetPushConstantsShaderStageFlags(const uint32_t Index)
+const VkShaderStageFlags VulkanPipeline::GetPushConstantsShaderStageFlags(const uint32_t Index) const
 {
     return m_Specification.Shader->GetPushConstants()[Index].stageFlags;
 }
 
-uint32_t VulkanPipeline::GetPushConstantsSize(const uint32_t Index)
+const uint32_t VulkanPipeline::GetPushConstantsSize(const uint32_t Index) const
 {
     return m_Specification.Shader->GetPushConstants()[Index].size;
 }

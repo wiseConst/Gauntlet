@@ -25,12 +25,12 @@ layout(set = 0, binding = 2) uniform CameraDataBuffer
 	mat4 Projection;
 	mat4 View;
 	vec3 Position;
-} inCameraDataBuffer;
+} InCameraDataBuffer;
 
 void main()
 {
 	OutFragmentPosition = (MeshPushConstants.TransformMatrix * vec4(InPosition, 1.0)).xyz;
-	gl_Position = inCameraDataBuffer.Projection * inCameraDataBuffer.View * vec4(OutFragmentPosition, 1.0);
+	gl_Position = InCameraDataBuffer.Projection * InCameraDataBuffer.View * vec4(OutFragmentPosition, 1.0);
 
 	OutColor = InColor;
 	OutTexCoord = InTexCoord;

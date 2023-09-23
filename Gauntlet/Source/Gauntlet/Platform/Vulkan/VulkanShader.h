@@ -37,7 +37,7 @@ class VulkanShader final : public Shader
     ~VulkanShader() = default;
 
     FORCEINLINE const auto& GetStages() const { return m_ShaderStages; }
-    void Destroy();
+    void Destroy() final override;
 
     BufferLayout GetVertexBufferLayout();
     FORCEINLINE const auto& GetPushConstants() const { return m_PushConstants; }
@@ -49,8 +49,8 @@ class VulkanShader final : public Shader
     std::vector<VkPushConstantRange> m_PushConstants;
     std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
 
-    VkShaderModule LoadShaderModule(const std::vector<uint32_t>& shaderCode);
-    void Reflect(const std::vector<uint32_t>& shaderCode);
+    VkShaderModule LoadShaderModule(const std::vector<uint8_t>& shaderCode);
+    void Reflect(const std::vector<uint8_t>& shaderCode);
 };
 
 }  // namespace Gauntlet

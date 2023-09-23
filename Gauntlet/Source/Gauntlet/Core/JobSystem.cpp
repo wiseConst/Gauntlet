@@ -10,7 +10,7 @@ void JobSystem::Init()
     GNT_ASSERT(!s_bIsInitialized, "Job system already initialized!");
     s_bIsInitialized = true;
 
-#if GNT_DEBUG
+#if GNT_DEBUG && 0
     LOG_INFO("MainThread ID: %u", std::this_thread::get_id());
 #endif
 

@@ -11,6 +11,23 @@
 namespace Gauntlet
 {
 
+static bool IsAllocatedOnGPU(const Scoped<VulkanDevice>& device, const VmaAllocationInfo& allocationInfo)
+{
+    for (uint32_t i = 0; i < device->GetMemoryProperties().memoryTypeCount; ++i)
+    {
+        if ((device->GetMemoryProperties().memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ==
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+            i == allocationInfo.memoryType)
+        {
+            return true;
+        }
+
+        if (i > allocationInfo.memoryType) return false;
+    }
+
+    return false;
+}
+
 VulkanAllocator::VulkanAllocator(const VkInstance& instance, const Scoped<VulkanDevice>& device)
 {
     // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/configuration.html#config_Vulkan_functions
@@ -94,16 +111,13 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& bufferCrea
 
 void VulkanAllocator::DestroyBuffer(VkBuffer& buffer, VmaAllocation& allocation) const
 {
-    auto& Context                    = (VulkanContext&)VulkanContext::Get();
+    auto& context                    = (VulkanContext&)VulkanContext::Get();
     VmaAllocationInfo AllocationInfo = {};
     QueryAllocationInfo(AllocationInfo, allocation);
 
     auto& RendererStats = Renderer::GetStats();
-    if ((Context.GetDevice()
-             ->GetMemoryProperties()
-             .memoryHeaps[AllocationInfo.memoryType > 0 ? AllocationInfo.memoryType - 1 : AllocationInfo.memoryType]
-             .flags &
-         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+
+    if (IsAllocatedOnGPU(context.GetDevice(), AllocationInfo))
     {
         RendererStats.GPUMemoryAllocated -= AllocationInfo.size;
     }

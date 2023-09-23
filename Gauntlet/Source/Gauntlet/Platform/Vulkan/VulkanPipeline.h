@@ -19,6 +19,7 @@ struct PipelineSpecification
 
     Ref<VulkanShader> Shader                 = nullptr;
     Ref<VulkanFramebuffer> TargetFramebuffer = nullptr;
+    BufferLayout Layout;
 
     VkBool32 PrimitiveRestartEnable      = VK_FALSE;
     EPrimitiveTopology PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -35,7 +36,7 @@ struct PipelineSpecification
     VkCompareOp DepthCompareOp   = VK_COMPARE_OP_ALWAYS;
 };
 
-class VulkanPipeline final
+class VulkanPipeline final : private Uncopyable, private Unmovable
 {
   public:
     VulkanPipeline(const PipelineSpecification& pipelineSpecification);
@@ -44,24 +45,23 @@ class VulkanPipeline final
 
     void Destroy();
 
-    FORCEINLINE auto& Get() { return m_Pipeline; }
-    FORCEINLINE auto& GetLayout() { return m_PipelineLayout; }
-
-    const VkShaderStageFlags& GetPushConstantsShaderStageFlags(const uint32_t Index = 0);
-    uint32_t GetPushConstantsSize(const uint32_t Index = 0);
-
+    FORCEINLINE auto& Get() const { return m_Handle; }
+    FORCEINLINE auto& GetLayout() const { return m_Layout; }
     FORCEINLINE auto& GetSpecification() { return m_Specification; }
+
+    const VkShaderStageFlags GetPushConstantsShaderStageFlags(const uint32_t Index = 0) const;
+    const uint32_t GetPushConstantsSize(const uint32_t Index = 0) const;
 
   private:
     PipelineSpecification m_Specification;
-    VkPipeline m_Pipeline             = VK_NULL_HANDLE;
-    VkPipelineCache m_Cache           = VK_NULL_HANDLE;
-    VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
+    VkPipeline m_Handle       = VK_NULL_HANDLE;
+    VkPipelineCache m_Cache   = VK_NULL_HANDLE;
+    VkPipelineLayout m_Layout = VK_NULL_HANDLE;
 
     void Invalidate();  // No longer invalidating pipeline in runtime, only creating it once.
 
-    void CreatePipelineLayout();
-    void CreatePipeline();
+    void CreateLayout();
+    void Create();
 };
 
 }  // namespace Gauntlet

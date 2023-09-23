@@ -11,10 +11,10 @@ namespace Gauntlet
 struct QuadVertex
 {
     glm::vec3 Position{0.0f};
-    glm::vec3 Normal{0.0f};
     glm::vec4 Color{1.0f};
     glm::vec2 TexCoord{0.0f};
     float TextureId{0.0f};
+    glm::vec3 Normal{0.0f};
 };
 
 struct MeshVertex
@@ -76,12 +76,17 @@ struct ShadowsBuffer
     glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);
 };
 
+struct MaterialBuffer
+{
+    glm::vec4 BaseColor = glm::vec4(1.0f);
+};
+
 // PUSH CONSTANTS
 
 struct alignas(16) MeshPushConstants
 {
     glm::mat4 TransformMatrix;
-    glm::vec4 Color;
+    glm::vec4 Data;  // It can be everything(in e.g. camera view position)
 };
 
 struct alignas(16) LightPushConstants

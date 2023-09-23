@@ -24,4 +24,4 @@
 	url = https://github.com/nlohmann/json.git
 [submodule "Gauntlet/vendor/spirv-reflect"]
 	path = Gauntlet/vendor/spirv-reflect
-	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
+	url = https://github.com/wiseConst/SPIRV-Reflect.git

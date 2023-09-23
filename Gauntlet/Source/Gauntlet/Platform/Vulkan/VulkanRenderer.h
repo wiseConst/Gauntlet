@@ -34,10 +34,11 @@ class VulkanRenderer final : public Renderer
     struct VulkanRendererStorage
     {
         // Framebuffers && RenderPasses
-        Ref<VulkanFramebuffer> ShadowMapFramebuffer{nullptr};
-        Ref<VulkanFramebuffer> GeometryFramebuffer{nullptr};
-        Ref<VulkanFramebuffer> SetupFramebuffer{nullptr};  // Clear pass
-        Ref<VulkanFramebuffer> LightingFramebuffer{nullptr};
+        Ref<VulkanFramebuffer> ShadowMapFramebuffer = nullptr;
+        Ref<VulkanFramebuffer> GeometryFramebuffer  = nullptr;
+        Ref<VulkanFramebuffer> SetupFramebuffer     = nullptr;  // Clear pass
+        Ref<VulkanFramebuffer> LightingFramebuffer  = nullptr;
+        Ref<VulkanFramebuffer> SSAOFramebuffer      = nullptr;
 
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {1280, 720};
@@ -52,10 +53,10 @@ class VulkanRenderer final : public Renderer
         Ref<VulkanPipeline> GeometryPipeline  = nullptr;
         Ref<VulkanPipeline> DefferedPipeline  = nullptr;
         Ref<VulkanPipeline> LightingPipeline  = nullptr;
+        Ref<VulkanPipeline> SSAOPipeline      = nullptr;
 
         // Mesh
-        Ref<VulkanTexture2D> MeshWhiteTexture = nullptr;
-
+        Ref<VulkanTexture2D> MeshWhiteTexture         = nullptr;
         VkDescriptorSetLayout MeshDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Camera UBO
@@ -83,6 +84,44 @@ class VulkanRenderer final : public Renderer
         // Misc
         VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         std::vector<GeometryData> SortedGeometry;
+
+        // SamplerHandling
+        struct SamplerKeyHash
+        {
+            size_t operator()(const VkSamplerCreateInfo& samplerCreateInfo) const
+            {
+                return std::hash<uint32_t>()(samplerCreateInfo.magFilter) + std::hash<uint32_t>()(samplerCreateInfo.minFilter) +
+                       std::hash<uint32_t>()(samplerCreateInfo.addressModeU);
+            }
+        };
+
+        struct SamplerKeyEqual
+        {
+            bool operator()(const VkSamplerCreateInfo& lhs, const VkSamplerCreateInfo& rhs) const
+            {
+                return lhs.minFilter == rhs.minFilter &&  //
+                       lhs.magFilter == rhs.magFilter &&  //
+
+                       lhs.addressModeU == rhs.addressModeU &&  //
+                       lhs.addressModeV == rhs.addressModeV &&  //
+                       lhs.addressModeW == rhs.addressModeW &&  //
+
+                       lhs.anisotropyEnable == rhs.anisotropyEnable &&  //
+                       lhs.maxAnisotropy == rhs.maxAnisotropy &&        //
+
+                       lhs.borderColor == rhs.borderColor &&      //
+                       lhs.compareEnable == rhs.compareEnable &&  //
+                       lhs.compareOp == rhs.compareOp &&          //
+
+                       lhs.mipmapMode == rhs.mipmapMode &&  //
+                       lhs.mipLodBias == rhs.mipLodBias &&  //
+                       lhs.minLod == rhs.minLod &&          //
+                       lhs.maxLod == rhs.maxLod;
+            }
+        };
+
+        std::unordered_map<VkSamplerCreateInfo, VkSampler, SamplerKeyHash, SamplerKeyEqual>
+            Samplers;  // TODO: Make specific Sampler class with void* SamplerHandle and its Specification
 
         // Light UBO
         std::vector<AllocatedBuffer> UniformPhongModelBuffers;

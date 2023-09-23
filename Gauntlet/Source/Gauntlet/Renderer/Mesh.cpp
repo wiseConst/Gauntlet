@@ -248,6 +248,9 @@ void Mesh::Destroy()
 
     for (auto& LoadedTexture : m_LoadedTextures)
         LoadedTexture.second->Destroy();
+
+    for (auto& submesh : m_MeshesData)
+        submesh.Material->Destroy();
 }
 
 }  // namespace Gauntlet
