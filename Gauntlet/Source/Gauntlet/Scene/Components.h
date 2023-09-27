@@ -102,12 +102,11 @@ struct PointLightComponent
     PointLightComponent(const PointLightComponent&) = default;
 };
 
-// TODO: Remove direction since it now depends on TransformComponent.Rotation?
 struct DirectionalLightComponent
 {
     glm::vec3 Color{0.0f};
-    // glm::vec3 Direction{0.0f}; Now it's being set through transformComponent.Rotation
     glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
+    bool bCastShadows = false;
 
     DirectionalLightComponent()                                 = default;
     DirectionalLightComponent(const DirectionalLightComponent&) = default;

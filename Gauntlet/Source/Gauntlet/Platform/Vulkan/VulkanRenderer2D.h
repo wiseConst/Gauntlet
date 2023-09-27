@@ -16,20 +16,6 @@ class VulkanPipeline;
 class VulkanRenderer2D final : public Renderer2D
 {
   private:
-    // The way it works: Allocate one big staging buffer and copy it's data to vertex buffer, that's it.
-    struct VulkanStagingStorage
-    {
-        struct StagingBuffer
-        {
-            AllocatedBuffer Buffer;
-            size_t Capacity = 0;
-            size_t Size     = 0;
-        };
-
-        std::vector<Scoped<StagingBuffer>> StagingBuffers;
-        uint32_t CurrentStagingBufferIndex = 0;
-    };
-
     struct VulkanRenderer2DStorage
     {
         // Compile-time constants
@@ -50,7 +36,12 @@ class VulkanRenderer2D final : public Renderer2D
         static constexpr size_t DefaultVertexBufferSize = MaxVertices * sizeof(QuadVertex);
 
         // Quad staging storage
-        VulkanStagingStorage StagingStorage;
+        struct StagingBuffer
+        {
+            AllocatedBuffer Buffer;
+            size_t Capacity = 0;
+        };
+        Scoped<StagingBuffer> QuadStagingBuffer;
         std::vector<Ref<VulkanVertexBuffer>> QuadVertexBuffers;
         uint32_t CurrentQuadVertexBufferIndex = 0;
 
@@ -98,6 +89,10 @@ class VulkanRenderer2D final : public Renderer2D
 
     void DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture,
                               const glm::vec4& blendColor) final override;
+
+    void DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                              const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords,
+                              const glm::vec2& spriteSize) final override;
 
     static VulkanRenderer2DStorage& GetStorageData() { return s_Data2D; }
 

@@ -6,6 +6,13 @@
 namespace Gauntlet
 {
 
+struct TextureSpecification
+{
+    ETextureWrap Wrap     = ETextureWrap::REPEAT;
+    ETextureFilter Filter = ETextureFilter::LINEAR;
+    bool CreateTextureID  = false;  // Can be used in shaders?
+};
+
 class Texture2D
 {
   public:
@@ -15,10 +22,11 @@ class Texture2D
     virtual const uint32_t GetWidth() const  = 0;
     virtual const uint32_t GetHeight() const = 0;
 
-    virtual void Destroy()                         = 0;
-    FORCEINLINE virtual void* GetTextureID() const = 0;
+    virtual void Destroy()                                       = 0;
+    FORCEINLINE virtual void* GetTextureID() const               = 0;
+    FORCEINLINE virtual TextureSpecification& GetSpecification() = 0;
 
-    static Ref<Texture2D> Create(const std::string_view& textureFilePath, const bool bCreateTextureID = false);
+    static Ref<Texture2D> Create(const std::string_view& textureFilePath, const TextureSpecification& textureSpecification);
 };
 
 }  // namespace Gauntlet

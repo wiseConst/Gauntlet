@@ -277,9 +277,6 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
     DrawComponent<DirectionalLightComponent>("DirectionalLightComponent", entity,
                                              [](auto& dlc)
                                              {
-                                                 /*ImGui::Separator();
-                                                 DrawVec3Control("Direction", dlc.Direction);*/
-
                                                  ImGui::Separator();
                                                  ImGui::Text("LightColor");
                                                  ImGui::ColorPicker3("Color", (float*)&dlc.Color);
@@ -290,6 +287,9 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                                  ImGui::DragFloat("Specular", &dlc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX,
                                                                   "%.2f");
                                                  ImGui::DragFloat("Shininess", &dlc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
+
+                                                 ImGui::Separator();
+                                                 ImGui::Checkbox("Cast Shadows", &dlc.bCastShadows);
                                              });
 
     DrawComponent<MeshComponent>("Mesh", entity,

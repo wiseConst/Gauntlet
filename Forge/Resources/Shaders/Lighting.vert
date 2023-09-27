@@ -1,31 +1,14 @@
 #version 460
 
+// Drawing clipped to quad triangle
+// https://www.saschawillems.de/blog/2016/08/13/vulkan-tutorial-on-rendering-a-fullscreen-quad-without-buffers/
+
 layout(location = 0) out vec2 OutTexCoord;
 
 void main()
 {
-	const vec2 vertexPositions[] = {
-		vec2(-1.0, -1.0),
-		vec2(1.0, -1.0),
-		vec2(1.0, 1.0),
-		vec2(-1.0, 1.0)
-	};
+	OutTexCoord = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(OutTexCoord * 2.0f - 1.0f, 0.0f, 1.0f);
 
-	const int indices[]=
-	{
-		0,1,2,2,3,0
-	};
-	
-	const vec2 texCoords[] =
-	{
-		vec2(0.0, 0.0),
-		vec2(1.0, 0.0),
-		vec2(1.0, 1.0),
-		vec2(0.0, 1.0)
-	};
-
-	OutTexCoord = texCoords[indices[gl_VertexIndex]];
-	OutTexCoord.y *= -1.0;
-
-	gl_Position = vec4(vertexPositions[indices[gl_VertexIndex]], 0.0, 1.0);
+	OutTexCoord.y *= -1.0f; // Because Sascha used CW order, but I use CCW
 }

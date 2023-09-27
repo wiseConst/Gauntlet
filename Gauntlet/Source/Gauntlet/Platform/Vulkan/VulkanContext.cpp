@@ -275,15 +275,15 @@ void VulkanContext::CreateSyncObjects()
 
 void VulkanContext::BeginRender()
 {
+    const auto cpuWaitForGpuBegin = Application::GetTimeNow();
     // Firstly wait for GPU to finish drawing therefore set fence to signaled.
     VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
              "Failed to wait for fences!");
 
-    const auto CurrentTime           = Application::GetTimeNow();
-    Renderer::GetStats().CPUWaitTime = CurrentTime - m_CPULastWaitTime;
+    const auto cpuWaitForGpuEnd      = Application::GetTimeNow();
+    Renderer::GetStats().CPUWaitTime = cpuWaitForGpuEnd - cpuWaitForGpuBegin;
 
-    m_GPULastWaitTime = CurrentTime;
-
+    m_LastGPUWaitTime = cpuWaitForGpuEnd;
     if (!m_Swapchain->TryAcquireNextImage(m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()])) return;
 
     // Reset fence if only we've acquired an image, otherwise if you reset it after waiting && swapchain recreated then here will be
@@ -313,13 +313,11 @@ void VulkanContext::EndRender()
         &m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Signal semaphore when render finished
     SubmitInfo.pWaitDstStageMask = WaitStages.data();
 
-    const auto CurrentTime           = Application::GetTimeNow();
-    Renderer::GetStats().GPUWaitTime = CurrentTime - m_CPULastWaitTime;
-
-    m_CPULastWaitTime = CurrentTime;
     // InFlightFence will now block until the graphic commands finish execution
     VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &SubmitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to submit command buffes to the queue.");
+
+    Renderer::GetStats().GPUWaitTime = Application::GetTimeNow() - m_LastGPUWaitTime;
 }
 
 void VulkanContext::SwapBuffers()

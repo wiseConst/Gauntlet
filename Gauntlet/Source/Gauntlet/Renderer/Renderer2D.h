@@ -37,6 +37,16 @@ class Renderer2D : private Uncopyable, private Unmovable
     static void DrawTexturedQuad(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture,
                                  const glm::vec4& blendColor = glm::vec4(1.0f));
 
+    static void DrawTexturedQuad(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& textureAtlas,
+                                 const glm::vec2& spriteCoords, const glm::vec2& spriteSize);
+    static void DrawTexturedQuad(const glm::vec2& position, const glm::vec2& size, const Ref<Texture2D>& textureAtlas,
+                                 const glm::vec2& spriteCoords, const glm::vec2& spriteSize);
+
+    static void DrawTexturedQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                                 const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords, const glm::vec2& spriteSize);
+    static void DrawTexturedQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec3& rotation,
+                                 const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords, const glm::vec2& spriteSize);
+
   private:
     static Renderer2D* s_Renderer;
 
@@ -62,5 +72,8 @@ class Renderer2D : private Uncopyable, private Unmovable
 
     virtual void DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& InSize, const Ref<Texture2D>& texture,
                                       const glm::vec4& blendColor) = 0;
+
+    virtual void DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                                      const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords, const glm::vec2& spriteSize) = 0;
 };
 }  // namespace Gauntlet

@@ -16,12 +16,20 @@
 
 #ifdef GNT_ENABLE_ASSERTS
 
+#ifdef GNT_PLATFORM_WINDOWS
+#define GNT_DEBUG_BREAK() __debugbreak()
+#elif GNT_PLATFORM_LINUX
+#define GNT_DEBUG_BREAK() __builtin_debugtrap()
+#elif GNT_PLATFORM_MACOS
+#define GNT_DEBUG_BREAK() __builtin_trap()
+#endif
+
 #include <Gauntlet/Core/Log.h>
 #define GNT_ASSERT(x, ...)                                                                                                                 \
     if (!(x))                                                                                                                              \
     {                                                                                                                                      \
         LOG_ERROR("Assertion failed: %s", __VA_ARGS__);                                                                                    \
-        __debugbreak();                                                                                                                    \
+        GNT_DEBUG_BREAK();                                                                                                                 \
     }
 
 #else

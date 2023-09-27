@@ -26,5 +26,5 @@ void main()
 	vec3 normal = TBN * normalize(texture(NormalMap, InTexCoord).xyz * 2.0 - vec3(1.0));
     OutNormal = normalize(vec4(normal, 1.0));
 
-    OutAlbedo = texture(Albedo, InTexCoord);
+    OutAlbedo = texture(Albedo, InTexCoord) * InColor;
 }

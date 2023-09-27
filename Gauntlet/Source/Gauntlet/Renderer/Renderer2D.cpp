@@ -29,55 +29,77 @@ void Renderer2D::Init()
     GNT_ASSERT(false, "Unknown RendererAPI!");
 }
 
-void Renderer2D::DrawQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const glm::vec4& InColor)
+void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color)
 {
-    DrawQuad({InPosition.x, InPosition.y, 0.0f}, InSize, InColor);
+    DrawQuad(glm::vec3(position, 0.0f), size, color);
 }
 
-void Renderer2D::DrawQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec4& InColor)
+void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
 {
-    s_Renderer->DrawQuadImpl(InPosition, InSize, InColor);
+    s_Renderer->DrawQuadImpl(position, size, color);
 }
 
-void Renderer2D::DrawRotatedQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
-                                 const glm::vec4& InColor)
+void Renderer2D::DrawRotatedQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec3& rotation, const glm::vec4& color)
 {
-    DrawRotatedQuad({InPosition.x, InPosition.y, 0.0f}, InSize, InRotation, InColor);
+    DrawRotatedQuad(glm::vec3(position, 0.0f), size, rotation, color);
 }
 
-void Renderer2D::DrawRotatedQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
-                                 const glm::vec4& InColor)
+void Renderer2D::DrawRotatedQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation, const glm::vec4& color)
 {
-    s_Renderer->DrawRotatedQuadImpl(InPosition, InSize, InRotation, InColor);
+    s_Renderer->DrawRotatedQuadImpl(position, size, rotation, color);
 }
 
-void Renderer2D::DrawQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
-                          const Ref<Texture2D>& InTexture, const glm::vec4& InColor)
+void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec3& rotation, const Ref<Texture2D>& texture,
+                          const glm::vec4& color)
 {
-    DrawQuad({InPosition.x, InPosition.y, 0.0f}, InSize, InRotation, InTexture, InColor);
+    DrawQuad(glm::vec3(position, 0.0f), size, rotation, texture, color);
 }
 
-void Renderer2D::DrawQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
-                          const Ref<Texture2D>& InTexture, const glm::vec4& InColor)
+void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation, const Ref<Texture2D>& texture,
+                          const glm::vec4& color)
 {
-    s_Renderer->DrawQuadImpl(InPosition, InSize, InRotation, InTexture, InColor);
+    s_Renderer->DrawQuadImpl(position, size, rotation, texture, color);
 }
 
-void Renderer2D::DrawQuad(const glm::mat4& InTransform, const glm::vec4& InColor)
+void Renderer2D::DrawQuad(const glm::mat4& InTransform, const glm::vec4& color)
 {
-    s_Renderer->DrawQuadImpl(InTransform, InColor);
+    s_Renderer->DrawQuadImpl(InTransform, color);
 }
 
-void Renderer2D::DrawTexturedQuad(const glm::vec2& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+void Renderer2D::DrawTexturedQuad(const glm::vec2& position, const glm::vec2& size, const Ref<Texture2D>& texture,
                                   const glm::vec4& InBlendColor)
 {
-    DrawTexturedQuad({InPosition.x, InPosition.y, 0.0f}, InSize, InTexture, InBlendColor);
+    DrawTexturedQuad(glm::vec3(position, 0.0f), size, texture, InBlendColor);
 }
 
-void Renderer2D::DrawTexturedQuad(const glm::vec3& InPosition, const glm::vec2& InSize, const Ref<Texture2D>& InTexture,
+void Renderer2D::DrawTexturedQuad(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture,
                                   const glm::vec4& InBlendColor)
 {
-    s_Renderer->DrawTexturedQuadImpl(InPosition, InSize, InTexture, InBlendColor);
+    s_Renderer->DrawTexturedQuadImpl(position, size, texture, InBlendColor);
+}
+
+void Renderer2D::DrawTexturedQuad(const glm::vec2& position, const glm::vec2& size, const Ref<Texture2D>& textureAtlas,
+                                  const glm::vec2& spriteCoords, const glm::vec2& spriteSize)
+{
+    DrawTexturedQuad(glm::vec3(position, 0.0f), size, glm::vec3(0.0f), textureAtlas, spriteCoords, spriteSize);
+}
+
+void Renderer2D::DrawTexturedQuad(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& textureAtlas,
+                                  const glm::vec2& spriteCoords, const glm::vec2& spriteSize)
+{
+    DrawTexturedQuad(position, size, glm::vec3(0.0f), textureAtlas, spriteCoords, spriteSize);
+}
+
+void Renderer2D::DrawTexturedQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec3& rotation,
+                                  const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords, const glm::vec2& spriteSize)
+{
+    DrawTexturedQuad(glm::vec3(position, 0.0f), size, rotation, textureAtlas, spriteCoords, spriteSize);
+}
+
+void Renderer2D::DrawTexturedQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                                  const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords, const glm::vec2& spriteSize)
+{
+    s_Renderer->DrawTexturedQuadImpl(position, size, rotation, textureAtlas, spriteCoords, spriteSize);
 }
 
 void Renderer2D::Shutdown()

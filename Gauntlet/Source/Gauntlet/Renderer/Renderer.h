@@ -79,10 +79,9 @@ class Renderer : private Uncopyable, private Unmovable
     {
         std::atomic<size_t> GPUMemoryAllocated = 0;
 
-        std::atomic<size_t> Allocations          = 0;
-        std::atomic<size_t> AllocatedBuffers     = 0;
-        std::atomic<size_t> StagingVertexBuffers = 0;
-        std::atomic<size_t> AllocatedImages      = 0;
+        std::atomic<size_t> Allocations      = 0;
+        std::atomic<size_t> AllocatedBuffers = 0;
+        std::atomic<size_t> AllocatedImages  = 0;
 
         std::atomic<size_t> DrawCalls = 0;
         std::atomic<size_t> QuadCount = 0;
@@ -92,6 +91,7 @@ class Renderer : private Uncopyable, private Unmovable
 
         float CPUWaitTime = 0.0f;
         float GPUWaitTime = 0.0f;
+        float PresentTime = 0.0f;
         float FrameTime   = 0.0f;
     } static s_RendererStats;
 

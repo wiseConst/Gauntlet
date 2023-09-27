@@ -58,15 +58,21 @@ bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& imageAcquiredSemaph
 
 void VulkanSwapchain::PresentImage(const VkSemaphore& renderFinishedSemaphore)
 {
-    VkPresentInfoKHR PresentInfo   = {};
-    PresentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    PresentInfo.waitSemaphoreCount = 1;
-    PresentInfo.pWaitSemaphores    = &renderFinishedSemaphore;
-    PresentInfo.pImageIndices      = &m_ImageIndex;
-    PresentInfo.swapchainCount     = 1;
-    PresentInfo.pSwapchains        = &m_Swapchain;
+    VkPresentInfoKHR presentInfo   = {};
+    presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores    = &renderFinishedSemaphore;
+    presentInfo.pImageIndices      = &m_ImageIndex;
+    presentInfo.swapchainCount     = 1;
+    presentInfo.pSwapchains        = &m_Swapchain;
 
-    const auto result = vkQueuePresentKHR(m_Device->GetPresentQueue(), &PresentInfo);
+    const float imagePresentBegin = Application::GetTimeNow();
+
+    const auto result = vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
+
+    const float imagePresentEnd      = Application::GetTimeNow();
+    Renderer::GetStats().PresentTime = imagePresentEnd - imagePresentBegin;
+
     if (result == VK_SUCCESS)
     {
         m_FrameIndex = (m_FrameIndex + 1) % FRAMES_IN_FLIGHT;

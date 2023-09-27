@@ -8,13 +8,13 @@
 namespace Gauntlet
 {
 
-Ref<Texture2D> Texture2D::Create(const std::string_view& textureFilePath, const bool bCreateTextureID)
+Ref<Texture2D> Texture2D::Create(const std::string_view& textureFilePath, const TextureSpecification& textureSpecification)
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            return MakeRef<VulkanTexture2D>(textureFilePath, bCreateTextureID);
+            return MakeRef<VulkanTexture2D>(textureFilePath, textureSpecification);
         }
         case RendererAPI::EAPI::None:
         {

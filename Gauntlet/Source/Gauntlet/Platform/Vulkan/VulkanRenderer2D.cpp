@@ -66,21 +66,19 @@ void VulkanRenderer2D::Create()
 
         PipelineSpecification PipelineSpec = {};
         PipelineSpec.Name                  = "Quad2D";
-        PipelineSpec.bDepthTest            = true;
-        PipelineSpec.bDepthWrite           = true;
+        PipelineSpec.bDepthTest            = VK_TRUE;
+        PipelineSpec.bDepthWrite           = VK_TRUE;
         PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
         PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetStorageData().GeometryFramebuffer;
         PipelineSpec.Shader                = FlatColorShader;
+        PipelineSpec.bDynamicPolygonMode   = VK_TRUE;
 
         s_Data2D.QuadPipeline = MakeRef<VulkanPipeline>(PipelineSpec);
     }
 
-    // Initially 1 staging buffer
-    Scoped<VulkanStagingStorage::StagingBuffer> QuadVertexStagingBuffer(new VulkanStagingStorage::StagingBuffer());
-    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data2D.DefaultVertexBufferSize, (*QuadVertexStagingBuffer).Buffer);
-    QuadVertexStagingBuffer->Capacity = s_Data2D.DefaultVertexBufferSize;
-    s_Data2D.StagingStorage.StagingBuffers.emplace_back(std::move(QuadVertexStagingBuffer));
-    ++Renderer::GetStats().StagingVertexBuffers;
+    s_Data2D.QuadStagingBuffer = MakeScoped<VulkanRenderer2DStorage::StagingBuffer>();
+    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data2D.DefaultVertexBufferSize, s_Data2D.QuadStagingBuffer->Buffer);
+    s_Data2D.QuadStagingBuffer->Capacity = s_Data2D.DefaultVertexBufferSize;
 
     if (s_Data2D.CurrentDescriptorSetIndex >= s_Data2D.QuadDescriptorSets.size())
     {
@@ -119,12 +117,6 @@ void VulkanRenderer2D::BeginImpl()
 
     s_Data2D.QuadIndexCount        = 0;
     Renderer::GetStats().QuadCount = 0;
-
-    for (auto& StagingBuffer : s_Data2D.StagingStorage.StagingBuffers)
-    {
-        StagingBuffer->Size = 0;
-    }
-    s_Data2D.StagingStorage.CurrentStagingBufferIndex = 0;
 }
 
 void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
@@ -172,11 +164,11 @@ void VulkanRenderer2D::DrawQuadImpl(const glm::vec3& position, const glm::vec2& 
 void VulkanRenderer2D::DrawRotatedQuadImpl(const glm::vec3& InPosition, const glm::vec2& InSize, const glm::vec3& InRotation,
                                            const glm::vec4& InColor)
 {
-    const auto Transform = glm::translate(glm::mat4(1.0f), InPosition) *
+    const auto transform = glm::translate(glm::mat4(1.0f), InPosition) *
                            glm::rotate(glm::mat4(1.0f), glm::radians(InRotation.z), glm::vec3(0, 0, 1)) *
                            glm::scale(glm::mat4(1.0f), {InSize.x, InSize.y, 1.0f});
 
-    DrawQuadImpl(Transform, InColor);
+    DrawQuadImpl(transform, InColor);
 }
 
 void VulkanRenderer2D::DrawQuadImpl(const glm::mat4& transform, const glm::vec4& color)
@@ -225,6 +217,64 @@ void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& position, const glm
     DrawQuadInternal(Transform, blendColor, TextureId);
 }
 
+void VulkanRenderer2D::DrawTexturedQuadImpl(const glm::vec3& position, const glm::vec2& size, const glm::vec3& rotation,
+                                            const Ref<Texture2D>& textureAtlas, const glm::vec2& spriteCoords, const glm::vec2& spriteSize)
+{
+    if (s_Data2D.QuadIndexCount >= s_Data2D.MaxIndices)
+    {
+        FlushAndReset();
+    }
+
+    float textureID = 0.0f;
+    for (uint32_t i = 1; i <= s_Data2D.CurrentTextureSlotIndex; ++i)
+    {
+        if (s_Data2D.TextureSlots[i] == textureAtlas)
+        {
+            textureID = (float)i;
+            break;
+        }
+    }
+
+    if (textureID == 0.0f)
+    {
+        if (s_Data2D.CurrentTextureSlotIndex + 1 >= VulkanRenderer2DStorage::MaxTextureSlots)
+        {
+            FlushAndReset();
+        }
+
+        const auto VulkanTexture                                = std::static_pointer_cast<VulkanTexture2D>(textureAtlas);
+        s_Data2D.TextureSlots[s_Data2D.CurrentTextureSlotIndex] = VulkanTexture;
+        textureID                                               = (float)s_Data2D.CurrentTextureSlotIndex;
+        ++s_Data2D.CurrentTextureSlotIndex;
+    }
+
+    const glm::vec2 spriteSheetSize = glm::vec2(textureAtlas->GetWidth(), textureAtlas->GetHeight());
+    const glm::vec2 texCoords[]     = {
+        {(spriteCoords.x * spriteSize.x) / spriteSheetSize.x, (spriteCoords.y * spriteSize.y) / spriteSheetSize.y},              //
+        {((spriteCoords.x + 1) * spriteSize.x) / spriteSheetSize.x, (spriteCoords.y * spriteSize.y) / spriteSheetSize.y},        //
+        {((spriteCoords.x + 1) * spriteSize.x) / spriteSheetSize.x, ((spriteCoords.y + 1) * spriteSize.y) / spriteSheetSize.y},  //
+        {spriteCoords.x * spriteSize.x / spriteSheetSize.x, ((spriteCoords.y + 1) * spriteSize.y) / spriteSheetSize.y}           //
+    };
+
+    const glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3(1, 0, 0)) *  // rotation around X
+                                     glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), glm::vec3(0, 1, 0)) *  // around Y
+                                     glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), glm::vec3(0, 0, 1));   // around Z
+    const glm::mat4 transform =
+        glm::translate(glm::mat4(1.0f), position) * rotationMatrix * glm::scale(glm::mat4(1.0f), {size.x, size.y, 1.0f});
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        s_Data2D.QuadVertexBufferPtr->Position  = transform * s_Data2D.QuadVertexPositions[i];
+        s_Data2D.QuadVertexBufferPtr->Color     = glm::vec4(1.0f);
+        s_Data2D.QuadVertexBufferPtr->TexCoord  = texCoords[i];
+        s_Data2D.QuadVertexBufferPtr->TextureId = textureID;
+        ++s_Data2D.QuadVertexBufferPtr;
+    }
+
+    s_Data2D.QuadIndexCount += 6;
+    s_Data2D.PushConstants.TransformMatrix = s_Data2D.CameraProjectionMatrix;
+    ++Renderer::GetStats().QuadCount;
+}
+
 void VulkanRenderer2D::DrawQuadInternal(const glm::mat4& transform, const glm::vec4& blendColor, const float textureID)
 {
     for (uint32_t i = 0; i < 4; ++i)
@@ -253,25 +303,9 @@ void VulkanRenderer2D::FlushAndReset()
         s_Data2D.TextureSlots[i] = nullptr;
     }
 
-    if (s_Data2D.CurrentTextureSlotIndex > 1)
-    {
-        auto descriptorInfo = s_Data2D.TextureSlots[0]->GetImageDescriptorInfo();
-        const auto TextureWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0,
-                                           s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex].Handle, 1, &descriptorInfo);
-        vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
-    }
-
     s_Data2D.CurrentTextureSlotIndex = 1;
     s_Data2D.QuadIndexCount          = 0;
     s_Data2D.QuadVertexBufferPtr     = s_Data2D.QuadVertexBufferBase;
-
-    // Reset
-    s_Data2D.StagingStorage.CurrentStagingBufferIndex = 0;
-    for (auto& StagingBuffer : s_Data2D.StagingStorage.StagingBuffers)
-    {
-        StagingBuffer->Size = 0;
-    }
 }
 
 void VulkanRenderer2D::PreallocateRenderStorage()
@@ -301,25 +335,16 @@ void VulkanRenderer2D::FlushImpl()
 
     const uint32_t DataSize = (uint32_t)((uint8_t*)s_Data2D.QuadVertexBufferPtr - (uint8_t*)s_Data2D.QuadVertexBufferBase);
 
-    // Check if we're out of staging buffer memory bounds or not
-    if (s_Data2D.StagingStorage.StagingBuffers[s_Data2D.StagingStorage.CurrentStagingBufferIndex]->Size + DataSize >
-        s_Data2D.StagingStorage.StagingBuffers[s_Data2D.StagingStorage.CurrentStagingBufferIndex]->Capacity)
+    // Check if dataSize we want to upload onto staging buffer is greater than capacity, then resize.
+    if (DataSize > s_Data2D.QuadStagingBuffer->Capacity)
     {
-        // Get new staging buffer && set capacity
-        ++Renderer::GetStats().StagingVertexBuffers;
-
-        Scoped<VulkanStagingStorage::StagingBuffer> QuadVertexStagingBuffer(new VulkanStagingStorage::StagingBuffer());
-        BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, s_Data2D.DefaultVertexBufferSize, (*QuadVertexStagingBuffer).Buffer);
-        QuadVertexStagingBuffer->Capacity = s_Data2D.DefaultVertexBufferSize;
-        s_Data2D.StagingStorage.StagingBuffers.push_back(std::move(QuadVertexStagingBuffer));
-        ++s_Data2D.StagingStorage.CurrentStagingBufferIndex;
+        BufferUtils::DestroyBuffer(s_Data2D.QuadStagingBuffer->Buffer);
+        BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, DataSize, s_Data2D.QuadStagingBuffer->Buffer);
+        s_Data2D.QuadStagingBuffer->Capacity = DataSize;
     }
-    BufferUtils::CopyDataToBuffer(s_Data2D.StagingStorage.StagingBuffers[s_Data2D.StagingStorage.CurrentStagingBufferIndex]->Buffer,
-                                  DataSize, s_Data2D.QuadVertexBufferBase);
-    s_Data2D.StagingStorage.StagingBuffers[s_Data2D.StagingStorage.CurrentStagingBufferIndex]->Size += DataSize;
+    BufferUtils::CopyDataToBuffer(s_Data2D.QuadStagingBuffer->Buffer, DataSize, s_Data2D.QuadVertexBufferBase);
 
-    s_Data2D.QuadVertexBuffers[s_Data2D.CurrentQuadVertexBufferIndex]->SetStagedData(
-        (*s_Data2D.StagingStorage.StagingBuffers[s_Data2D.StagingStorage.CurrentStagingBufferIndex]).Buffer, DataSize);
+    s_Data2D.QuadVertexBuffers[s_Data2D.CurrentQuadVertexBufferIndex]->SetStagedData(s_Data2D.QuadStagingBuffer->Buffer, DataSize);
 
     if (s_Data2D.CurrentTextureSlotIndex > 1)
     {
@@ -338,6 +363,8 @@ void VulkanRenderer2D::FlushImpl()
     GeneralStorageData.CurrentCommandBuffer->BeginDebugLabel("2D-Batch", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
     GeneralStorageData.GeometryFramebuffer->BeginRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
 
+    GeneralStorageData.CurrentCommandBuffer->SetPipelinePolygonMode(
+        s_Data2D.QuadPipeline, Renderer::GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
     GeneralStorageData.CurrentCommandBuffer->BindPipeline(s_Data2D.QuadPipeline);
 
     VkDeviceSize Offset = 0;
@@ -375,8 +402,7 @@ void VulkanRenderer2D::Destroy()
     for (auto& QuadVertexBuffer : s_Data2D.QuadVertexBuffers)
         QuadVertexBuffer->Destroy();
 
-    for (auto& QuadVertexStagingBuffer : s_Data2D.StagingStorage.StagingBuffers)
-        BufferUtils::DestroyBuffer((*QuadVertexStagingBuffer).Buffer);
+    BufferUtils::DestroyBuffer(s_Data2D.QuadStagingBuffer->Buffer);
 }
 
 }  // namespace Gauntlet

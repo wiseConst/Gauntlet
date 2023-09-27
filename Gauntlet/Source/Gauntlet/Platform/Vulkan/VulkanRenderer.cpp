@@ -23,6 +23,9 @@
 #include "Gauntlet/Renderer/Skybox.h"
 #include "Gauntlet/Renderer/Mesh.h"
 
+// TODO: Make Random.h
+#include <random>
+
 namespace Gauntlet
 {
 
@@ -53,7 +56,7 @@ void VulkanRenderer::Create()
         FramebufferAttachmentSpecification attachment = {};
         attachment.LoadOp                             = ELoadOp::LOAD;
         attachment.StoreOp                            = EStoreOp::STORE;
-        attachment.ClearColor                         = glm::vec4(glm::vec3(0.1f), 1.0f);
+        attachment.ClearColor                         = glm::vec4(0.0f);
 
         // Position
         attachment.Format = EImageFormat::RGBA16F;
@@ -95,6 +98,7 @@ void VulkanRenderer::Create()
         s_Data.GeometryPipeline = MakeRef<VulkanPipeline>(geometryPipelineSpec);
     }
 
+    // Clear-Pass
     {
         FramebufferSpecification setupFramebufferSpec = {};
         setupFramebufferSpec.ExistingAttachments      = s_Data.GeometryFramebuffer->GetAttachments();
@@ -136,9 +140,13 @@ void VulkanRenderer::Create()
     s_Data.UniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
     s_Data.MappedUniformPhongModelBuffers.resize(FRAMES_IN_FLIGHT);
 
-    constexpr VkDeviceSize ShadowsBufferBufferSize = sizeof(ShadowsBuffer);
+    constexpr VkDeviceSize ShadowsBufferSize = sizeof(ShadowsBuffer);
     s_Data.UniformShadowsBuffers.resize(FRAMES_IN_FLIGHT);
     s_Data.MappedUniformShadowsBuffers.resize(FRAMES_IN_FLIGHT);
+
+    constexpr VkDeviceSize SSAOBufferSize = sizeof(SSAOBuffer);
+    s_Data.UniformSSAOBuffers.resize(FRAMES_IN_FLIGHT);
+    s_Data.MappedUniformSSAOBuffers.resize(FRAMES_IN_FLIGHT);
     for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
     {
         // Camera
@@ -154,10 +162,16 @@ void VulkanRenderer::Create()
         s_Data.MappedUniformPhongModelBuffers[frame] = m_Context.GetAllocator()->Map(s_Data.UniformPhongModelBuffers[frame].Allocation);
 
         // Shadows
-        BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, ShadowsBufferBufferSize, s_Data.UniformShadowsBuffers[frame],
+        BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, ShadowsBufferSize, s_Data.UniformShadowsBuffers[frame],
                                   VMA_MEMORY_USAGE_CPU_ONLY);
 
         s_Data.MappedUniformShadowsBuffers[frame] = m_Context.GetAllocator()->Map(s_Data.UniformShadowsBuffers[frame].Allocation);
+
+        // SSAO
+        BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, SSAOBufferSize, s_Data.UniformSSAOBuffers[frame],
+                                  VMA_MEMORY_USAGE_CPU_ONLY);
+
+        s_Data.MappedUniformSSAOBuffers[frame] = m_Context.GetAllocator()->Map(s_Data.UniformSSAOBuffers[frame].Allocation);
     }
 
     // ShadowMap
@@ -196,13 +210,85 @@ void VulkanRenderer::Create()
 
     // SSAO
     {
-        /* FramebufferSpecification ssaoFramebufferSpec = {};
+        static std::random_device s_RandomDevice;                                        // Seeding random number generator
+        static std::mt19937_64 s_Engine(s_RandomDevice());                               // Filling engine
+        static std::uniform_real_distribution<float> s_UniformDistribution(0.0f, 1.0f);  // Getting
 
-         s_Data.SSAOFramebuffer = MakeRef<VulkanFramebuffer>(ssaoFramebufferSpec);
+        for (uint32_t i = 0; i < 64; ++i)
+        {
+            glm::vec3 sample(s_UniformDistribution(s_Engine) * 2.0 - 1.0, s_UniformDistribution(s_Engine) * 2.0 - 1.0,
+                             s_UniformDistribution(s_Engine));
+            sample = glm::normalize(sample);
+            sample *= s_UniformDistribution(s_Engine);
 
-         PipelineSpecification ssaoPipelineSpec = {};
+            float scale = (float)i / 64.0f;
+            scale       = 0.1f + scale * scale * 0.9f;
+            sample *= scale;
+            s_Data.SSAODataBuffer.Samples[i] = sample;
+        }
 
-         s_Data.SSAOPipeline = MakeRef<VulkanPipeline>(ssaoPipelineSpec);*/
+        FramebufferSpecification ssaoFramebufferSpec = {};
+        ssaoFramebufferSpec.Name                     = "SSAO";  // To be correct it's SSAO-Noised
+
+        FramebufferAttachmentSpecification ssaoFramebufferAttachmentSpec = {};
+        ssaoFramebufferAttachmentSpec.Format                             = EImageFormat::R32F;
+        ssaoFramebufferAttachmentSpec.Filter                             = ETextureFilter::NEAREST;
+        ssaoFramebufferSpec.Attachments                                  = {ssaoFramebufferAttachmentSpec};
+
+        s_Data.SSAOFramebuffer = MakeRef<VulkanFramebuffer>(ssaoFramebufferSpec);
+
+        PipelineSpecification ssaoPipelineSpec = {};
+        ssaoPipelineSpec.Name                  = "SSAO";
+        ssaoPipelineSpec.Shader            = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/SSAO"));
+        ssaoPipelineSpec.CullMode          = ECullMode::CULL_MODE_BACK;
+        ssaoPipelineSpec.FrontFace         = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
+        ssaoPipelineSpec.TargetFramebuffer = s_Data.SSAOFramebuffer;
+
+        s_Data.SSAOPipeline = MakeRef<VulkanPipeline>(ssaoPipelineSpec);
+
+        std::vector<glm::vec3> ssaoNoise;
+        for (uint32_t i = 0; i < 16; ++i)  // 4*4
+        {
+            glm::vec3 noise(s_UniformDistribution(s_Engine) * 2.0 - 1.0, s_UniformDistribution(s_Engine) * 2.0 - 1.0, 0.0f);
+            ssaoNoise.push_back(noise);
+        }
+
+        TextureSpecification ssaoNoiseTextureSpec = {};
+        ssaoNoiseTextureSpec.CreateTextureID      = true;
+        ssaoNoiseTextureSpec.Filter               = ETextureFilter::NEAREST;
+        ssaoNoiseTextureSpec.Wrap                 = ETextureWrap::REPEAT;
+        s_Data.SSAONoiseTexture = MakeRef<VulkanTexture2D>(ssaoNoise.data(), ssaoNoise.size() * sizeof(ssaoNoise[0]), 4, 4);
+
+        s_Data.SSAODescriptorSetLayout = ssaoPipelineSpec.Shader->GetDescriptorSetLayouts()[0];
+        GNT_ASSERT(m_Context.GetDescriptorAllocator()->Allocate(s_Data.SSAOSet, s_Data.SSAODescriptorSetLayout),
+                   "Failed to allocate ssao descriptor set!");
+
+        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+        {
+            std::vector<VkWriteDescriptorSet> writes;
+
+            for (uint32_t k = 0; k < s_Data.GeometryFramebuffer->GetAttachments().size() - 1; ++k)
+            {
+                Ref<VulkanImage> vulkanImage =
+                    static_pointer_cast<VulkanImage>(s_Data.GeometryFramebuffer->GetAttachments()[k].Attachments[frame]);
+                auto textureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, k, s_Data.SSAOSet.Handle,
+                                                                      1, &vulkanImage->GetDescriptorInfo());
+                writes.push_back(textureWriteSet);
+            }
+
+            VkDescriptorBufferInfo SSAOBufferInfo = {};
+            SSAOBufferInfo.buffer                 = s_Data.UniformSSAOBuffers[frame].Buffer;
+            SSAOBufferInfo.range                  = sizeof(SSAOBuffer);
+            SSAOBufferInfo.offset                 = 0;
+
+            auto SSAOBufferWriteSet =
+                Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3, s_Data.SSAOSet.Handle, 1, &SSAOBufferInfo);
+
+            writes.push_back(SSAOBufferWriteSet);
+
+            vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0,
+                                   nullptr);
+        }
     }
 
     // Lighting
@@ -212,8 +298,8 @@ void VulkanRenderer::Create()
         FramebufferAttachmentSpecification attachment = {};
         attachment.ClearColor                         = glm::vec4(glm::vec3(0.1f), 1.0f);
         attachment.Format                             = EImageFormat::RGBA;
-        // attachment.LoadOp     = ELoadOp::LOAD;
-        attachment.StoreOp = EStoreOp::STORE;
+        attachment.LoadOp                             = ELoadOp::CLEAR;
+        attachment.StoreOp                            = EStoreOp::STORE;
         lightingFramebufferSpec.Attachments.push_back(attachment);
 
         lightingFramebufferSpec.Name = "FinalPass";
@@ -238,13 +324,29 @@ void VulkanRenderer::Create()
                 writes.push_back(textureWriteSet);
             }
 
+            {
+                Ref<VulkanImage> vulkanImage =
+                    static_pointer_cast<VulkanImage>(s_Data.ShadowMapFramebuffer->GetAttachments()[0].Attachments[frame]);
+                auto textureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
+                                                                      s_Data.LightingSet.Handle, 1, &vulkanImage->GetDescriptorInfo());
+                writes.push_back(textureWriteSet);
+            }
+
+            /*   {
+                   Ref<VulkanImage> vulkanImage =
+                       static_pointer_cast<VulkanImage>(s_Data.SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
+                   auto textureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4,
+                                                                         s_Data.LightingSet.Handle, 1, &vulkanImage->GetDescriptorInfo());
+                   writes.push_back(textureWriteSet);
+               }*/
+
             VkDescriptorBufferInfo LightingModelBufferInfo = {};
             LightingModelBufferInfo.buffer                 = s_Data.UniformPhongModelBuffers[frame].Buffer;
             LightingModelBufferInfo.range                  = sizeof(LightingModelBuffer);
             LightingModelBufferInfo.offset                 = 0;
 
             // PhongModel
-            auto PhongModelBufferWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3, s_Data.LightingSet.Handle,
+            auto PhongModelBufferWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4, s_Data.LightingSet.Handle,
                                                                            1, &LightingModelBufferInfo);
 
             writes.push_back(PhongModelBufferWriteSet);
@@ -288,15 +390,16 @@ void VulkanRenderer::BeginImpl()
 
     if (s_Data.bFramebuffersNeedResize)
     {
-        m_Context.GetDevice()->WaitDeviceOnFinish();
         s_Data.GeometryFramebuffer->Resize(s_Data.NewFramebufferSize.x, s_Data.NewFramebufferSize.y);
         s_Data.SetupFramebuffer->Resize(s_Data.NewFramebufferSize.x, s_Data.NewFramebufferSize.y);
+        // s_Data.SSAOFramebuffer->Resize(s_Data.NewFramebufferSize.x, s_Data.NewFramebufferSize.y);
 
         /*for (auto& geometry : s_Data.SortedGeometry)
         {
             geometry.Material->Invalidate();
         }*/
 
+        // Updating LightingSet
         for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
         {
             std::vector<VkWriteDescriptorSet> writes;
@@ -310,16 +413,60 @@ void VulkanRenderer::BeginImpl()
                 writes.push_back(textureWriteSet);
             }
 
+            {
+                Ref<VulkanImage> vulkanImage =
+                    static_pointer_cast<VulkanImage>(s_Data.ShadowMapFramebuffer->GetAttachments()[0].Attachments[frame]);
+                auto textureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
+                                                                      s_Data.LightingSet.Handle, 1, &vulkanImage->GetDescriptorInfo());
+                writes.push_back(textureWriteSet);
+            }
+
+            /*     {
+                     Ref<VulkanImage> vulkanImage =
+                         static_pointer_cast<VulkanImage>(s_Data.SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
+                     auto textureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4,
+                                                                           s_Data.LightingSet.Handle, 1, &vulkanImage->GetDescriptorInfo());
+                     writes.push_back(textureWriteSet);
+                 }*/
+
             VkDescriptorBufferInfo LightingModelBufferInfo = {};
             LightingModelBufferInfo.buffer                 = s_Data.UniformPhongModelBuffers[frame].Buffer;
             LightingModelBufferInfo.range                  = sizeof(LightingModelBuffer);
             LightingModelBufferInfo.offset                 = 0;
 
             // PhongModel
-            auto PhongModelBufferWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3, s_Data.LightingSet.Handle,
+            auto PhongModelBufferWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4, s_Data.LightingSet.Handle,
                                                                            1, &LightingModelBufferInfo);
 
             writes.push_back(PhongModelBufferWriteSet);
+
+            vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0,
+                                   nullptr);
+        }
+
+        // Updating SSAO Set
+        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+        {
+            std::vector<VkWriteDescriptorSet> writes;
+
+            for (uint32_t k = 0; k < s_Data.GeometryFramebuffer->GetAttachments().size() - 1; ++k)
+            {
+                Ref<VulkanImage> vulkanImage =
+                    static_pointer_cast<VulkanImage>(s_Data.GeometryFramebuffer->GetAttachments()[k].Attachments[frame]);
+                auto textureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, k,
+                                                                      s_Data.LightingSet.Handle, 1, &vulkanImage->GetDescriptorInfo());
+                writes.push_back(textureWriteSet);
+            }
+
+            VkDescriptorBufferInfo SSAOBufferInfo = {};
+            SSAOBufferInfo.buffer                 = s_Data.UniformSSAOBuffers[frame].Buffer;
+            SSAOBufferInfo.range                  = sizeof(SSAOBuffer);
+            SSAOBufferInfo.offset                 = 0;
+
+            auto SSAOBufferWriteSet =
+                Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3, s_Data.SSAOSet.Handle, 1, &SSAOBufferInfo);
+
+            writes.push_back(SSAOBufferWriteSet);
 
             vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0,
                                    nullptr);
@@ -343,9 +490,6 @@ void VulkanRenderer::BeginImpl()
 
         for (uint32_t i = 0; i < s_Data.CurrentPointLightIndex; ++i)
             s_Data.MeshLightingModelBuffer.PointLights[i] = PointLight();
-
-        memcpy(s_Data.MappedUniformPhongModelBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshLightingModelBuffer,
-               sizeof(LightingModelBuffer));
     }
     s_Data.CurrentPointLightIndex = 0;
 
@@ -508,7 +652,7 @@ void VulkanRenderer::EndSceneImpl()
     auto& threads                   = JobSystem::GetThreads();
     auto& threadData                = m_Context.GetThreadData();
 
-    // ShadowMapPass
+    // ShadowMap-Pass
     {
         s_Data.ShadowMapFramebuffer->SetDepthStencilClearColor(GetSettings().RenderShadows ? 1.0f : 0.0f, 0);
 
@@ -523,7 +667,7 @@ void VulkanRenderer::EndSceneImpl()
 
             constexpr float cameraWidth     = 30.0f;
             constexpr float zNear           = 1.0f;
-            constexpr float zFar            = 128.0f;
+            constexpr float zFar            = 256.0f;
             const glm::mat4 lightProjection = glm::ortho(-cameraWidth, cameraWidth, -cameraWidth, cameraWidth, zNear, zFar);
 
             const glm::mat4 lightView =
@@ -597,13 +741,14 @@ void VulkanRenderer::EndSceneImpl()
         s_Data.CurrentCommandBuffer->EndDebugLabel();
     }
 
-    // Actual GeometryPass
+    // Actual Geometry-Pass
     {
         s_Data.CurrentCommandBuffer->BeginDebugLabel("GeometryPass", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
 
         s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
-        //// Set shadow buffer(only contains light space mvp mat4)
+        // Set shadow buffer(only contains light space mvp mat4)
+        // This currently doesn't work in Geometry shader only in Forward
         // memcpy(s_Data.MappedUniformShadowsBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.MeshShadowsBuffer,
         //        sizeof(ShadowsBuffer));
 
@@ -614,7 +759,6 @@ void VulkanRenderer::EndSceneImpl()
         const auto inheritanceInfo =
             Utility::GetCommandBufferInheritanceInfo(s_Data.GeometryFramebuffer->GetRenderPass(), s_Data.GeometryFramebuffer->Get());
 
-        // TODO: Handle while there's no multithreading.
         uint32_t currentGeometryIndex = 0;
         std::vector<VkCommandBuffer> recordedSecondaryGeometryCommandBuffers;
 
@@ -681,7 +825,10 @@ void VulkanRenderer::EndSceneImpl()
         s_Data.GeometryFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
         s_Data.CurrentCommandBuffer->EndDebugLabel();
     }
+}
 
+void VulkanRenderer::FlushImpl()
+{
     // Render skybox as last geometry to prevent depth testing as mush as possible
     s_Data.CurrentCommandBuffer->BeginDebugLabel("Skybox", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
     s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
@@ -690,26 +837,49 @@ void VulkanRenderer::EndSceneImpl()
 
     s_Data.GeometryFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
     s_Data.CurrentCommandBuffer->EndDebugLabel();
-}
 
-void VulkanRenderer::FlushImpl()
-{
-    s_Data.CurrentCommandBuffer->BeginDebugLabel("LightingPass", glm::vec4(0.7f, 0.7f, 0.0f, 1.0f));
-    s_Data.LightingFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
+    // SSAO-Pass
+    if (!s_Data.SortedGeometry.empty() && false)
+    {
+        s_Data.SSAODataBuffer.NoiseFactor      = 4.0f;
+        s_Data.SSAODataBuffer.ViewportSize     = s_Data.NewFramebufferSize;
+        s_Data.SSAODataBuffer.CameraProjection = s_Data.MeshCameraDataBuffer.Projection;
 
-    s_Data.CurrentCommandBuffer->BindPipeline(s_Data.LightingPipeline);
+        memcpy(s_Data.MappedUniformSSAOBuffers[m_Context.GetSwapchain()->GetCurrentFrameIndex()], &s_Data.SSAODataBuffer,
+               sizeof(SSAOBuffer));
 
-    MeshPushConstants pushConstants = {};
-    pushConstants.Data              = glm::vec4(s_Data.MeshCameraDataBuffer.Position, 0.0f);
+        s_Data.CurrentCommandBuffer->BeginDebugLabel("SSAO", glm::vec4(glm::vec3(0.8f), 1.0f));
+        s_Data.SSAOFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
 
-    s_Data.CurrentCommandBuffer->BindPushConstants(s_Data.LightingPipeline->GetLayout(),
-                                                   s_Data.LightingPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                   s_Data.LightingPipeline->GetPushConstantsSize(), &pushConstants);
-    s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.LightingPipeline->GetLayout(), 0, 1, &s_Data.LightingSet.Handle);
-    s_Data.CurrentCommandBuffer->Draw(6);
+        s_Data.CurrentCommandBuffer->BindPipeline(s_Data.SSAOPipeline);
 
-    s_Data.LightingFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
-    s_Data.CurrentCommandBuffer->EndDebugLabel();
+        s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.SSAOPipeline->GetLayout(), 0, 1, &s_Data.SSAOSet.Handle);
+        s_Data.CurrentCommandBuffer->Draw(3);
+
+        s_Data.SSAOFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
+        s_Data.CurrentCommandBuffer->EndDebugLabel();
+    }
+
+    // Final Lighting-Pass
+    {
+        s_Data.CurrentCommandBuffer->BeginDebugLabel("LightingPass", glm::vec4(0.7f, 0.7f, 0.0f, 1.0f));
+        s_Data.LightingFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
+
+        s_Data.CurrentCommandBuffer->BindPipeline(s_Data.LightingPipeline);
+
+        MeshPushConstants pushConstants = {};
+        pushConstants.Data              = glm::vec4(s_Data.MeshCameraDataBuffer.Position, 0.0f);
+        pushConstants.TransformMatrix   = s_Data.MeshShadowsBuffer.LightSpaceMatrix;
+
+        s_Data.CurrentCommandBuffer->BindPushConstants(s_Data.LightingPipeline->GetLayout(),
+                                                       s_Data.LightingPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                       s_Data.LightingPipeline->GetPushConstantsSize(), &pushConstants);
+        s_Data.CurrentCommandBuffer->BindDescriptorSets(s_Data.LightingPipeline->GetLayout(), 0, 1, &s_Data.LightingSet.Handle);
+        s_Data.CurrentCommandBuffer->Draw(3);
+
+        s_Data.LightingFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
+        s_Data.CurrentCommandBuffer->EndDebugLabel();
+    }
 }
 
 void VulkanRenderer::ResizeFramebuffersImpl(uint32_t width, uint32_t height)
@@ -736,6 +906,7 @@ std::vector<RendererOutput> VulkanRenderer::GetRendererOutputImpl()
     rendererOutput.emplace_back(s_Data.GeometryFramebuffer->GetAttachments()[1].Attachments[currentFrame], "Normal");
     rendererOutput.emplace_back(s_Data.GeometryFramebuffer->GetAttachments()[2].Attachments[currentFrame], "Albedo");
     rendererOutput.emplace_back(s_Data.GeometryFramebuffer->GetAttachments()[3].Attachments[currentFrame], "Depth");
+    rendererOutput.emplace_back(s_Data.SSAOFramebuffer->GetAttachments()[0].Attachments[currentFrame], "SSAO");
 
     return rendererOutput;
 }
@@ -754,21 +925,26 @@ void VulkanRenderer::Destroy()
 
         m_Context.GetAllocator()->Unmap(s_Data.UniformShadowsBuffers[i].Allocation);
         BufferUtils::DestroyBuffer(s_Data.UniformShadowsBuffers[i]);
+
+        m_Context.GetAllocator()->Unmap(s_Data.UniformSSAOBuffers[i].Allocation);
+        BufferUtils::DestroyBuffer(s_Data.UniformSSAOBuffers[i]);
     }
 
     s_Data.ShadowMapFramebuffer->Destroy();
     s_Data.SetupFramebuffer->Destroy();
     s_Data.GeometryFramebuffer->Destroy();
-    //  s_Data.SSAOFramebuffer->Destroy();
     s_Data.LightingFramebuffer->Destroy();
 
     s_Data.ForwardPassPipeline->Destroy();
     s_Data.ShadowMapPipeline->Destroy();
     s_Data.GeometryPipeline->Destroy();
-    //  s_Data.SSAOPipeline->Destroy();
     s_Data.LightingPipeline->Destroy();
 
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);
+
+    s_Data.SSAOFramebuffer->Destroy();
+    s_Data.SSAOPipeline->Destroy();
+    s_Data.SSAONoiseTexture->Destroy();
 
     s_Data.MeshWhiteTexture->Destroy();
     s_Data.CurrentCommandBuffer = nullptr;

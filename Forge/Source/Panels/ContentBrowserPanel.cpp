@@ -10,11 +10,14 @@ extern const std::filesystem::path g_AssetsPath;
 
 ContentBrowserPanel::ContentBrowserPanel() : m_CurrentDirectory(g_AssetsPath)
 {
-    m_DirectoryIcon   = Texture2D::Create("Resources/Icons/icons8/folder-48.png", true);
-    m_AudioIcon       = Texture2D::Create("Resources/Icons/icons8/audio-file-48.png", true);
-    m_ImageIcon       = Texture2D::Create("Resources/Icons/icons8/image-file-48.png", true);
-    m_TextFileIcon    = Texture2D::Create("Resources/Icons/icons8/txt-48.png", true);
-    m_DefaultFileIcon = Texture2D::Create("Resources/Icons/icons8/file-48.png", true);
+    TextureSpecification textureSpec = {};
+    textureSpec.Filter               = ETextureFilter::LINEAR;
+    textureSpec.CreateTextureID      = true;
+    m_DirectoryIcon                  = Texture2D::Create("Resources/Icons/icons8/folder-48.png", textureSpec);
+    m_AudioIcon                      = Texture2D::Create("Resources/Icons/icons8/audio-file-48.png", textureSpec);
+    m_ImageIcon                      = Texture2D::Create("Resources/Icons/icons8/image-file-48.png", textureSpec);
+    m_TextFileIcon                   = Texture2D::Create("Resources/Icons/icons8/txt-48.png", textureSpec);
+    m_DefaultFileIcon                = Texture2D::Create("Resources/Icons/icons8/file-48.png", textureSpec);
 }
 
 ContentBrowserPanel::~ContentBrowserPanel()

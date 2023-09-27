@@ -72,7 +72,7 @@ struct ImageSpecification
     uint32_t Layers = 1;
 
     EImageFormat Format              = EImageFormat::RGBA;
-    EImageUsage Usage                = EImageUsage::TEXTURE;
+    EImageUsage Usage                = EImageUsage::Attachment;
     ETextureWrap Wrap                = ETextureWrap::REPEAT;
     ETextureFilter Filter            = ETextureFilter::LINEAR;
     EImageTiling Tiling              = EImageTiling::OPTIMAL;
@@ -108,7 +108,7 @@ FORCEINLINE bool IsDepthFormat(EImageFormat imageFormat)
 {
     switch (imageFormat)
     {
-        case EImageFormat::DEPTH32F: return true;
+        case EImageFormat::DEPTH32F:
         case EImageFormat::DEPTH24STENCIL8: return true;
     }
 

@@ -8,23 +8,25 @@
 namespace Gauntlet
 {
 
-VulkanTexture2D::VulkanTexture2D(const std::string_view& textureFilePath, const bool bCreateTextureID)
+VulkanTexture2D::VulkanTexture2D(const std::string_view& textureFilePath, const TextureSpecification& textureSpecification)
+    : m_Specification(textureSpecification)
 {
     TextureCreateInfo TextureCI = {};
     int32_t Width               = 0;
     int32_t Height              = 0;
     int32_t Channels            = 0;  // Unused cuz vulkan perceives only 4 channels
 
-    TextureCI.Data            = ImageUtils::LoadImageFromFile(textureFilePath.data(), &Width, &Height, &Channels, true);
-    TextureCI.Width           = Width;
-    TextureCI.Height          = Height;
-    TextureCI.DataSize        = Width * Height * TextureCI.Channels;
-    TextureCI.CreateTextureID = bCreateTextureID;
+    TextureCI.Data     = ImageUtils::LoadImageFromFile(textureFilePath.data(), &Width, &Height, &Channels, true);
+    TextureCI.Width    = Width;
+    TextureCI.Height   = Height;
+    TextureCI.DataSize = Width * Height * TextureCI.Channels;
 
     Create(TextureCI);
 }
 
-VulkanTexture2D::VulkanTexture2D(const void* data, const size_t size, const uint32_t imageWidth, const uint32_t imageHeight)
+VulkanTexture2D::VulkanTexture2D(const void* data, const size_t size, const uint32_t imageWidth, const uint32_t imageHeight,
+                                 const TextureSpecification& textureSpecification)
+    : m_Specification(textureSpecification)
 {
     TextureCreateInfo TextureCI = {};
     TextureCI.Data              = data;
@@ -59,8 +61,10 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     ImageSpec.Usage              = EImageUsage::TEXTURE;
     ImageSpec.Width              = textureCreateInfo.Width;
     ImageSpec.Height             = textureCreateInfo.Height;
+    ImageSpec.Wrap               = m_Specification.Wrap;
+    ImageSpec.Filter             = m_Specification.Filter;
     ImageSpec.Layers             = 1;
-    ImageSpec.CreateTextureID    = textureCreateInfo.CreateTextureID;
+    ImageSpec.CreateTextureID    = m_Specification.CreateTextureID;
     m_Image                      = MakeRef<VulkanImage>(ImageSpec);
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make

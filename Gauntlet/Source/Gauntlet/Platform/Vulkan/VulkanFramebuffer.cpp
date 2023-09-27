@@ -83,7 +83,8 @@ void VulkanFramebuffer::Create()
 
     for (uint32_t i = 0; i < m_Specification.ExistingAttachments.size(); ++i)
     {
-        if (!bHaveDepthAttachment) bHaveDepthAttachment = ImageUtils::IsDepthFormat(m_Specification.ExistingAttachments[i].Specification.Format);
+        if (!bHaveDepthAttachment)
+            bHaveDepthAttachment = ImageUtils::IsDepthFormat(m_Specification.ExistingAttachments[i].Specification.Format);
         if (!bHaveColorAttachment)
             bHaveColorAttachment = !ImageUtils::IsDepthFormat(m_Specification.ExistingAttachments[i].Specification.Format);
 
@@ -123,9 +124,11 @@ void VulkanFramebuffer::Create()
 
         const bool bIsDepthAttachment = ImageUtils::IsDepthFormat(attachment.Specification.Format);
 
-        attachmentRefs[currentAttachment].attachment = currentAttachment;
+        attachmentRefs[currentAttachment].attachment = currentAttachment;  // Index in m_Attachments array
         attachmentRefs[currentAttachment].layout =
             bIsDepthAttachment ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        // Vulkan will automatically transition the attachment to this layout when the subpass is started. (Referenced in fragment shader:
+        // layout(location = 0) out vec4 fragcolor)
 
         ++currentAttachment;
     }
@@ -159,21 +162,20 @@ void VulkanFramebuffer::Create()
      * srcAccessMask: Is a bitmask of all the Vulkan memory access types used by srcSubpass
      * dstAccessMask: Is a bitmask of all the Vulkan memory access types we're going to use in dstSubpass.
      *
-     * Think of it like we're saying: "after you've finished writing to the color attachment in srcSubpass, 'flush' the results as
-     * needed for us to be able to read it in our shaders."
-     *
      */
     std::vector<VkSubpassDependency> dependencies;
     if (bHaveColorAttachment)
     {
         VkSubpassDependency colorDependency = {};
-        colorDependency.srcSubpass          = VK_SUBPASS_EXTERNAL;
-        colorDependency.dstSubpass          = 0;
-        colorDependency.srcStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        colorDependency.dstStageMask        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        colorDependency.srcAccessMask       = 0;
-        colorDependency.dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         colorDependency.dependencyFlags     = VK_DEPENDENCY_BY_REGION_BIT;
+
+        colorDependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
+        colorDependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        colorDependency.srcAccessMask = 0;
+
+        colorDependency.dstSubpass    = 0;
+        colorDependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        colorDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
         dependencies.push_back(colorDependency);
     }
@@ -181,13 +183,15 @@ void VulkanFramebuffer::Create()
     if (bHaveDepthAttachment)
     {
         VkSubpassDependency depthDependency = {};
-        depthDependency.srcSubpass          = 0;
-        depthDependency.dstSubpass          = VK_SUBPASS_EXTERNAL;
-        depthDependency.srcStageMask        = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        depthDependency.dstStageMask        = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        depthDependency.srcAccessMask       = 0;
-        depthDependency.dstAccessMask       = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         depthDependency.dependencyFlags     = VK_DEPENDENCY_BY_REGION_BIT;
+
+        depthDependency.srcSubpass    = 0;
+        depthDependency.srcStageMask  = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        depthDependency.srcAccessMask = 0;
+
+        depthDependency.dstSubpass    = VK_SUBPASS_EXTERNAL;
+        depthDependency.dstStageMask  = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
         dependencies.push_back(depthDependency);
     }

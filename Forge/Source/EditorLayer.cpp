@@ -4,8 +4,7 @@
 
 namespace Gauntlet
 {
-#define SPONZA_TEST 0
-#define TEST_BED 0
+static Ref<Texture2D> s_SpriteSheet;
 
 extern const std::filesystem::path g_AssetsPath = "Resources";
 
@@ -16,30 +15,21 @@ void EditorLayer::OnAttach()
     m_EditorCamera = EditorCamera::Create();
     m_ActiveScene  = MakeRef<Scene>("EmptyScene");
 
-#if SPONZA_TEST
-#if 0
-    m_ActiveScene = MakeRef<Scene>("SponzaTest");
-
-    {
-        auto Sponza = m_ActiveScene->CreateEntity("Sponza");
-        Sponza.AddComponent<MeshComponent>(Mesh::Create("Resources/Models/Sponza/sponza.gltf"));
-    }
-#endif
-
-    SceneSerializer serializer(m_ActiveScene);
-    GNT_ASSERT(serializer.Deserialize("Resources/Scenes/SponzaTest.gntlt"), "Failed to deserialize scene!");
-
-#endif
-
-#if TEST_BED
-    SceneSerializer serializer(m_ActiveScene);
-    GNT_ASSERT(serializer.Deserialize("Resources/Scenes/TestBed.gntlt"), "Failed to deserialize scene!");
-#endif
-
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 
-    m_PlayIcon = Texture2D::Create("Resources/Icons/icons8/play-48.png", true);
-    m_StopIcon = Texture2D::Create("Resources/Icons/icons8/stop-48.png", true);
+    {
+        TextureSpecification textureSpec = {};
+        textureSpec.CreateTextureID      = true;
+        textureSpec.Filter               = ETextureFilter::LINEAR;
+
+        m_PlayIcon = Texture2D::Create("Resources/Icons/icons8/play-48.png", textureSpec);
+        m_StopIcon = Texture2D::Create("Resources/Icons/icons8/stop-48.png", textureSpec);
+    }
+
+    TextureSpecification textureSpec = {};
+    textureSpec.CreateTextureID      = true;
+    textureSpec.Filter               = ETextureFilter::NEAREST;
+    s_SpriteSheet = Texture2D::Create("Resources/Textures/minecraft/minecraft_textures_atlas_blocks.png_0.png", textureSpec);
 }
 
 void EditorLayer::OnDetach()
@@ -49,7 +39,114 @@ void EditorLayer::OnDetach()
 
     m_PlayIcon->Destroy();
     m_StopIcon->Destroy();
+
+    s_SpriteSheet->Destroy();
 }
+struct Direction
+{
+    static constexpr glm::ivec3 Front  = glm::vec3(0, 0, 1);
+    static constexpr glm::ivec3 Back   = glm::vec3(0, 0, -1);
+    static constexpr glm::ivec3 Left   = glm::vec3(-1, 0, 0);
+    static constexpr glm::ivec3 Right  = glm::vec3(1, 0, 0);
+    static constexpr glm::ivec3 Top    = glm::vec3(0, 1, 0);
+    static constexpr glm::ivec3 Bottom = glm::vec3(0, -1, 0);
+};
+
+struct Chunk
+{
+    Chunk() { memset(data, 1, sizeof(data[0]) * ChunkSize * ChunkSize * ChunkSize); }
+
+    static constexpr int32_t ChunkSize = 16;
+    static constexpr float blockSize   = 1.0f;
+
+    uint8_t data[ChunkSize * ChunkSize * ChunkSize];  // '0' means air
+    glm::ivec3 origin = glm::ivec3(0);
+
+    bool HasNeighbor(const glm::ivec3& next)
+    {
+        if (next.x >= 0 && next.y >= 0 && next.z >= 0 && next.x < ChunkSize && next.y < ChunkSize && next.z < ChunkSize)
+            if (data[next.x * next.y * next.z] != 0) return true;
+
+        return false;
+    }
+
+    FORCEINLINE void UpdateOrigin(const glm::ivec3& newOrigin)
+    {
+        origin = newOrigin;
+        origin -= glm::vec3(ChunkSize / 2, 0, 0);
+    }
+
+    void OnRender()
+    {
+        for (uint16_t y = 0; y < ChunkSize; ++y)
+        {
+            for (uint16_t x = 0; x < ChunkSize; ++x)
+            {
+                for (uint16_t z = 0; z < ChunkSize; ++z)
+                {
+                    const glm::ivec3 offset = glm::ivec3(x, y, z);
+                    if (!HasNeighbor(offset + Direction::Front))
+                        Renderer2D::DrawTexturedQuad({x + origin.x, y, z - 3 * blockSize + origin.z}, {blockSize, blockSize}, s_SpriteSheet,
+                                                     {25, 51}, {16, 16});  // Side-Front
+
+                    if (!HasNeighbor(offset + Direction::Back))
+                        Renderer2D::DrawTexturedQuad({x + origin.x, y, z - 3 * blockSize - blockSize + origin.z}, {blockSize, blockSize},
+                                                     s_SpriteSheet, {25, 51}, {16, 16});  // Side-Back
+
+                    if (!HasNeighbor(offset + Direction::Left))
+                        Renderer2D::DrawTexturedQuad({origin.x + x - blockSize / 2, y, origin.z + z - 3 * blockSize - blockSize / 2},
+                                                     {blockSize, blockSize}, glm::vec3(0.0f, -90.0f, 0.0f), s_SpriteSheet, {25, 51},
+                                                     {16, 16});  // Side-Left
+
+                    if (!HasNeighbor(offset + Direction::Right))
+                        Renderer2D::DrawTexturedQuad({origin.x + x + blockSize / 2, y, origin.z + z - 3 * blockSize - blockSize / 2},
+                                                     {blockSize, blockSize}, glm::vec3(0.0f, -90.0f, 0.0f), s_SpriteSheet, {25, 51},
+                                                     {16, 16});  // Side-Right
+
+                    if (!HasNeighbor(offset + Direction::Bottom))
+                        Renderer2D::DrawTexturedQuad({origin.x + x, y - blockSize / 2, origin.z + z - 3 * blockSize - blockSize / 2},
+                                                     {blockSize, blockSize}, glm::vec3(-90.0f, 0.0f, 0.0f), s_SpriteSheet, {15, 49},
+                                                     {16, 16});  // Bottom
+
+                    if (!HasNeighbor(offset + Direction::Top))
+                        Renderer2D::DrawTexturedQuad({origin.x + x, y + blockSize / 2, origin.z + z - 3 * blockSize - blockSize / 2},
+                                                     {blockSize, blockSize}, glm::vec3(-90.0f, 0.0f, 0.0f), s_SpriteSheet, {26, 49},
+                                                     {16, 16});  // Top
+                }
+            }
+        }
+    }
+};
+
+struct World
+{
+    static constexpr uint16_t ChunksToRender = 4;
+    std::vector<Chunk> Chunks;
+
+    World() { Chunks.resize(ChunksToRender); }
+
+    void OnUpdate(const Camera& inCamera) {}
+    void OnRender()
+    {
+        int16_t x = -(ChunksToRender + 1) / 2;
+        int16_t z = 0;
+
+        for (uint32_t i = 0; i < Chunks.size(); ++i)
+        {
+            Chunks[i].origin = glm::vec3(Chunks[i].ChunkSize * x, 0, Chunks[i].ChunkSize * z);
+            Chunks[i].OnRender();
+
+            if (i % 3 == 0 && i != 0)
+            {
+                x -= 3;
+                --z;
+            }
+            ++x;
+        }
+    }
+};
+
+static World s_World;
 
 void EditorLayer::OnUpdate(const float deltaTime)
 {
@@ -60,6 +157,8 @@ void EditorLayer::OnUpdate(const float deltaTime)
     Renderer::BeginScene(*m_EditorCamera);
 
     m_ActiveScene->OnUpdate(deltaTime);
+
+    // s_World.OnRender();
 
     Renderer::EndScene();
 }
@@ -84,6 +183,8 @@ void EditorLayer::OnKeyPressed(KeyButtonPressedEvent& e)
     if (bCtrlPressed && Input::IsKeyPressed(KeyCode::KEY_O)) OpenScene();
 
     if (bShiftPressed && bCtrlPressed && Input::IsKeyPressed(KeyCode::KEY_S)) SaveScene();
+
+    if (Input::IsKeyPressed(KeyCode::KEY_P)) Renderer::GetSettings().ShowWireframes = !Renderer::GetSettings().ShowWireframes;
 }
 
 void EditorLayer::OnImGuiRender()
@@ -126,12 +227,12 @@ void EditorLayer::OnImGuiRender()
         const auto& Stats = Renderer::GetStats();
         ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages.load());
         ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers.load());
-        ImGui::Text("Allocated StagingVertexBuffers: %llu", Stats.StagingVertexBuffers.load());
         ImGui::Text("VRAM Usage: (%0.2f) MB", Stats.GPUMemoryAllocated.load() / 1024.0f / 1024.0f);
         ImGui::Text("FPS: (%u)", Stats.FPS);
         ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets.load());
         ImGui::Text("CPU Wait Time: %0.2f ms", Stats.CPUWaitTime * 1000.0f);
         ImGui::Text("GPU Wait Time: %0.2f ms", Stats.GPUWaitTime * 1000.0f);
+        ImGui::Text("Swapchain Image Present Time: %0.2fms", Stats.PresentTime * 1000.0f);
         ImGui::Text("FrameTime: %0.2f ms", Stats.FrameTime * 1000.0f);
         ImGui::Text("VMA Allocations: %llu", Stats.Allocations.load());
         ImGui::Text("DrawCalls: %llu", Stats.DrawCalls.load());

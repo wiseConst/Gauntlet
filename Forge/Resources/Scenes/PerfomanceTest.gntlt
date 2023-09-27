@@ -1,0 +1,247 @@
+{
+  "Scene": "PerfomanceTest",
+  "Entities": {
+    "9389530489013853179": {
+      "TagComponent": "kub1k",
+      "TransformComponent": {
+        "Translation": [
+          -4.150000095367432,
+          1.0,
+          0.0
+        ],
+        "Rotation": [
+          45.0,
+          -45.0,
+          45.0
+        ],
+        "Scale": [
+          50.0,
+          50.0,
+          50.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Default/Cube.gltf"
+      }
+    },
+    "3544115217175449651": {
+      "TagComponent": "rhetorician",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          -7.650000095367432,
+          -19.5
+        ],
+        "Rotation": [
+          0.0,
+          17.450000762939453,
+          0.0
+        ],
+        "Scale": [
+          2.0,
+          2.0,
+          2.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "rhetorician/scene.gltf"
+      }
+    },
+    "3344511521715449651": {
+      "TagComponent": "Sphere",
+      "TransformComponent": {
+        "Translation": [
+          15.850000381469727,
+          7.050000190734863,
+          -6.75
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          150.0,
+          150.0,
+          150.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Default/Sphere.gltf"
+      }
+    },
+    "2544511521715449651": {
+      "TagComponent": "handgun_animation",
+      "TransformComponent": {
+        "Translation": [
+          -26.399999618530273,
+          0.0,
+          9.25
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          15.0,
+          15.0,
+          15.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "handgun_animation/scene.gltf"
+      }
+    },
+    "2244511521175449651": {
+      "TagComponent": "Plane",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          -10.0,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          30.0,
+          1.0,
+          30.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Default/Plane.gltf"
+      }
+    },
+    "1800455306711077922": {
+      "TagComponent": "lu4ik solnca",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          -28.5,
+          11.850000381469727,
+          -35.900001525878906
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "DirectionalLightComponent": {
+        "Color": [
+          0.9264705777168274,
+          0.5588744282722473,
+          0.14532871544361115
+        ],
+        "AmbientSpecularShininess": [
+          0.10000000149011612,
+          1.0499999523162842,
+          64.0
+        ],
+        "CastShadows": [
+          0
+        ]
+      }
+    },
+    "15445115299175449651": {
+      "TagComponent": "CyberPunkRevolver",
+      "TransformComponent": {
+        "Translation": [
+          32.650001525878906,
+          6.349999904632568,
+          -17.600000381469727
+        ],
+        "Rotation": [
+          0.0,
+          -49.25,
+          0.0
+        ],
+        "Scale": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.05000000074505806
+        ]
+      },
+      "MeshComponent": {
+        "Name": "cyberpunk_revolver/scene.gltf"
+      }
+    },
+    "15445115217175449651": {
+      "TagComponent": "Sponza",
+      "TransformComponent": {
+        "Translation": [
+          5.300000190734863,
+          0.0,
+          -35.900001525878906
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Sponza/sponza.gltf"
+      }
+    },
+    "15445115217175447751": {
+      "TagComponent": "Cerberus",
+      "TransformComponent": {
+        "Translation": [
+          24.25,
+          -4.0,
+          22.399999618530273
+        ],
+        "Rotation": [
+          0.0,
+          -40.349998474121094,
+          0.0
+        ],
+        "Scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Cerberus/scene.gltf"
+      }
+    },
+    "15225115217175449651": {
+      "TagComponent": "VikingRoom",
+      "TransformComponent": {
+        "Translation": [
+          -23.25,
+          -8.850000381469727,
+          33.900001525878906
+        ],
+        "Rotation": [
+          0.0,
+          -37.29999923706055,
+          0.0
+        ],
+        "Scale": [
+          4.0,
+          4.0,
+          4.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "VikingRoom/viking_room.gltf"
+      }
+    }
+  }
+}

@@ -7,11 +7,12 @@ layout(location = 0) out vec4 OutFragColor;
 layout(set = 0, binding = 0) uniform sampler2D PositionMap;
 layout(set = 0, binding = 1) uniform sampler2D NormalMap;
 layout(set = 0, binding = 2) uniform sampler2D AlbedoMap;
-// layout(set = 0, binding = 3) uniform sampler2D ShadowMap;
+layout(set = 0, binding = 3) uniform sampler2D ShadowMap;
+// layout(set = 0, binding = 4) uniform sampler2D SSAOMap;
 
 layout( push_constant ) uniform PushConstants
 {	
-	mat4 TransformMatrix;
+	mat4 TransformMatrix; // And here I store LightSpaceMatrix
 	vec4 Color; // Here I store cameraViewPosition
 } MeshPushConstants;
 
@@ -20,6 +21,7 @@ struct DirectionalLight
     vec4 Color;
     vec4 Direction;
     vec4 AmbientSpecularShininess;
+	// bool bCastShadows;
 };
 
 struct PointLight
@@ -32,7 +34,7 @@ struct PointLight
 
 #define MAX_POINT_LIGHTS 16
 
-layout(set = 0, binding = 3) uniform LightingModelBuffer
+layout(set = 0, binding = 4) uniform LightingModelBuffer
 {
 	DirectionalLight DirLight;
 	PointLight PointLights[MAX_POINT_LIGHTS];
@@ -40,13 +42,28 @@ layout(set = 0, binding = 3) uniform LightingModelBuffer
 	float Gamma;
 } InLightingModelBuffer;
 
-vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 ViewVector, const vec3 UnitNormal, const float shadow)
+float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, const vec3 LightDirection)
+{
+	// Transforming into NDC [-1, 1]
+	vec3 projCoords = LightSpaceFragPos.xyz / LightSpaceFragPos.w; 
+
+	// DepthMap's range is [0, 1] => transform from NDC to screen space [0, 1]
+	projCoords = projCoords * 0.5 + 0.5;
+
+	const float currentDepth = projCoords.z;
+	const float closestDepth = texture(ShadowMap, projCoords.xy).r;
+
+	const float bias = max(0.05f * (1.0f - dot(UnitNormal, LightDirection)), 0.005f);
+	const float shadow = currentDepth - bias > closestDepth ? 1.0f : 0.0f; 
+	return shadow;
+}
+
+vec3 CalculateDirectionalLight(const float ssao, const DirectionalLight DirLight, const vec3 ViewVector, const vec3 UnitNormal, const float shadow)
 {
 	// Ambient
-	const vec3 AmbientColor = DirLight.AmbientSpecularShininess.x * vec3(DirLight.Color);
+	const vec3 AmbientColor = ssao * DirLight.AmbientSpecularShininess.x * vec3(DirLight.Color);
 
-	// By default dir light direction is coming from light source to fragment, but we want it to be from fragment to light source
-	const vec3 NormalizedLightDirection = normalize(-vec3(DirLight.Direction));
+	const vec3 NormalizedLightDirection = normalize(vec3(-DirLight.Direction));
 
 	// Diffuse
 	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
@@ -86,14 +103,29 @@ vec3 CalculatePointLightColor(PointLight InPointLight, const vec3 FragPos, const
 void main()
 {
 	const vec3 FragPos = texture(PositionMap, InTexCoord).rgb;
-    const vec3 Normal = texture(NormalMap,    InTexCoord).rgb;
-    const vec4 Albedo = texture(AlbedoMap,    InTexCoord);
-    
+    const vec3 Normal =  texture(NormalMap,   InTexCoord).rgb;
+    const vec4 Albedo =  texture(AlbedoMap,   InTexCoord);
+	const float ssao =   1.0f;//texture(SSAOMap,     InTexCoord).r;
+
+	// TEMPORARY
+	if(Albedo.x == 0.0)
+	{
+		OutFragColor = vec4(FragPos, 1.0);
+	} else
+	{
+
 	vec4 FinalColor = vec4(Albedo.rgb, 1.0);
 
 	const vec3 ViewVector = normalize(FragPos - MeshPushConstants.Color.xyz);
 
-	FinalColor.rgb += CalculateDirectionalLight(InLightingModelBuffer.DirLight, ViewVector, Normal, 0);
+	const vec4 LightSpaceFragPos = MeshPushConstants.TransformMatrix * vec4(FragPos, 1.0);
+	
+	float dirShadow = 0.0f;
+//	if(InLightingModelBuffer.DirLight.bCastShadows)
+//	{
+		dirShadow = CalculateShadows(LightSpaceFragPos, Normal, vec3(InLightingModelBuffer.DirLight.Direction));
+	//}
+	FinalColor.rgb += CalculateDirectionalLight(ssao, InLightingModelBuffer.DirLight, ViewVector, Normal, dirShadow);
 	
 	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
 		FinalColor.rgb += CalculatePointLightColor(InLightingModelBuffer.PointLights[i], FragPos, ViewVector, Normal);
@@ -101,4 +133,5 @@ void main()
 	// FinalColor.rgb = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
 	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0 / InLightingModelBuffer.Gamma));
 	OutFragColor = FinalColor;
+	}
 }

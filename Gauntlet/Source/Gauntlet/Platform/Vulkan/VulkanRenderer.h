@@ -33,41 +33,52 @@ class VulkanRenderer final : public Renderer
 
     struct VulkanRendererStorage
     {
+        // Viewports
+        bool bFramebuffersNeedResize  = {false};
+        glm::uvec2 NewFramebufferSize = {1280, 720};
+
         // Framebuffers && RenderPasses
         Ref<VulkanFramebuffer> ShadowMapFramebuffer = nullptr;
         Ref<VulkanFramebuffer> SetupFramebuffer     = nullptr;  // Clear pass
         Ref<VulkanFramebuffer> GeometryFramebuffer  = nullptr;
-        Ref<VulkanFramebuffer> SSAOFramebuffer      = nullptr;
         Ref<VulkanFramebuffer> LightingFramebuffer  = nullptr;
 
-        bool bFramebuffersNeedResize  = {false};
-        glm::uvec2 NewFramebufferSize = {1280, 720};
+        // SSAO
+        Ref<VulkanFramebuffer> SSAOFramebuffer = nullptr;
+        Ref<VulkanPipeline> SSAOPipeline       = nullptr;
+        Ref<VulkanTexture2D> SSAONoiseTexture  = nullptr;
 
         // Deffered stuff
         DescriptorSet LightingSet;
         VkDescriptorSetLayout LightingDescriptorSetLayout = VK_NULL_HANDLE;
         VkDescriptorSetLayout GeometryDescriptorSetLayout = VK_NULL_HANDLE;
+        DescriptorSet SSAOSet;
+        VkDescriptorSetLayout SSAODescriptorSetLayout = VK_NULL_HANDLE;
 
         // Pipelines
-        Ref<VulkanPipeline> ShadowMapPipeline = nullptr;
-        Ref<VulkanPipeline> ForwardPassPipeline  = nullptr;
-        Ref<VulkanPipeline> GeometryPipeline  = nullptr;
-        Ref<VulkanPipeline> LightingPipeline  = nullptr;
-        Ref<VulkanPipeline> SSAOPipeline      = nullptr;
+        Ref<VulkanPipeline> ShadowMapPipeline   = nullptr;
+        Ref<VulkanPipeline> ForwardPassPipeline = nullptr;
+        Ref<VulkanPipeline> GeometryPipeline    = nullptr;
+        Ref<VulkanPipeline> LightingPipeline    = nullptr;
 
         // Mesh
         Ref<VulkanTexture2D> MeshWhiteTexture         = nullptr;
         VkDescriptorSetLayout MeshDescriptorSetLayout = VK_NULL_HANDLE;
 
-        // Camera UBO
+        // Camera UB
         std::vector<AllocatedBuffer> UniformCameraDataBuffers;
         std::vector<void*> MappedUniformCameraDataBuffers;
         CameraDataBuffer MeshCameraDataBuffer;
 
-        // Shadows UBO
+        // Shadows UB
         std::vector<AllocatedBuffer> UniformShadowsBuffers;
         std::vector<void*> MappedUniformShadowsBuffers;
         ShadowsBuffer MeshShadowsBuffer;
+
+        // SSAO UB
+        std::vector<AllocatedBuffer> UniformSSAOBuffers;
+        std::vector<void*> MappedUniformSSAOBuffers;
+        SSAOBuffer SSAODataBuffer;
 
         // Skybox
         Ref<Skybox> DefaultSkybox          = nullptr;

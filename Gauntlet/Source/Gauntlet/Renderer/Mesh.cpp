@@ -77,9 +77,9 @@ Mesh::Mesh(const std::string& meshPath)
 void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
-    const aiScene* scene =
-        importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_PreTransformVertices |
-                                               aiProcess_OptimizeMeshes | aiProcess_RemoveRedundantMaterials);
+    const aiScene* scene = importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
+                                                                  aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes |
+                                                                  aiProcess_RemoveRedundantMaterials | aiProcess_ImproveCacheLocality);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -173,6 +173,15 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         const auto NormalMaps = LoadMaterialTextures(material, aiTextureType_NORMALS);
         NormalMapTextures.insert(NormalMapTextures.end(), NormalMaps.begin(), NormalMaps.end());
 
+        // Testing only
+        if (DiffuseTextures.empty())
+        {
+            auto DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
+            if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
+            if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
+            DiffuseTextures.insert(DiffuseTextures.end(), DiffuseMaps.begin(), DiffuseMaps.end());
+        }
+
         auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
         if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
         if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
@@ -182,6 +191,8 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
     Ref<Gauntlet::Material> Material = Material::Create();
     Material->SetDiffuseTextures(DiffuseTextures);
     Material->SetNormalMapTextures(NormalMapTextures);
+
+    // Currently unused
     Material->SetEmissiveTextures(EmissiveTextures);
 
     Material->Invalidate();
@@ -207,8 +218,11 @@ std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextur
 
         // Hasn't loaded, so lets load it.
         const std::string LocalTexturePath(str.C_Str());
-        const auto TexturePath = m_Directory + LocalTexturePath;
-        Ref<Texture2D> texture = Ref<Texture2D>(Texture2D::Create(TexturePath, true));  // Temporary create TextureID's for Mesh Textures
+        const auto TexturePath           = m_Directory + LocalTexturePath;
+        TextureSpecification textureSpec = {};
+        textureSpec.CreateTextureID      = true;
+        Ref<Texture2D> texture =
+            Ref<Texture2D>(Texture2D::Create(TexturePath, textureSpec));  // Temporary create TextureID's for Mesh Textures
 
         LOG_TRACE("Loaded texture: %s", TexturePath.data());
 

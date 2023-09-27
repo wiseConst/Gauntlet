@@ -29,7 +29,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 int main(int argc, char** argv)
 {
-    return Gauntlet::Main(__argc, __argv);
+    return Gauntlet::Main(argc, argv);
 }
 
 #endif

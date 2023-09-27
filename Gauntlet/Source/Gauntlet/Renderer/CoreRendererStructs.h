@@ -14,7 +14,7 @@ struct QuadVertex
     glm::vec4 Color{1.0f};
     glm::vec2 TexCoord{0.0f};
     float TextureId{0.0f};
-    glm::vec3 Normal{0.0f};
+    glm::vec3 Normal{0.0f};  // vec3 normal for 2d rendering??
 };
 
 struct MeshVertex
@@ -61,6 +61,7 @@ struct DirectionalLight
     glm::vec4 Color                    = glm::vec4(0.0f);
     glm::vec4 Direction                = glm::vec4(0.0f);
     glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+    //  bool bCastShadows;
 };
 
 struct LightingModelBuffer
@@ -74,6 +75,14 @@ struct LightingModelBuffer
 struct ShadowsBuffer
 {
     glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);
+};
+
+struct SSAOBuffer
+{
+    glm::vec3 Samples[64];
+    glm::mat4 CameraProjection = glm::mat4(1.0f);
+    glm::vec2 ViewportSize     = glm::vec2(1.0f, 1.0f);
+    float NoiseFactor          = 1.0f;
 };
 
 struct MaterialBuffer

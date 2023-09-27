@@ -2,7 +2,8 @@
 
 #include "Gauntlet/Core/Core.h"
 #include <vector>
-#include <string_view>
+
+// TODO: Also add texture properties
 
 namespace Gauntlet
 {

@@ -74,6 +74,7 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
         node["DirectionalLightComponent"].emplace(
             "AmbientSpecularShininess",
             std::initializer_list<float>({dlc.AmbientSpecularShininess.x, dlc.AmbientSpecularShininess.y, dlc.AmbientSpecularShininess.z}));
+        node["DirectionalLightComponent"].emplace("CastShadows", std::initializer_list<int32_t>({(int32_t)dlc.bCastShadows}));
     }
 }
 
@@ -201,6 +202,9 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
             std::array<float, 3> ambientSpecularShininess =
                 node["DirectionalLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
             dlc.AmbientSpecularShininess = glm::vec3(ambientSpecularShininess[0], ambientSpecularShininess[1], ambientSpecularShininess[2]);
+
+            std::array<int32_t, 1> castShadows = node["DirectionalLightComponent"]["CastShadows"].get<std::array<int32_t, 1>>();
+            dlc.bCastShadows                   = castShadows[0];
         }
     }
 
