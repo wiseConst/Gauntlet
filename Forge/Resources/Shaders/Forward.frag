@@ -40,7 +40,7 @@ layout(set = 0, binding = 5) uniform LightingModelBuffer
 	PointLight PointLights[MAX_POINT_LIGHTS];
 
 	float Gamma;
-} InLightingModelBuffer;
+} u_LightingModelBuffer;
 
 // simple shadowmapping from here: https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
 float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, const vec3 LightDirection)
@@ -134,13 +134,13 @@ void main()
 
 
 	const vec3 UnitNormal = normalize(InNormal);
-	const float shadow = CalculateShadows(InLightSpaceFragPos, UnitNormal, vec3(InLightingModelBuffer.DirLight.Direction));
-	FinalColor.rgb += CalculateDirectionalLight(InLightingModelBuffer.DirLight, UnitNormal, shadow);
+	const float shadow = CalculateShadows(InLightSpaceFragPos, UnitNormal, vec3(u_LightingModelBuffer.DirLight.Direction));
+	FinalColor.rgb += CalculateDirectionalLight(u_LightingModelBuffer.DirLight, UnitNormal, shadow);
 	
 	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
-		FinalColor.rgb += CalculatePointLightColor(InLightingModelBuffer.PointLights[i], UnitNormal);
+		FinalColor.rgb += CalculatePointLightColor(u_LightingModelBuffer.PointLights[i], UnitNormal);
 
 	FinalColor.rgb  = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
-	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0f / InLightingModelBuffer.Gamma)); // OLD: Seems like textures already corrected so no need to use this: 1.0f / InLightingModelBuffer.Gamma, but we should use InLightingModelBuffer.Gamma
+	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0f / u_LightingModelBuffer.Gamma)); // OLD: Seems like textures already corrected so no need to use this: 1.0f / InLightingModelBuffer.Gamma, but we should use InLightingModelBuffer.Gamma
 	OutFragColor = FinalColor;
 }

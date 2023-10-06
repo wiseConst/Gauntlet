@@ -1,0 +1,86 @@
+{
+  "Scene": "Armadillo",
+  "Entities": {
+    "8156845505691964205": {
+      "TagComponent": "Empty Entity",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          3.3499999046325684,
+          -18.149999618530273,
+          -36.900001525878906
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "DirectionalLightComponent": {
+        "Color": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "AmbientSpecularShininess": [
+          0.05000000074505806,
+          0.0,
+          1.0
+        ],
+        "CastShadows": [
+          0
+        ]
+      }
+    },
+    "4398712195622006662": {
+      "TagComponent": "Armadillo",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.699999988079071,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Armadillo/scene.gltf"
+      }
+    },
+    "18099408043116904335": {
+      "TagComponent": "Plane",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Default/Plane.gltf"
+      }
+    }
+  }
+}

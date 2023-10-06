@@ -25,3 +25,6 @@
 [submodule "Gauntlet/vendor/spirv-reflect"]
 	path = Gauntlet/vendor/spirv-reflect
 	url = https://github.com/wiseConst/SPIRV-Reflect.git
+[submodule "Gauntlet/vendor/FastNoiseLite"]
+	path = Gauntlet/vendor/FastNoiseLite
+	url = https://github.com/Auburn/FastNoiseLite.git

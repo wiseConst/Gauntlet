@@ -10,19 +10,21 @@ void JobSystem::Init()
     GNT_ASSERT(!s_bIsInitialized, "Job system already initialized!");
     s_bIsInitialized = true;
 
-#if GNT_DEBUG && 0
+#if !GNT_DEBUG
     LOG_INFO("MainThread ID: %u", std::this_thread::get_id());
 #endif
 
     s_ThreadCount = std::thread::hardware_concurrency() - 1;
     if (s_ThreadCount > MAX_WORKER_THREADS)
     {
-#if GNT_DEBUG && 0
+#if !GNT_DEBUG
         LOG_INFO("You have: %u threads, capping at: %u.", s_ThreadCount, MAX_WORKER_THREADS);
 #endif
         s_ThreadCount = MAX_WORKER_THREADS;
     }
+#if !GNT_DEBUG
     LOG_INFO("JobSystem using %u threads.", s_ThreadCount);
+#endif
 
     for (uint32_t i = 0; i < s_ThreadCount; ++i)
     {

@@ -93,7 +93,8 @@ void Scene::OnUpdate(const float deltaTime)
             {
                 auto& dlc = entity.GetComponent<DirectionalLightComponent>();
 
-                Renderer::AddDirectionalLight(dlc.Color, Transform.Rotation, dlc.AmbientSpecularShininess);
+                Renderer::AddDirectionalLight(dlc.Color, glm::radians(Transform.Rotation),
+                                              glm::vec4(dlc.AmbientSpecularShininess, (float)dlc.bCastShadows));
             }
         }
     }

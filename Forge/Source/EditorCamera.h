@@ -28,15 +28,19 @@ class EditorCamera final : public Gauntlet::PerspectiveCamera
 
     // void OnEvent(Gauntlet::Event& InEvent) final override{PerspectiveCamera::OnEvent(InEvent);}
 
+    void OnResize(float aspectRatio) final override
+    {
+        m_AspectRatio = aspectRatio;
+        SetProjection();
+    }
+
     void Resize(uint32_t InWidth, uint32_t InHeight)
     {
         GNT_ASSERT(InHeight != 0, "Zero division!");
         m_ViewportWidth  = static_cast<float>(InWidth);
         m_ViewportHeight = static_cast<float>(InHeight);
 
-        m_AspectRatio = m_ViewportWidth / m_ViewportHeight;
-
-        SetProjection();
+        OnResize(m_ViewportWidth / m_ViewportHeight);
     }
 
     FORCEINLINE const auto GetViewportWidth() const { return m_ViewportWidth; }

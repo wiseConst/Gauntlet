@@ -77,9 +77,11 @@ Mesh::Mesh(const std::string& meshPath)
 void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(meshPath.data(), aiProcess_Triangulate | aiProcess_GenNormals |
-                                                                  aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes |
-                                                                  aiProcess_RemoveRedundantMaterials | aiProcess_ImproveCacheLocality);
+    const auto importFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_PreTransformVertices |
+                             aiProcess_OptimizeMeshes | aiProcess_RemoveRedundantMaterials | aiProcess_ImproveCacheLocality |
+                             aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_SortByPType | aiProcess_FindInstances |
+                             aiProcess_ValidateDataStructure | aiProcess_FindDegenerates | aiProcess_FindInvalidData;
+    const aiScene* scene = importer.ReadFile(meshPath.data(), importFlags);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -221,6 +223,9 @@ std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextur
         const auto TexturePath           = m_Directory + LocalTexturePath;
         TextureSpecification textureSpec = {};
         textureSpec.CreateTextureID      = true;
+        textureSpec.GenerateMips         = true;
+        textureSpec.Filter               = ETextureFilter::LINEAR;
+        textureSpec.Wrap                 = ETextureWrap::REPEAT;
         Ref<Texture2D> texture =
             Ref<Texture2D>(Texture2D::Create(TexturePath, textureSpec));  // Temporary create TextureID's for Mesh Textures
 
@@ -260,11 +265,11 @@ void Mesh::Destroy()
     for (auto& IndexBuffer : m_IndexBuffers)
         IndexBuffer->Destroy();
 
-    for (auto& LoadedTexture : m_LoadedTextures)
-        LoadedTexture.second->Destroy();
-
     for (auto& submesh : m_MeshesData)
         submesh.Material->Destroy();
+
+    for (auto& LoadedTexture : m_LoadedTextures)
+        LoadedTexture.second->Destroy();
 }
 
 }  // namespace Gauntlet

@@ -56,7 +56,7 @@ void VulkanRenderer2D::Create()
         delete[] QuadIndices;
     }
 
-    s_Data2D.TextureSlots[0] = VulkanRenderer::GetStorageData().MeshWhiteTexture;
+    s_Data2D.TextureSlots[0] = std::static_pointer_cast<VulkanTexture2D>(Renderer::GetStorageData().WhiteTexture);
 
     // Default 2D graphics pipeline creation
     {
@@ -68,8 +68,8 @@ void VulkanRenderer2D::Create()
         PipelineSpec.Name                  = "Quad2D";
         PipelineSpec.bDepthTest            = VK_TRUE;
         PipelineSpec.bDepthWrite           = VK_TRUE;
-        PipelineSpec.DepthCompareOp        = VK_COMPARE_OP_LESS;
-        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetStorageData().GeometryFramebuffer;
+        PipelineSpec.DepthCompareOp        = ECompareOp::COMPARE_OP_LESS;
+        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetVulkanStorageData().GeometryFramebuffer;
         PipelineSpec.Shader                = FlatColorShader;
         PipelineSpec.bDynamicPolygonMode   = VK_TRUE;
 
@@ -359,7 +359,7 @@ void VulkanRenderer2D::FlushImpl()
         vkUpdateDescriptorSets(m_Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteSet, 0, nullptr);
     }
 
-    auto& GeneralStorageData = VulkanRenderer::GetStorageData();
+    auto& GeneralStorageData = VulkanRenderer::GetVulkanStorageData();
     GeneralStorageData.CurrentCommandBuffer->BeginDebugLabel("2D-Batch", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
     GeneralStorageData.GeometryFramebuffer->BeginRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
 
@@ -368,9 +368,11 @@ void VulkanRenderer2D::FlushImpl()
     GeneralStorageData.CurrentCommandBuffer->BindPipeline(s_Data2D.QuadPipeline);
 
     VkDeviceSize Offset = 0;
-    GeneralStorageData.CurrentCommandBuffer->BindVertexBuffers(
-        0, 1, &s_Data2D.QuadVertexBuffers[s_Data2D.CurrentQuadVertexBufferIndex]->Get(), &Offset);
-    GeneralStorageData.CurrentCommandBuffer->BindIndexBuffer(s_Data2D.QuadIndexBuffer->Get(), 0, VK_INDEX_TYPE_UINT32);
+    VkBuffer vb         = (VkBuffer)s_Data2D.QuadVertexBuffers[s_Data2D.CurrentQuadVertexBufferIndex]->Get();
+    GeneralStorageData.CurrentCommandBuffer->BindVertexBuffers(0, 1, &vb, &Offset);
+
+    VkBuffer ib = (VkBuffer)s_Data2D.QuadIndexBuffer->Get();
+    GeneralStorageData.CurrentCommandBuffer->BindIndexBuffer(ib);
 
     GeneralStorageData.CurrentCommandBuffer->BindDescriptorSets(s_Data2D.QuadPipeline->GetLayout(), 0, 1,
                                                                 &s_Data2D.QuadDescriptorSets[s_Data2D.CurrentDescriptorSetIndex].Handle);

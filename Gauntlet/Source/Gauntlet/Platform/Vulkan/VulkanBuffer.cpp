@@ -36,7 +36,7 @@ VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage bufferUsage)
     return BufferUsageFlags;
 }
 
-void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, AllocatedBuffer& outAllocatedBuffer, VmaMemoryUsage memoryUsage)
+void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, VulkanAllocatedBuffer& outAllocatedBuffer, VmaMemoryUsage memoryUsage)
 {
     VkBufferCreateInfo BufferCreateInfo = {};
     BufferCreateInfo.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -67,7 +67,7 @@ void CopyBuffer(const VkBuffer& sourceBuffer, VkBuffer& destBuffer, const VkDevi
                                    Context.GetDevice()->GetLogicalDevice());
 }
 
-void DestroyBuffer(AllocatedBuffer& InBuffer)
+void DestroyBuffer(VulkanAllocatedBuffer& InBuffer)
 {
     GRAPHICS_GUARD_LOCK;
     auto& Context = (VulkanContext&)VulkanContext::Get();
@@ -80,7 +80,7 @@ void DestroyBuffer(AllocatedBuffer& InBuffer)
 }
 
 // Usually used for copying data to staging buffer
-void CopyDataToBuffer(AllocatedBuffer& buffer, const VkDeviceSize dataSize, const void* data)
+void CopyDataToBuffer(VulkanAllocatedBuffer& buffer, const VkDeviceSize dataSize, const void* data)
 {
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(data, "Data you want to copy is not valid!");
@@ -106,7 +106,7 @@ void VulkanVertexBuffer::SetData(const void* data, const size_t size)
         BufferUtils::DestroyBuffer(m_AllocatedBuffer);
     }
 
-    AllocatedBuffer StagingBuffer = {};
+    VulkanAllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
     BufferUtils::CopyDataToBuffer(StagingBuffer, size, data);
 
@@ -122,7 +122,7 @@ void VulkanVertexBuffer::Destroy()
     BufferUtils::DestroyBuffer(m_AllocatedBuffer);
 }
 
-void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& stagingBuffer, const VkDeviceSize stagingBufferDataSize)
+void VulkanVertexBuffer::SetStagedData(const VulkanAllocatedBuffer& stagingBuffer, const VkDeviceSize stagingBufferDataSize)
 {
     // First call on this vertex buffer
     if (!m_AllocatedBuffer.Buffer)
@@ -151,7 +151,7 @@ void VulkanVertexBuffer::SetStagedData(const AllocatedBuffer& stagingBuffer, con
 
 VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& bufferInfo) : IndexBuffer(bufferInfo), m_IndicesCount(bufferInfo.Count)
 {
-    AllocatedBuffer StagingBuffer = {};
+    VulkanAllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, bufferInfo.Size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
     BufferUtils::CopyDataToBuffer(StagingBuffer, bufferInfo.Size, bufferInfo.Data);
 

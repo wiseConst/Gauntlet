@@ -13,12 +13,12 @@ layout(location = 2) out flat float OutTextureId;
 layout( push_constant ) uniform PushConstants
 {	
 	mat4 RenderMatrix;
-	vec4 Color;
-} MeshPushConstants;
+	vec4 Data;
+} u_MeshPushConstants;
 
 void main()
 {
-	gl_Position = MeshPushConstants.RenderMatrix * vec4(InPosition, 1.0f);
+	gl_Position = u_MeshPushConstants.RenderMatrix * vec4(InPosition, 1.0f);
 
 	OutColor = InColor;
 	OutTexCoord = InTexCoord;

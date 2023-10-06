@@ -34,7 +34,7 @@ void VulkanTextureCube::Create()
     const VkDeviceSize CubeMapSize = ImageSize * s_MaxCubeMapImages;
 
     // Create staging buffer for image data
-    AllocatedBuffer StagingBuffer = {};
+    VulkanAllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, CubeMapSize, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
 
     const auto& Context = (VulkanContext&)VulkanContext::Get();
@@ -54,13 +54,16 @@ void VulkanTextureCube::Create()
     ImageSpec.Width              = Width;
     ImageSpec.Height             = Height;
     ImageSpec.Layers             = s_MaxCubeMapImages;
+    ImageSpec.Mips               = 1;
     m_Image                      = MakeRef<VulkanImage>(ImageSpec);
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make it
     // readable from fragment shader.
-    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, true);
+    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ImageSpec.Mips,
+                                      true);
     ImageUtils::CopyBufferDataToImage(StagingBuffer.Buffer, m_Image->Get(), {m_Image->GetWidth(), m_Image->GetHeight(), 1}, true);
-    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, true);
+    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                      ImageSpec.Mips, true);
 
     // All data sent from staging buffer, we can delete it.
     BufferUtils::DestroyBuffer(StagingBuffer);

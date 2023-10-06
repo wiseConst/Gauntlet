@@ -120,8 +120,8 @@ void VulkanImGuiLayer::OnDetach()
     m_ImGuiCommandPool->Destroy();
     m_CurrentCommandBuffer = nullptr;
 
-    for (auto& InFlightFence : m_InFlightFences)
-        vkDestroyFence(m_Context.GetDevice()->GetLogicalDevice(), InFlightFence, nullptr);
+    for (auto& inFlightFence : m_InFlightFences)
+        vkDestroyFence(m_Context.GetDevice()->GetLogicalDevice(), inFlightFence, nullptr);
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -138,11 +138,6 @@ void VulkanImGuiLayer::BeginRender()
         vkResetFences(m_Context.GetDevice()->GetLogicalDevice(), 1, &m_InFlightFences[m_Context.GetSwapchain()->GetCurrentFrameIndex()]),
         "Failed to reset UI render fence!");
 
-    // Start the Dear ImGui frame
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
     m_CurrentCommandBuffer = &m_ImGuiCommandPool->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
     GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve imgui command buffer!");
 
@@ -150,6 +145,11 @@ void VulkanImGuiLayer::BeginRender()
     m_CurrentCommandBuffer->BeginDebugLabel("Swapchain + UI Pass", glm::vec4(0.0f, 0.0f, 0.8f, 1.0f));
 
     m_Context.GetSwapchain()->BeginRenderPass(m_CurrentCommandBuffer->Get());
+
+    // Start the Dear ImGui frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 }
 
 void VulkanImGuiLayer::EndRender()
@@ -171,8 +171,7 @@ void VulkanImGuiLayer::EndRender()
     m_CurrentCommandBuffer->EndDebugLabel();
     m_CurrentCommandBuffer->EndRecording();
 
-    VkSubmitInfo SubmitInfo       = {};
-    SubmitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo SubmitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers    = &m_CurrentCommandBuffer->Get();
 

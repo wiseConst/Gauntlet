@@ -14,6 +14,8 @@
 
 #include <GLFW/glfw3.h>
 
+#pragma warning(disable : 4834)
+
 namespace Gauntlet
 {
 

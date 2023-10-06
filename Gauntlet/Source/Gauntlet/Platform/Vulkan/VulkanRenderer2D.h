@@ -38,7 +38,7 @@ class VulkanRenderer2D final : public Renderer2D
         // Quad staging storage
         struct StagingBuffer
         {
-            AllocatedBuffer Buffer;
+            VulkanAllocatedBuffer Buffer;
             size_t Capacity = 0;
         };
         Scoped<StagingBuffer> QuadStagingBuffer;

@@ -52,16 +52,14 @@ struct PointLight
     glm::vec4 Position                 = glm::vec4(0.0f);
     glm::vec4 Color                    = glm::vec4(0.0f);
     glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-    glm::vec4 CLQ                      = glm::vec4(1.0f, glm::vec3(0.0f));  // Attenuation: Constant Linear Quadratic
+    glm::vec4 CLQActive                = glm::vec4(1.0f, glm::vec3(0.0f));  // Attenuation: Constant Linear Quadratic IsActive?
 };
 
-// TODO: Add bool CastShadows;
 struct DirectionalLight
 {
     glm::vec4 Color                    = glm::vec4(0.0f);
     glm::vec4 Direction                = glm::vec4(0.0f);
-    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-    //  bool bCastShadows;
+    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);  // w is bCastShadows
 };
 
 struct LightingModelBuffer
@@ -79,10 +77,9 @@ struct ShadowsBuffer
 
 struct SSAOBuffer
 {
-    glm::vec3 Samples[64];
     glm::mat4 CameraProjection = glm::mat4(1.0f);
-    glm::vec2 ViewportSize     = glm::vec2(1.0f, 1.0f);
-    float NoiseFactor          = 1.0f;
+    glm::vec4 Samples[64];
+    glm::vec4 ViewportSizeNoiseFactor = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
 };
 
 struct MaterialBuffer

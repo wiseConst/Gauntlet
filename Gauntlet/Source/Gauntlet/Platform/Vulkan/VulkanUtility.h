@@ -5,6 +5,7 @@
 
 #include "Gauntlet/Core/Core.h"
 #include "Gauntlet/Renderer/Buffer.h"
+#include "Gauntlet/Renderer/Pipeline.h"
 #include "Gauntlet/Renderer/Renderer.h"
 
 namespace Gauntlet
@@ -12,7 +13,7 @@ namespace Gauntlet
 
 #define LOG_VULKAN_INFO 0
 #define LOG_VMA_INFO 0
-#define RENDERDOC_DEBUG 0
+#define RENDERDOC_DEBUG 1
 #define VK_PREFER_IGPU 0
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
@@ -22,8 +23,12 @@ const std::vector<const char*> DeviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,          // Swapchain creation (array of images that we render into, and present to screen)
     VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,  // For advanced GPU info
 #if !RENDERDOC_DEBUG
-    VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME  // For useful pipeline features that can be changed real-time.
+    VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,  // For useful pipeline features that can be changed real-time.
 #endif
+    /*
+    * https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_full_screen_exclusive.html
+    "VK_EXT_full_screen_exclusive",
+    "VK_KHR_get_surface_capabilities2"*/
 };
 
 #ifdef GNT_DEBUG
@@ -114,47 +119,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-enum class EPrimitiveTopology : uint8_t
-{
-    PRIMITIVE_TOPOLOGY_POINT_LIST = 0,
-    PRIMITIVE_TOPOLOGY_LINE_LIST,
-    PRIMITIVE_TOPOLOGY_LINE_STRIP,
-    PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-    PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
-};
-
-// TODO: Mb it should be in Shader class
-enum class EShaderStage : uint8_t
-{
-    SHADER_STAGE_VERTEX = 0,
-    SHADER_STAGE_GEOMETRY,
-    SHADER_STAGE_FRAGMENT,
-    SHADER_STAGE_COMPUTE
-};
-
-enum class ECullMode : uint8_t
-{
-    CULL_MODE_NONE = 0,
-    CULL_MODE_FRONT,
-    CULL_MODE_BACK,
-    CULL_MODE_FRONT_AND_BACK
-};
-
-enum class EPolygonMode : uint8_t
-{
-    POLYGON_MODE_FILL = 0,
-    POLYGON_MODE_LINE,
-    POLYGON_MODE_POINT,
-    POLYGON_MODE_FILL_RECTANGLE_NV
-};
-
-enum class EFrontFace : uint8_t
-{
-    FRONT_FACE_COUNTER_CLOCKWISE = 0,
-    FRONT_FACE_CLOCKWISE
-};
-
 namespace Utility
 {
 
@@ -226,6 +190,24 @@ static VkFrontFace GauntletFrontFaceToVulkan(EFrontFace frontFace)
 
     GNT_ASSERT(false, "Unknown front face flag!");
     return VK_FRONT_FACE_CLOCKWISE;
+}
+
+static VkCompareOp GauntletCompareOpToVulkan(ECompareOp compareOp)
+{
+    switch (compareOp)
+    {
+        case ECompareOp::COMPARE_OP_NEVER: return VK_COMPARE_OP_NEVER;
+        case ECompareOp::COMPARE_OP_LESS: return VK_COMPARE_OP_LESS;
+        case ECompareOp::COMPARE_OP_EQUAL: return VK_COMPARE_OP_EQUAL;
+        case ECompareOp::COMPARE_OP_LESS_OR_EQUAL: return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case ECompareOp::COMPARE_OP_GREATER: return VK_COMPARE_OP_GREATER;
+        case ECompareOp::COMPARE_OP_NOT_EQUAL: return VK_COMPARE_OP_NOT_EQUAL;
+        case ECompareOp::COMPARE_OP_GREATER_OR_EQUAL: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case ECompareOp::COMPARE_OP_ALWAYS: return VK_COMPARE_OP_ALWAYS;
+    }
+
+    GNT_ASSERT(false, "Unknown compare op flag!");
+    return VK_COMPARE_OP_NEVER;
 }
 
 NODISCARD static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& CommandPool, const VkDevice& Device)
@@ -351,6 +333,17 @@ NODISCARD static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType Des
     return WriteDescriptorSet;
 }
 
+NODISCARD static VkDescriptorBufferInfo GetDescriptorBufferInfo(const VkBuffer& buffer, const VkDeviceSize range,
+                                                                const VkDeviceSize offset = 0)
+{
+    VkDescriptorBufferInfo descriptorBufferInfo = {};
+    descriptorBufferInfo.buffer                 = buffer;
+    descriptorBufferInfo.range                  = range;
+    descriptorBufferInfo.offset                 = offset;
+
+    return descriptorBufferInfo;
+}
+
 NODISCARD static VkDescriptorSetAllocateInfo GetDescriptorSetAllocateInfo(const VkDescriptorPool& DescriptorPool,
                                                                           const uint32_t DescriptorSetCount,
                                                                           VkDescriptorSetLayout* DescriptorSetLayouts)
@@ -449,7 +442,6 @@ static VkBool32 DropPipelineCacheToDisk(const VkDevice& logicalDevice, const VkP
     return VK_TRUE;
 }
 
-// TODO: Implement query pool
 static VkCommandBufferInheritanceInfo GetCommandBufferInheritanceInfo(const VkRenderPass& renderPass, const VkFramebuffer& framebuffer,
                                                                       const uint32_t subpass                      = 0,
                                                                       const VkBool32 occlusionQueryEnable         = VK_FALSE,

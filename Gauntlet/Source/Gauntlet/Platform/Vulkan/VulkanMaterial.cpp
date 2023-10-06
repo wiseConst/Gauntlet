@@ -10,6 +10,8 @@
 #include "VulkanUtility.h"
 #include "Gauntlet/Renderer/Skybox.h"
 
+#pragma warning(disable : 4100)
+
 namespace Gauntlet
 {
 // TODO: Refactor
@@ -21,17 +23,18 @@ VulkanMaterial::VulkanMaterial()
 
 void VulkanMaterial::Invalidate()
 {
-    auto& Context                   = (VulkanContext&)VulkanContext::Get();
-    const auto& RendererStorageData = VulkanRenderer::GetStorageData();
+    auto& Context                         = (VulkanContext&)VulkanContext::Get();
+    const auto& VulkanRendererStorageData = VulkanRenderer::GetVulkanStorageData();
+    const auto& RendererStorageData       = Renderer::GetStorageData();
 
     if (!m_DescriptorSet.Handle)
     {
-        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet,
-                                                              RendererStorageData.GeometryDescriptorSetLayout /*MeshDescriptorSetLayout*/),
+        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(
+                       m_DescriptorSet, VulkanRendererStorageData.GeometryDescriptorSetLayout /*MeshDescriptorSetLayout*/),
                    "Failed to allocate descriptor sets!");
     }
 
-    auto WhiteImageInfo = RendererStorageData.MeshWhiteTexture->GetImageDescriptorInfo();
+    auto WhiteImageInfo = static_pointer_cast<VulkanTexture2D>(RendererStorageData.WhiteTexture)->GetImageDescriptorInfo();
     auto WhiteTextureWriteSet =
         Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet.Handle, 1, &WhiteImageInfo);
 
@@ -80,7 +83,7 @@ void VulkanMaterial::Invalidate()
     }
 
     // Environment Map Texture
-    if (auto CubeMapTexture = std::static_pointer_cast<VulkanTextureCube>(RendererStorageData.DefaultSkybox->GetCubeMapTexture()))
+    if (auto CubeMapTexture = std::static_pointer_cast<VulkanTextureCube>(VulkanRendererStorageData.DefaultSkybox->GetCubeMapTexture()))
     {
         auto CubeMapTextureImageInfo      = CubeMapTexture->GetImage()->GetDescriptorInfo();
         const auto CubeMapTextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
@@ -98,7 +101,7 @@ void VulkanMaterial::Invalidate()
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
         VkDescriptorBufferInfo CameraDataBufferInfo = {};
-        CameraDataBufferInfo.buffer                 = RendererStorageData.UniformCameraDataBuffers[i].Buffer;
+        CameraDataBufferInfo.buffer                 = VulkanRendererStorageData.UniformCameraDataBuffers[i].Buffer;
         CameraDataBufferInfo.range                  = sizeof(CameraDataBuffer);
         CameraDataBufferInfo.offset                 = 0;
 

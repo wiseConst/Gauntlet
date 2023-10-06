@@ -70,13 +70,20 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         vkCmdDraw(m_CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
+    FORCEINLINE void DrawIndirect(const VkBuffer& buffer, const VkDeviceSize offset, const uint32_t drawCount, const uint32_t stride)
+    {
+        vkCmdDrawIndirect(m_CommandBuffer, buffer, offset, drawCount, stride);
+    }
+
     FORCEINLINE void BindVertexBuffers(const uint32_t firstBinding = 0, const uint32_t bindingCount = 1, VkBuffer* buffers = VK_NULL_HANDLE,
                                        VkDeviceSize* offsets = VK_NULL_HANDLE) const
     {
+        GNT_ASSERT(buffers, "Invalid vertex buffer(s)!");
         vkCmdBindVertexBuffers(m_CommandBuffer, firstBinding, bindingCount, buffers, offsets);
     }
 
-    FORCEINLINE void BindIndexBuffer(const VkBuffer& buffer, const VkDeviceSize offset, VkIndexType indexType) const
+    FORCEINLINE void BindIndexBuffer(const VkBuffer& buffer, const VkDeviceSize offset = 0,
+                                     VkIndexType indexType = VK_INDEX_TYPE_UINT32) const
     {
         vkCmdBindIndexBuffer(m_CommandBuffer, buffer, offset, indexType);
     }

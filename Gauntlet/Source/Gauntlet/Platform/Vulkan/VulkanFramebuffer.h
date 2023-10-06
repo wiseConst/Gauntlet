@@ -19,7 +19,7 @@ class VulkanFramebuffer final : public Framebuffer
     FORCEINLINE const auto& GetRenderPass() const { return m_RenderPass; }
     FORCEINLINE const std::vector<FramebufferAttachment>& GetAttachments() const { return m_Attachments; }
     const Ref<VulkanImage> GetDepthAttachment() const;
-    FORCEINLINE FramebufferSpecification& GetSpec() final override { return m_Specification; }
+    FORCEINLINE FramebufferSpecification& GetSpecification() final override { return m_Specification; }
     const VkFramebuffer& Get() const;
 
     void SetDepthStencilClearColor(const float depth, const uint32_t stencil);

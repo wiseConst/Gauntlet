@@ -252,7 +252,7 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                           DrawVec3Control("Scale", tc.Scale);
                                       });
 
-    DrawComponent<SpriteRendererComponent>("SpriteRenderer", entity, [](auto& spc) { ImGui::ColorEdit4("Color", &spc.Color.r); });
+    DrawComponent<SpriteRendererComponent>("SpriteRenderer", entity, [](auto& spc) { ImGui::ColorPicker4("Color", &spc.Color.r); });
 
     DrawComponent<PointLightComponent>("PointLight", entity,
                                        [](auto& lc)

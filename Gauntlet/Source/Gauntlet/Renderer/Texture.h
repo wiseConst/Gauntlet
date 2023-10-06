@@ -8,9 +8,11 @@ namespace Gauntlet
 
 struct TextureSpecification
 {
+    EImageFormat Format   = EImageFormat::RGBA;
     ETextureWrap Wrap     = ETextureWrap::REPEAT;
     ETextureFilter Filter = ETextureFilter::LINEAR;
     bool CreateTextureID  = false;  // Can be used in shaders?
+    bool GenerateMips     = false;
 };
 
 class Texture2D
@@ -27,6 +29,8 @@ class Texture2D
     FORCEINLINE virtual TextureSpecification& GetSpecification() = 0;
 
     static Ref<Texture2D> Create(const std::string_view& textureFilePath, const TextureSpecification& textureSpecification);
+    static Ref<Texture2D> Create(const void* data, const size_t size, const uint32_t imageWidth, const uint32_t imageHeight,
+                                 const TextureSpecification& textureSpecification = TextureSpecification());
 };
 
 }  // namespace Gauntlet

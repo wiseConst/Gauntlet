@@ -12,7 +12,7 @@ VulkanCommandPool::VulkanCommandPool(const CommandPoolSpecification& commandPool
     : m_CommandPoolSpecification(commandPoolSpecification)
 {
     CreateCommandPool();
-    AllocatePrimaryCommandBuffers();
+    AllocateCommandBuffers(m_CommandBuffers, FRAMES_IN_FLIGHT);
 }
 
 void VulkanCommandPool::CreateCommandPool()
@@ -20,49 +20,46 @@ void VulkanCommandPool::CreateCommandPool()
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    VkCommandPoolCreateInfo CommandPoolCreateInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-    CommandPoolCreateInfo.flags =
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    commandPoolCreateInfo.flags =
         CommandPoolSpecification::ConvertCommandPoolUsageFlagsToVulkan(m_CommandPoolSpecification.CommandPoolUsage);
-    CommandPoolCreateInfo.queueFamilyIndex = m_CommandPoolSpecification.QueueFamilyIndex;
+    commandPoolCreateInfo.queueFamilyIndex = m_CommandPoolSpecification.QueueFamilyIndex;
 
-    VK_CHECK(vkCreateCommandPool(context.GetDevice()->GetLogicalDevice(), &CommandPoolCreateInfo, nullptr, &m_CommandPool),
+    VK_CHECK(vkCreateCommandPool(context.GetDevice()->GetLogicalDevice(), &commandPoolCreateInfo, nullptr, &m_CommandPool),
              "Failed to create command pool!");
 }
 
-void VulkanCommandPool::AllocatePrimaryCommandBuffers()
+void VulkanCommandPool::FreeCommandBuffers(std::vector<VulkanCommandBuffer>& commandBuffers)
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    m_CommandBuffers.resize(FRAMES_IN_FLIGHT);
+    std::vector<VkCommandBuffer> cmdBuffers(commandBuffers.size());
+    for (uint32_t i = 0; i < cmdBuffers.size(); ++i)
+        cmdBuffers[i] = commandBuffers[i].Get();
 
-    VkCommandBufferAllocateInfo CommandBufferAllocateInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    CommandBufferAllocateInfo.commandPool                 = m_CommandPool;
-    CommandBufferAllocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    CommandBufferAllocateInfo.commandBufferCount          = 1;
-
-    for (auto& CommandBuffer : m_CommandBuffers)
-    {
-        VK_CHECK(vkAllocateCommandBuffers(context.GetDevice()->GetLogicalDevice(), &CommandBufferAllocateInfo, &CommandBuffer.Get()),
-                 "Failed to allocate primary command buffer!");
-    }
+    commandBuffers.clear();
+    vkFreeCommandBuffers(context.GetDevice()->GetLogicalDevice(), m_CommandPool, static_cast<uint32_t>(cmdBuffers.size()),
+                         cmdBuffers.data());
 }
 
-void VulkanCommandPool::AllocateSecondaryCommandBuffers(std::vector<VulkanCommandBuffer>& secondaryCommandBuffers)
+void VulkanCommandPool::AllocateCommandBuffers(std::vector<VulkanCommandBuffer>& secondaryCommandBuffers, const uint32_t size,
+                                               VkCommandBufferLevel commandBufferLevel)
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkCommandBufferAllocateInfo commandBufferAllocateInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     commandBufferAllocateInfo.commandPool                 = m_CommandPool;
-    commandBufferAllocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    commandBufferAllocateInfo.level                       = commandBufferLevel;
     commandBufferAllocateInfo.commandBufferCount          = 1;
 
+    secondaryCommandBuffers.resize(size);
     for (auto& commandBuffer : secondaryCommandBuffers)
     {
-        commandBuffer.m_Level = commandBufferAllocateInfo.level;
+        commandBuffer.m_Level = commandBufferLevel;
         VK_CHECK(vkAllocateCommandBuffers(context.GetDevice()->GetLogicalDevice(), &commandBufferAllocateInfo, &commandBuffer.Get()),
-                 "Failed to allocate secondary command buffer!");
+                 "Failed to allocate command buffer!");
     }
 }
 

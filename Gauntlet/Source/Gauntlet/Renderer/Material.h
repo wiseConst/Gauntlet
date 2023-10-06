@@ -10,11 +10,14 @@ class Texture2D;
 class Material : private Unmovable
 {
   public:
-    Material()  = default;
-    ~Material() = default;
+    Material()          = default;
+    virtual ~Material() = default;
 
     virtual void Invalidate() = 0;
     virtual void Destroy()    = 0;
+
+    virtual FORCEINLINE const void* GetDescriptorSet() const = 0;
+    virtual FORCEINLINE void* GetDescriptorSet()             = 0;
 
     static Ref<Material> Create();
 

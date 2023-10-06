@@ -2,11 +2,11 @@
 
 layout(location = 0) in vec3 InUVW;
 
-layout(set = 0, binding = 0) uniform samplerCube CubeMap;
+layout(set = 0, binding = 0) uniform samplerCube u_CubeMap;
 
 layout(location = 0) out vec4 OutFragColor;
 
 void main()
 { 
-	OutFragColor = texture(CubeMap, InUVW);
+	OutFragColor = texture(u_CubeMap, InUVW);
 }

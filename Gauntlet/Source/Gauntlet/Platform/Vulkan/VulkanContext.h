@@ -55,9 +55,6 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetDescriptorAllocator() const { return m_DescriptorAllocator; }
     FORCEINLINE auto& GetDescriptorAllocator() { return m_DescriptorAllocator; }
 
-    FORCEINLINE const auto& GetThreadData() const { return m_ThreadData; }
-    FORCEINLINE auto& GetThreadData() { return m_ThreadData; }
-
     void AddSwapchainResizeCallback(const std::function<void()>& resizeCallback);
 
   private:
@@ -82,21 +79,10 @@ class VulkanContext final : public GraphicsContext
     std::vector<VkFence> m_InFlightFences;
     float m_LastGPUWaitTime = 0.0f;
 
-    // Multithreaded stuff
-    struct ThreadData
-    {
-        // TODO: If it makes sense, implement query pool
-        Scoped<VulkanCommandPool> CommandPool = nullptr;
-        std::vector<VulkanCommandBuffer> SecondaryShadowMapCommandBuffers;  // Per-frame
-        std::vector<VulkanCommandBuffer> SecondaryGeometryCommandBuffers;   // Per-frame
-    };
-    std::vector<ThreadData> m_ThreadData;
-
     void CreateInstance();
     void CreateDebugMessenger();
     void CreateSurface();
     void CreateSyncObjects();
-    void InitializeMultithreadedRenderer();
 
     bool CheckVulkanAPISupport() const;
     bool CheckValidationLayerSupport();

@@ -25,6 +25,12 @@ class PerspectiveCamera : public Camera
 
     FORCEINLINE const auto GetFOV() const { return m_FOV; }
 
+    void OnResize(float aspectRatio) override
+    {
+        m_AspectRatio = aspectRatio;
+        SetProjection();
+    }
+
     void OnUpdate(const float deltaTime) override
     {
         if (Input::IsKeyPressed(KeyCode::KEY_W))
@@ -81,11 +87,7 @@ class PerspectiveCamera : public Camera
 
     bool m_FirstMouse{true};
 
-    void OnWindowResized(WindowResizeEvent& event)
-    {
-        m_AspectRatio = event.GetAspectRatio();
-        SetProjection();
-    }
+    FORCEINLINE void OnWindowResized(WindowResizeEvent& event) { OnResize(event.GetAspectRatio()); }
 
     void OnMouseScrolled(MouseScrolledEvent& event)
     {

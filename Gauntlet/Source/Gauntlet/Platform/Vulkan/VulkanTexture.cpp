@@ -48,7 +48,7 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     auto& Context = (VulkanContext&)VulkanContext::Get();
 
     // Create staging buffer for image data
-    AllocatedBuffer StagingBuffer = {};
+    VulkanAllocatedBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, textureCreateInfo.DataSize, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
 
     // Copy image data to staging buffer
@@ -58,14 +58,21 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
 
     // Simple image creation
     ImageSpecification ImageSpec = {};
+    ImageSpec.Format             = m_Specification.Format;
     ImageSpec.Usage              = EImageUsage::TEXTURE;
     ImageSpec.Width              = textureCreateInfo.Width;
     ImageSpec.Height             = textureCreateInfo.Height;
     ImageSpec.Wrap               = m_Specification.Wrap;
     ImageSpec.Filter             = m_Specification.Filter;
-    ImageSpec.Layers             = 1;
     ImageSpec.CreateTextureID    = m_Specification.CreateTextureID;
-    m_Image                      = MakeRef<VulkanImage>(ImageSpec);
+    ImageSpec.Layers             = 1;
+
+    if (m_Specification.GenerateMips)
+    {
+        ImageSpec.Mips     = static_cast<uint32_t>(std::floor(std::log2(std::max(textureCreateInfo.Width, textureCreateInfo.Height)))) + 1;
+        ImageSpec.Copyable = m_Specification.GenerateMips;
+    }
+    m_Image = MakeRef<VulkanImage>(ImageSpec);
 
     // Transitioning image layout to DST_OPTIMAL to copy staging buffer data into GPU image memory && transitioning image layout to make
     // it readable from fragment shader.
@@ -75,9 +82,21 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
      * Transfer -> shader read-only: shader read-only should wait on transfer writes operations(in our case after fragment) before
      * transitioning
      */
-    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ImageSpec.Mips);
     ImageUtils::CopyBufferDataToImage(StagingBuffer.Buffer, m_Image->Get(), {m_Image->GetWidth(), m_Image->GetHeight(), 1});
-    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    if (ImageSpec.Mips > 1)
+    {
+        // Then each level will be transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL after the blit command reading from it is
+        // finished.
+        ImageUtils::GenerateMipmaps(m_Image->Get(), ImageUtils::GauntletImageFormatToVulkan(m_Image->GetSpecification().Format),
+                                    ImageUtils::GauntletTextureFilterToVulkan(m_Image->GetSpecification().Filter),
+                                    m_Image->GetSpecification().Width, m_Image->GetSpecification().Height,
+                                    m_Image->GetSpecification().Mips);
+    }
+    else
+        ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                          ImageSpec.Mips);
 
     // All data sent from staging buffer, we can delete it.
     BufferUtils::DestroyBuffer(StagingBuffer);

@@ -38,15 +38,16 @@ void VulkanPipeline::CreateLayout()
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
     /*
      * Pipeline layout contains the information about shader inputs of a given pipeline.
      * It’s here where you would configure your push constants and descriptor sets.
      */
     VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(m_Specification.Shader->GetDescriptorSetLayouts().size());
-    PipelineLayoutCreateInfo.pSetLayouts                = m_Specification.Shader->GetDescriptorSetLayouts().data();
-    PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(m_Specification.Shader->GetPushConstants().size());
-    PipelineLayoutCreateInfo.pPushConstantRanges        = m_Specification.Shader->GetPushConstants().data();
+    PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(vulkanShader->GetDescriptorSetLayouts().size());
+    PipelineLayoutCreateInfo.pSetLayouts                = vulkanShader->GetDescriptorSetLayouts().data();
+    PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(vulkanShader->GetPushConstants().size());
+    PipelineLayoutCreateInfo.pPushConstantRanges        = vulkanShader->GetPushConstants().data();
 
     VK_CHECK(vkCreatePipelineLayout(context.GetDevice()->GetLogicalDevice(), &PipelineLayoutCreateInfo, nullptr, &m_Layout),
              "Failed to create pipeline layout!");
@@ -92,20 +93,20 @@ void VulkanPipeline::Create()
     InputAssemblyState.primitiveRestartEnable                 = m_Specification.PrimitiveRestartEnable;
     InputAssemblyState.topology = Utility::GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
 
-    std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(m_Specification.Shader->GetStages().size());
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+    std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(vulkanShader->GetStages().size());
     for (size_t i = 0; i < ShaderStages.size(); ++i)
     {
         ShaderStages[i].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         ShaderStages[i].pName  = "main";
-        ShaderStages[i].module = m_Specification.Shader->GetStages()[i].Module;
-        ShaderStages[i].stage  = Utility::GauntletShaderStageToVulkan(m_Specification.Shader->GetStages()[i].Stage);
+        ShaderStages[i].module = vulkanShader->GetStages()[i].Module;
+        ShaderStages[i].stage  = Utility::GauntletShaderStageToVulkan(vulkanShader->GetStages()[i].Stage);
     }
 
     // VertexInputState
     VkPipelineVertexInputStateCreateInfo VertexInputState = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
 
-    BufferLayout layout =
-        m_Specification.Layout.GetElements().size() > 0 ? m_Specification.Layout : m_Specification.Shader->GetVertexBufferLayout();
+    BufferLayout layout = m_Specification.Layout.GetElements().size() > 0 ? m_Specification.Layout : vulkanShader->GetVertexBufferLayout();
 
     std::vector<VkVertexInputAttributeDescription> shaderAttributeDescriptions;
     shaderAttributeDescriptions.reserve(layout.GetElements().size());
@@ -119,9 +120,12 @@ void VulkanPipeline::Create()
     VertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(shaderAttributeDescriptions.size());
     VertexInputState.pVertexAttributeDescriptions    = shaderAttributeDescriptions.data();
 
-    VertexInputState.vertexBindingDescriptionCount = 1;
-    const auto vertexBindingDescription            = Utility::GetShaderBindingDescription(0, layout.GetStride());
-    VertexInputState.pVertexBindingDescriptions    = &vertexBindingDescription;
+    const auto vertexBindingDescription = Utility::GetShaderBindingDescription(0, layout.GetStride());
+    if (shaderAttributeDescriptions.size() > 0)
+    {
+        VertexInputState.vertexBindingDescriptionCount = 1;
+        VertexInputState.pVertexBindingDescriptions    = &vertexBindingDescription;
+    }
 
     // TessellationState
     VkPipelineTessellationStateCreateInfo TessellationState = {VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO};
@@ -161,8 +165,9 @@ void VulkanPipeline::Create()
     // TODO: Make it configurable
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates;
 
-    uint32_t attachmentCount = (uint32_t)m_Specification.TargetFramebuffer->GetAttachments().size();
-    if (m_Specification.TargetFramebuffer->GetDepthAttachment()) --attachmentCount;
+    auto vulkanFramebuffer   = std::static_pointer_cast<VulkanFramebuffer>(m_Specification.TargetFramebuffer);
+    uint32_t attachmentCount = (uint32_t)vulkanFramebuffer->GetAttachments().size();
+    if (vulkanFramebuffer->GetDepthAttachment()) --attachmentCount;
 
     for (uint32_t i = 0; i < attachmentCount; ++i)
     {
@@ -215,7 +220,8 @@ void VulkanPipeline::Create()
     VkPipelineDepthStencilStateCreateInfo DepthStencilState = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
     DepthStencilState.depthTestEnable                       = m_Specification.bDepthTest ? VK_TRUE : VK_FALSE;
     DepthStencilState.depthWriteEnable                      = m_Specification.bDepthWrite ? VK_TRUE : VK_FALSE;
-    DepthStencilState.depthCompareOp        = m_Specification.bDepthTest ? m_Specification.DepthCompareOp : VK_COMPARE_OP_ALWAYS;
+    DepthStencilState.depthCompareOp =
+        m_Specification.bDepthTest ? Utility::GauntletCompareOpToVulkan(m_Specification.DepthCompareOp) : VK_COMPARE_OP_ALWAYS;
     DepthStencilState.depthBoundsTestEnable = VK_FALSE;
     DepthStencilState.stencilTestEnable     = VK_FALSE;
 
@@ -237,7 +243,7 @@ void VulkanPipeline::Create()
 
     VkGraphicsPipelineCreateInfo PipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     PipelineCreateInfo.layout                       = m_Layout;
-    PipelineCreateInfo.renderPass                   = m_Specification.TargetFramebuffer->GetRenderPass();
+    PipelineCreateInfo.renderPass                   = vulkanFramebuffer->GetRenderPass();
     PipelineCreateInfo.pInputAssemblyState          = &InputAssemblyState;
     PipelineCreateInfo.stageCount                   = static_cast<uint32_t>(ShaderStages.size());
     PipelineCreateInfo.pStages                      = ShaderStages.data();
@@ -274,12 +280,14 @@ void VulkanPipeline::Destroy()
 
 const VkShaderStageFlags VulkanPipeline::GetPushConstantsShaderStageFlags(const uint32_t Index) const
 {
-    return m_Specification.Shader->GetPushConstants()[Index].stageFlags;
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+    return vulkanShader->GetPushConstants()[Index].stageFlags;
 }
 
 const uint32_t VulkanPipeline::GetPushConstantsSize(const uint32_t Index) const
 {
-    return m_Specification.Shader->GetPushConstants()[Index].size;
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+    return vulkanShader->GetPushConstants()[Index].size;
 }
 
 }  // namespace Gauntlet

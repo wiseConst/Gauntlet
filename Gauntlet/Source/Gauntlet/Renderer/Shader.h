@@ -2,8 +2,22 @@
 
 #include "Gauntlet/Core/Core.h"
 
+#pragma warning(disable : 4834)
+
 namespace Gauntlet
 {
+
+enum class EShaderStage : uint8_t
+{
+    SHADER_STAGE_VERTEX = 0,
+    SHADER_STAGE_GEOMETRY,
+    SHADER_STAGE_FRAGMENT,
+    SHADER_STAGE_COMPUTE
+};
+
+class Texture2D;
+class Image;
+struct AllocatedBuffer;
 
 class Shader
 {
@@ -13,6 +27,10 @@ class Shader
 
     virtual void Destroy() = 0;
     // TODO: Fill these gaps virtual void SetInt()
+
+    virtual void Set(const std::string& name, const Ref<Texture2D>& texture)                                                       = 0;
+    virtual void Set(const std::string& name, const Ref<Image>& image)                                                             = 0;
+    virtual void Set(const std::string& name, const AllocatedBuffer& buffer, const uint64_t bufferSize, const uint64_t offset = 0) = 0;
 
     static Ref<Shader> Create(const std::string_view& filePath);
 };

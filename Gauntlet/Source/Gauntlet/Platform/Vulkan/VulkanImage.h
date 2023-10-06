@@ -6,6 +6,8 @@
 #include <vma/vk_mem_alloc.h>
 #include "VulkanDescriptors.h"
 
+#pragma warning(disable : 4834)
+
 namespace Gauntlet
 {
 
@@ -27,14 +29,18 @@ void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t hei
                  VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL, const uint32_t mipLevels = 1, const uint32_t arrayLayers = 1);
 
 void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* imageView, VkFormat format, VkImageAspectFlags aspectFlags,
-                     VkImageViewType imageViewType = VK_IMAGE_VIEW_TYPE_2D);
+                     VkImageViewType imageViewType = VK_IMAGE_VIEW_TYPE_2D, const uint32_t mipLevels = 1);
 
 VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat);
 
-void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const bool bIsCubeMap = false);
+void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const uint32_t mipLevels = 1,
+                           const bool bIsCubeMap = false);
 
 void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent,
                            const bool bIsCubeMap = false);
+
+void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filter, const uint32_t width, const uint32_t height,
+                     const uint32_t mipLevels);
 
 VkFilter GauntletTextureFilterToVulkan(ETextureFilter textureFilter);
 

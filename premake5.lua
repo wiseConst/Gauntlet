@@ -8,16 +8,17 @@ VULKAN_PATH = os.getenv("VULKAN_SDK")
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 IncludeDir = {}
-IncludeDir["VULKAN"] =   "%{VULKAN_PATH}"
-IncludeDir["GLFW"] =     "Gauntlet/vendor/GLFW/include"
-IncludeDir["ImGui"] =    "Gauntlet/vendor/imgui"
-IncludeDir["vma"] =      "Gauntlet/vendor/vma/include"
-IncludeDir["stb"] =      "Gauntlet/vendor/stb"
-IncludeDir["glm"] =      "Gauntlet/vendor/glm"
-IncludeDir["assimp"] =   "Gauntlet/vendor/assimp"
-IncludeDir["entt"] =     "Gauntlet/vendor/entt/single_include"
-IncludeDir["json"] =     "Gauntlet/vendor/json/single_include"
-IncludeDir["spirv_reflect"] =     "Gauntlet/vendor/spirv-reflect"
+IncludeDir["VULKAN"] =          "%{VULKAN_PATH}"
+IncludeDir["GLFW"] =            "Gauntlet/vendor/GLFW/include"
+IncludeDir["ImGui"] =           "Gauntlet/vendor/imgui"
+IncludeDir["vma"] =             "Gauntlet/vendor/vma/include"
+IncludeDir["stb"] =             "Gauntlet/vendor/stb"
+IncludeDir["glm"] =             "Gauntlet/vendor/glm"
+IncludeDir["assimp"] =          "Gauntlet/vendor/assimp"
+IncludeDir["entt"] =            "Gauntlet/vendor/entt/single_include"
+IncludeDir["json"] =            "Gauntlet/vendor/json/single_include"
+IncludeDir["spirv_reflect"] =   "Gauntlet/vendor/spirv-reflect"
+IncludeDir["FastNoiseLite"] =   "Gauntlet/vendor/FastNoiseLite/Cpp"
 
 Binaries = {}
 Binaries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
@@ -72,7 +73,8 @@ project "Gauntlet"
         "%{IncludeDir.assimp}/Include",
         "%{IncludeDir.entt}",
         "%{IncludeDir.json}",
-        "%{IncludeDir.spirv_reflect}"
+        "%{IncludeDir.spirv_reflect}",
+        "%{IncludeDir.FastNoiseLite}"
     }
 
     links
@@ -189,6 +191,96 @@ project "Forge"
         symbols "On"
         optimize "Debug"
 
+        links
+        {
+            "%{Libraries.Assimp_RelWithDebInfo}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_RelWithDebInfo}" "%{cfg.targetdir}" '
+        }
+group ""
+
+group "Minecraft"      
+project "Minecraft"
+    location "Minecraft"
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++latest"
+    staticruntime "off"
+    
+    targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
+    objdir("Intermediate/" .. outputdir .. "/%{prj.name}")
+
+    files 
+    {
+        "%{prj.name}/Source/**.h",
+        "%{prj.name}/Source/**.cpp"
+    }
+
+    includedirs
+    {
+        "%{prj.name}/Source",
+        "%{IncludeDir.glm}",
+        "%{IncludeDir.entt}",
+        "%{IncludeDir.json}",
+        "${IncludeDir.FastNoiseLite}",
+		"Gauntlet/vendor",
+		"Gauntlet/Source"
+    }
+
+    links 
+    {
+		"Gauntlet"
+    }
+
+	filter "system:windows"
+		systemversion "latest"
+
+		defines
+		{
+			"_CRT_SECURE_NO_WARNINGS",
+			"GLM_FORCE_RADIANS",
+			"GLM_FORCE_DEPTH_ZERO_TO_ONE"
+		}
+
+    filter "configurations:Debug"
+        defines "GNT_DEBUG"
+        symbols "On"
+        optimize "Off"
+
+        links
+        {
+            "%{Libraries.Assimp_Debug}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_Debug}" "%{cfg.targetdir}" '
+        }
+
+    filter "configurations:Release"
+        kind "WindowedApp"
+        defines "GNT_RELEASE"
+        symbols "Off"
+        optimize "Full"
+                
+        links
+        {
+            "%{Libraries.Assimp_Release}"
+        }
+
+        postbuildcommands 
+        {
+         	' {COPY} "%{Binaries.Assimp_Release}" "%{cfg.targetdir}" '
+        }
+                
+    filter "configurations:RelWithDebInfo"
+        defines "GNT_RELEASE"
+        symbols "On"
+        optimize "Debug"
+        
         links
         {
             "%{Libraries.Assimp_RelWithDebInfo}"

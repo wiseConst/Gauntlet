@@ -53,6 +53,12 @@ class OrthographicCamera final : public Camera
         m_ProjectionMatrix = glm::ortho(left, right, bottom, top, zNear, zFar);
     }
 
+    void OnResize(float aspectRatio) final override
+    {
+        m_AspectRatio = aspectRatio;
+        SetProjection(m_AspectRatio * -m_ZoomLevel, m_AspectRatio * m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel);
+    }
+
     FORCEINLINE static Ref<OrthographicCamera> Create(const float aspectRatio = 0.0f, const float cameraWidth = 8.0f)
     {
         return Ref<OrthographicCamera>(new OrthographicCamera(aspectRatio, cameraWidth));
@@ -65,11 +71,7 @@ class OrthographicCamera final : public Camera
     float m_ZoomLevel         = 1.5f;
     const float m_CameraWidth = 10.0f;
 
-    void OnWindowResized(WindowResizeEvent& event)
-    {
-        m_AspectRatio = event.GetAspectRatio();
-        SetProjection(m_AspectRatio * -m_ZoomLevel, m_AspectRatio * m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel, -m_ZoomLevel, m_ZoomLevel);
-    }
+    FORCEINLINE void OnWindowResized(WindowResizeEvent& event) { OnResize(event.GetAspectRatio()); }
 
     void OnMouseScrolled(MouseScrolledEvent& event)
     {

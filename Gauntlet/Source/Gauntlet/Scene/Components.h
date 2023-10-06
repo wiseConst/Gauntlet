@@ -90,6 +90,7 @@ struct MeshComponent
     MeshComponent()                     = default;
     MeshComponent(const MeshComponent&) = default;
     MeshComponent(const Ref<Gauntlet::Mesh>& mesh) : Mesh(mesh) {}
+    MeshComponent(const std::string& meshFilePath) { Mesh = Gauntlet::Mesh::Create(meshFilePath); }
 };
 
 struct PointLightComponent

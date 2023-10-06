@@ -56,7 +56,7 @@ struct FramebufferSpecification
 class Framebuffer : private Uncopyable, private Unmovable
 {
   public:
-    FORCEINLINE virtual FramebufferSpecification& GetSpec() = 0;
+    FORCEINLINE virtual FramebufferSpecification& GetSpecification() = 0;
     static Ref<Framebuffer> Create(const FramebufferSpecification& framebufferSpecification);
 
     virtual void Destroy()                               = 0;

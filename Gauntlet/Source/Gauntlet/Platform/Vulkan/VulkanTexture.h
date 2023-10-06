@@ -36,6 +36,7 @@ class VulkanTexture2D final : public Texture2D
     FORCEINLINE const auto& GetImage() { return m_Image; }
 
     FORCEINLINE const auto& GetImageDescriptorInfo() const { return m_Image->GetDescriptorInfo(); }
+    FORCEINLINE auto& GetImageDescriptorInfo() { return m_Image->GetDescriptorInfo(); }
 
     void Destroy() final override;
 

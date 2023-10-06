@@ -89,7 +89,7 @@ class Log final
         char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
         sprintf(FinalOutMessage, "%s %s%s", FormattedTime, LevelStrings[LevelIndex], FormattedMessage);
         printf("%s%s \033[0m\n", LogLevelColors[LevelIndex], FinalOutMessage);
-        s_Output << FinalOutMessage;
+        s_Output << FinalOutMessage << std::endl;
 
         s_Output.close();
     }

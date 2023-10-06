@@ -17,25 +17,25 @@ layout(location = 5) out vec3 OutBitangent;
 layout( push_constant ) uniform PushConstants
 {	
 	mat4 TransformMatrix;
-	vec4 Color;
-} MeshPushConstants;
+	vec4 Data;
+} u_MeshPushConstants;
 
 layout(set = 0, binding = 2) uniform CameraDataBuffer
 {
 	mat4 Projection;
 	mat4 View;
 	vec3 Position;
-} InCameraDataBuffer;
+} u_CameraDataBuffer;
 
 void main()
 {
-	OutFragmentPosition = (MeshPushConstants.TransformMatrix * vec4(InPosition, 1.0)).xyz;
-	gl_Position = InCameraDataBuffer.Projection * InCameraDataBuffer.View * vec4(OutFragmentPosition, 1.0);
+	OutFragmentPosition = (u_MeshPushConstants.TransformMatrix * vec4(InPosition, 1.0)).xyz;
+	gl_Position = u_CameraDataBuffer.Projection * u_CameraDataBuffer.View * vec4(OutFragmentPosition, 1.0);
 
 	OutColor = InColor;
 	OutTexCoord = InTexCoord;
 
-	const mat3 mNormal = transpose(inverse(mat3(MeshPushConstants.TransformMatrix)));
+	const mat3 mNormal = transpose(inverse(mat3(u_MeshPushConstants.TransformMatrix)));
 	OutNormal = mNormal * normalize(InNormal);
 	OutTangent = mNormal * normalize(InTangent);
 	OutBitangent = mNormal * normalize(InBitangent);

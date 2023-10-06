@@ -30,7 +30,8 @@ struct QueueFamilyIndices
         LOG_INFO("QueueFamilyCount:%u", QueueFamilyCount);
 #endif
 
-        uint32_t i = 0;
+        uint32_t presentFamilyIndex = 0;
+        uint32_t i                  = 0;
         for (const auto& QueueFamily : QueueFamilies)
         {
 #if LOG_VULKAN_INFO
@@ -77,7 +78,11 @@ struct QueueFamilyIndices
 
             if (bPresentSupport)
             {
-                Indices.PresentFamily = i;
+                presentFamilyIndex = i;
+
+                if (Indices.ComputeFamily != i && Indices.TransferFamily != i && Indices.GraphicsFamily != i &&
+                    Indices.PresentFamily == UINT32_MAX)
+                    Indices.PresentFamily = i;
 #if LOG_VULKAN_INFO
                 LOG_TRACE("  PRESENT");
 #endif
@@ -96,6 +101,9 @@ struct QueueFamilyIndices
 
         // Rely on that graphics queue will be from first family, which contains everything.
         if (Indices.ComputeFamily == UINT32_MAX) Indices.ComputeFamily = Indices.GraphicsFamily;
+
+        // I want to have dedicated present queue, so in case I can't afford it, im gonna use whatever I have
+        if (Indices.PresentFamily == UINT32_MAX) Indices.PresentFamily = presentFamilyIndex;
 
         GNT_ASSERT(Indices.IsComplete(), "QueueFamilyIndices wasn't setup correctly!");
         return Indices;

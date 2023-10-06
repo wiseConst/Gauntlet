@@ -4,25 +4,27 @@ layout(location = 0) in vec2 InTexCoord;
 
 layout(location = 0) out float OutFragColor;
 
-layout(set = 0, binding = 0) uniform sampler2D PositionMap;
-layout(set = 0, binding = 1) uniform sampler2D NormalMap;
-layout(set = 0, binding = 2) uniform sampler2D TexNoiseMap;
+layout(set = 0, binding = 0) uniform sampler2D u_PositionMap;
+layout(set = 0, binding = 1) uniform sampler2D u_NormalMap;
+layout(set = 0, binding = 2) uniform sampler2D u_TexNoiseMap;
 
 layout(set = 0, binding = 3) uniform UBSSAO
 {
-	vec3 Samples[64];
 	mat4 CameraProjection;
-	vec2 ViewportSize;
-	float NoiseFactor;
-} InUBSSAO;
+	vec4 Samples[64];
+	vec4 ViewportSizeNoiseFactor;
+} u_UBSSAO;
 
 void main()
 {
-	const vec2 noiseScale = vec2(InUBSSAO.ViewportSize.x / InUBSSAO.NoiseFactor, InUBSSAO.ViewportSize.y / InUBSSAO.NoiseFactor);
-	const vec3 fragPos    = texture(PositionMap, InTexCoord).xyz;
-	const vec3 normal     = texture(NormalMap, InTexCoord).xyz;
-	const vec3 randomVec  = texture(TexNoiseMap, InTexCoord * noiseScale).xyz;
-	
+	const vec3 fragPos    = texture(u_PositionMap, InTexCoord).xyz;
+	const vec3 normal     = texture(u_NormalMap, InTexCoord).xyz;
+
+	const vec2 noiseScale = vec2(
+						u_UBSSAO.ViewportSizeNoiseFactor.x / u_UBSSAO.ViewportSizeNoiseFactor.z, 
+							u_UBSSAO.ViewportSizeNoiseFactor.y / u_UBSSAO.ViewportSizeNoiseFactor.z);	
+	const vec3 randomVec  = texture(u_TexNoiseMap, InTexCoord * noiseScale).xyz * 2.0 - 1.0;
+
 	const vec3 tangent =  normalize(randomVec - normal * dot(randomVec, normal));
 	const vec3 bitangent = cross(normal, tangent);
 	const mat3 TBN       = mat3(tangent, bitangent, normal);
@@ -32,17 +34,18 @@ void main()
 	const float bias = 0.025f;
 	for(int i = 0; i < 64; ++i)
 	{
-	    vec3 Sample = TBN * InUBSSAO.Samples[i];
+	    vec3 Sample = TBN * u_UBSSAO.Samples[i].xyz;
 	    Sample = fragPos + Sample * radius; 
 	
 		vec4 offset = vec4(Sample, 1.0);
-		offset      = InUBSSAO.CameraProjection * offset;    // переход из видового  клиповое
-		offset.xyz /= offset.w;               // перспективное деление 
-		offset.xyz  = offset.xyz * 0.5 + 0.5; // преобразование к интервалу [0., 1.] 
+		offset      = u_UBSSAO.CameraProjection * offset; 
+		offset.xyz /= offset.w;
+		offset.xyz  = offset.xyz * 0.5 + 0.5;
 
-		const float sampleDepth = texture(PositionMap, offset.xy).z;
-		occlusion += (sampleDepth >= Sample.z + bias ? 1.0 : 0.0);
+		const float sampleDepth = texture(u_PositionMap, offset.xy).z;
+		const float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - sampleDepth));
+		occlusion += (sampleDepth >= Sample.z + bias ? 1.0f : 0.0f) * rangeCheck;
 	}
-	occlusion = 1.0f - (occlusion / 64);
+	occlusion = 1.0 - (occlusion / 64);
 	OutFragColor = occlusion; 
 }

@@ -17,17 +17,17 @@ class VulkanPipeline;
 class VulkanShader;
 class VulkanTexture2D;
 class VulkanCommandBuffer;
-class VulkanMaterial;
 class Skybox;
 
 class VulkanRenderer final : public Renderer
 {
   private:
+    // TODO: Move it
     struct GeometryData
     {
-        Ref<Gauntlet::VulkanMaterial> Material;
-        Ref<Gauntlet::VulkanVertexBuffer> VulkanVertexBuffer;
-        Ref<Gauntlet::VulkanIndexBuffer> VulkanIndexBuffer;
+        Ref<Gauntlet::Material> Material;
+        Ref<Gauntlet::VertexBuffer> VertexBuffer;
+        Ref<Gauntlet::IndexBuffer> IndexBuffer;
         glm::mat4 Transform;
     };
 
@@ -44,16 +44,20 @@ class VulkanRenderer final : public Renderer
         Ref<VulkanFramebuffer> LightingFramebuffer  = nullptr;
 
         // SSAO
-        Ref<VulkanFramebuffer> SSAOFramebuffer = nullptr;
-        Ref<VulkanPipeline> SSAOPipeline       = nullptr;
-        Ref<VulkanTexture2D> SSAONoiseTexture  = nullptr;
+        Ref<VulkanFramebuffer> SSAOFramebuffer     = nullptr;
+        Ref<VulkanPipeline> SSAOPipeline           = nullptr;
+        Ref<VulkanTexture2D> SSAONoiseTexture      = nullptr;
+        Ref<VulkanFramebuffer> SSAOBlurFramebuffer = nullptr;
+        Ref<VulkanPipeline> SSAOBlurPipeline       = nullptr;
 
-        // Deffered stuff
-        DescriptorSet LightingSet;
-        VkDescriptorSetLayout LightingDescriptorSetLayout = VK_NULL_HANDLE;
+        // Deferred stuff
+        DescriptorSet* LightingSet = nullptr;
+        DescriptorSet* SSAOSet     = nullptr;
+        DescriptorSet* SSAOBlurSet = nullptr;
+
+        // Material
         VkDescriptorSetLayout GeometryDescriptorSetLayout = VK_NULL_HANDLE;
-        DescriptorSet SSAOSet;
-        VkDescriptorSetLayout SSAODescriptorSetLayout = VK_NULL_HANDLE;
+        VkDescriptorSetLayout MeshDescriptorSetLayout     = VK_NULL_HANDLE;
 
         // Pipelines
         Ref<VulkanPipeline> ShadowMapPipeline   = nullptr;
@@ -61,22 +65,18 @@ class VulkanRenderer final : public Renderer
         Ref<VulkanPipeline> GeometryPipeline    = nullptr;
         Ref<VulkanPipeline> LightingPipeline    = nullptr;
 
-        // Mesh
-        Ref<VulkanTexture2D> MeshWhiteTexture         = nullptr;
-        VkDescriptorSetLayout MeshDescriptorSetLayout = VK_NULL_HANDLE;
-
         // Camera UB
-        std::vector<AllocatedBuffer> UniformCameraDataBuffers;
+        std::vector<VulkanAllocatedBuffer> UniformCameraDataBuffers;
         std::vector<void*> MappedUniformCameraDataBuffers;
         CameraDataBuffer MeshCameraDataBuffer;
 
         // Shadows UB
-        std::vector<AllocatedBuffer> UniformShadowsBuffers;
+        std::vector<VulkanAllocatedBuffer> UniformShadowsBuffers;
         std::vector<void*> MappedUniformShadowsBuffers;
         ShadowsBuffer MeshShadowsBuffer;
 
         // SSAO UB
-        std::vector<AllocatedBuffer> UniformSSAOBuffers;
+        std::vector<VulkanAllocatedBuffer> UniformSSAOBuffers;
         std::vector<void*> MappedUniformSSAOBuffers;
         SSAOBuffer SSAODataBuffer;
 
@@ -101,8 +101,8 @@ class VulkanRenderer final : public Renderer
         {
             size_t operator()(const VkSamplerCreateInfo& samplerCreateInfo) const
             {
-                return std::hash<uint32_t>()(samplerCreateInfo.magFilter) + std::hash<uint32_t>()(samplerCreateInfo.minFilter) +
-                       std::hash<uint32_t>()(samplerCreateInfo.addressModeU);
+                return std::hash<size_t>()(samplerCreateInfo.magFilter) + std::hash<size_t>()(samplerCreateInfo.minFilter) +
+                       std::hash<size_t>()(samplerCreateInfo.addressModeU);
             }
         };
 
@@ -135,7 +135,7 @@ class VulkanRenderer final : public Renderer
             Samplers;  // TODO: Make specific Sampler class with void* SamplerHandle and its Specification
 
         // Light UBO
-        std::vector<AllocatedBuffer> UniformPhongModelBuffers;
+        std::vector<VulkanAllocatedBuffer> UniformPhongModelBuffers;
         std::vector<void*> MappedUniformPhongModelBuffers;
         LightingModelBuffer MeshLightingModelBuffer;
         uint32_t CurrentPointLightIndex = 0;
@@ -151,9 +151,9 @@ class VulkanRenderer final : public Renderer
     void AddPointLightImpl(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
                            const glm::vec3& CLQ) final override;
     void AddDirectionalLightImpl(const glm::vec3& color, const glm::vec3& direction,
-                                 const glm::vec3& AmbientSpecularShininess) final override;
+                                 const glm::vec4& AmbientSpecularShininessCastShadows) final override;
 
-    void BeginSceneImpl(const PerspectiveCamera& camera) final override;
+    void BeginSceneImpl(const Camera& camera) final override;
     void EndSceneImpl() final override;
     void SubmitMeshImpl(const Ref<Mesh>& mesh, const glm::mat4& transform) final override;
 
@@ -164,7 +164,7 @@ class VulkanRenderer final : public Renderer
     const Ref<Image>& GetFinalImageImpl() final override;
     std::vector<RendererOutput> GetRendererOutputImpl() final override;
 
-    FORCEINLINE static VulkanRendererStorage& GetStorageData() { return s_Data; }
+    FORCEINLINE static VulkanRendererStorage& GetVulkanStorageData() { return s_Data; }
 
   private:
     VulkanContext& m_Context;

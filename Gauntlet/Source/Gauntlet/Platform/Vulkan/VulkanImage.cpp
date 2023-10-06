@@ -19,18 +19,17 @@ void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t hei
     auto& Context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    VkImageCreateInfo ImageCreateInfo = {};
-    ImageCreateInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    ImageCreateInfo.imageType         = VK_IMAGE_TYPE_2D;
+    VkImageCreateInfo imageCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    imageCreateInfo.imageType         = VK_IMAGE_TYPE_2D;
 
-    ImageCreateInfo.extent.width  = width;
-    ImageCreateInfo.extent.height = height;
-    ImageCreateInfo.extent.depth  = 1;
+    imageCreateInfo.extent.width  = width;
+    imageCreateInfo.extent.height = height;
+    imageCreateInfo.extent.depth  = 1;
 
-    ImageCreateInfo.mipLevels   = mipLevels;
-    ImageCreateInfo.arrayLayers = arrayLayers;
-    ImageCreateInfo.format      = format;
-    ImageCreateInfo.flags       = arrayLayers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+    imageCreateInfo.mipLevels   = mipLevels;
+    imageCreateInfo.arrayLayers = arrayLayers;
+    imageCreateInfo.format      = format;
+    imageCreateInfo.flags       = arrayLayers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
     /*
      * The tiling field can have one of two values:
@@ -43,55 +42,41 @@ void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t hei
      *
      * The way I understand it: It defines image texel layout in binded memory
      */
-    ImageCreateInfo.tiling = imageTiling;
+    imageCreateInfo.tiling = imageTiling;
 
-    /*
-     * There are only two possible values for the initialLayout of an image:
-     * 1) VK_IMAGE_LAYOUT_UNDEFINED: Not usable by the GPU and the very first transition will discard the texels.
-     * 2) VK_IMAGE_LAYOUT_PREINITIALIZED: Not usable by the GPU, but the first transition will preserve the texels.
-     *
-     * There are few situations where it is necessary for the texels to be preserved during the first transition. One example, however,
-     * would be if you wanted to use an image as a staging image in combination with the VK_IMAGE_TILING_LINEAR layout. In that case, you'd
-     * want to upload the texel data to it and then transition the image to be a transfer source without losing the data. In our case,
-     * however, we're first going to transition the image to be a transfer destination and then copy texel data to it from a buffer object,
-     * so we don't need this property and can safely use VK_IMAGE_LAYOUT_UNDEFINED.
-     */
-    ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageCreateInfo.usage         = imageUsageFlags;
+    imageCreateInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
 
-    ImageCreateInfo.usage       = imageUsageFlags;
-    ImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    ImageCreateInfo.samples     = VK_SAMPLE_COUNT_1_BIT;
-
-    image->Allocation = Context.GetAllocator()->CreateImage(ImageCreateInfo, &image->Image);
+    image->Allocation = Context.GetAllocator()->CreateImage(imageCreateInfo, &image->Image);
 }
 
 void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* imageView, VkFormat format, VkImageAspectFlags aspectFlags,
-                     VkImageViewType imageViewType)
+                     VkImageViewType imageViewType, const uint32_t mipLevels)
 {
-    VkImageViewCreateInfo ImageViewCreateInfo = {};
-    ImageViewCreateInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    ImageViewCreateInfo.viewType              = imageViewType;
-
-    ImageViewCreateInfo.image  = image;
-    ImageViewCreateInfo.format = format;
+    VkImageViewCreateInfo imageViewCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    imageViewCreateInfo.viewType              = imageViewType;
+    imageViewCreateInfo.image                 = image;
+    imageViewCreateInfo.format                = format;
 
     // It determines what is affected by your image operation. (In example you are using this image for depth then you set
     // VK_IMAGE_ASPECT_DEPTH_BIT)
-    ImageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
+    imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
 
-    ImageViewCreateInfo.subresourceRange.baseMipLevel   = 0;
-    ImageViewCreateInfo.subresourceRange.levelCount     = 1;
-    ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount     = imageViewType == VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
+    imageViewCreateInfo.subresourceRange.baseMipLevel   = 0;
+    imageViewCreateInfo.subresourceRange.levelCount     = mipLevels;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount     = imageViewType == VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
 
     // We don't need to swizzle ( swap around ) any of the
     // color channels
-    ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-    ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-    ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-    ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
 
-    VK_CHECK(vkCreateImageView(device, &ImageViewCreateInfo, nullptr, imageView), "Failed to create an image view!");
+    VK_CHECK(vkCreateImageView(device, &imageViewCreateInfo, nullptr, imageView), "Failed to create an image view!");
 }
 
 /* Why surface has BGRA && images that we're rendering have RGBA:
@@ -123,7 +108,8 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
     return (VkFormat)0;
 }
 
-void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const bool bIsCubeMap)
+void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const uint32_t mipLevels,
+                           const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
 
@@ -132,18 +118,17 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
     VkImageSubresourceRange SubresourceRange = {};
     SubresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
     SubresourceRange.layerCount              = bIsCubeMap ? 6 : 1;
-    SubresourceRange.levelCount              = 1;
+    SubresourceRange.levelCount              = mipLevels;
 
-    VkImageMemoryBarrier ImageMemoryBarrier = {};
-    ImageMemoryBarrier.sType                = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    ImageMemoryBarrier.image                = image;
-    ImageMemoryBarrier.oldLayout            = oldLayout;
-    ImageMemoryBarrier.newLayout            = newLayout;
-    ImageMemoryBarrier.subresourceRange     = SubresourceRange;
+    VkImageMemoryBarrier imageMemoryBarrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    imageMemoryBarrier.image                = image;
+    imageMemoryBarrier.oldLayout            = oldLayout;
+    imageMemoryBarrier.newLayout            = newLayout;
+    imageMemoryBarrier.subresourceRange     = SubresourceRange;
 
     // Ownership things...
-    ImageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    ImageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
     VkPipelineStageFlags PipelineSourceStageFlags      = 0;
     VkPipelineStageFlags PipelineDestinationStageFlags = 0;
@@ -162,8 +147,8 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
         PipelineDestinationStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         // Transfer writes that don't need to wait on anything
-        ImageMemoryBarrier.srcAccessMask = 0;
-        ImageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imageMemoryBarrier.srcAccessMask = 0;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     }
     else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
     {
@@ -172,16 +157,26 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
 
         // Shader reads should wait on transfer writes, specifically the shader reads in the fragment shader, because that's
         // where we're going to use the texture.
-        ImageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        ImageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+    {
+        PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        PipelineDestinationStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        // Shader reads should wait on transfer writes, specifically the shader reads in the fragment shader, because that's
+        // where we're going to use the texture.
+        imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     }
     else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
     {
         PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
         PipelineDestinationStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
-        ImageMemoryBarrier.srcAccessMask = 0;
-        ImageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        imageMemoryBarrier.srcAccessMask = 0;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     }
     else
     {
@@ -202,7 +197,7 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
      * (stages that should be completed after barrier)
      */
     vkCmdPipelineBarrier(CommandBuffer, PipelineSourceStageFlags, PipelineDestinationStageFlags, VK_DEPENDENCY_BY_REGION_BIT, 0,
-                         VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &ImageMemoryBarrier);
+                         VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &imageMemoryBarrier);
 
     Utility::EndSingleTimeCommands(
         CommandBuffer,
@@ -226,6 +221,97 @@ void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationIma
 
     Utility::EndSingleTimeCommands(CommandBuffer, Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetTransferQueue(),
                                    Context.GetDevice()->GetLogicalDevice());
+}
+
+void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filter, const uint32_t width, const uint32_t height,
+                     const uint32_t mipLevels)
+{
+    GRAPHICS_GUARD_LOCK;
+
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    // Check if image format supports linear blitting
+    {
+        VkFormatProperties formatProperties = {};
+        vkGetPhysicalDeviceFormatProperties(context.GetDevice()->GetPhysicalDevice(), format, &formatProperties);
+
+        if (filter == VK_FILTER_LINEAR)
+            GNT_ASSERT((formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT),
+                       "Linear blitting is not supported");
+    }
+
+    // TODO: If you want to use dedicated transfer queue, make sure it's also compatible with graphics.
+    auto commandBuffer = Utility::BeginSingleTimeCommands(context.GetGraphicsCommandPool()->Get(), context.GetDevice()->GetLogicalDevice());
+
+    VkImageMemoryBarrier barrier            = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.image                           = image;
+    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount     = 1;
+    barrier.subresourceRange.levelCount     = 1;
+
+    int32_t mipWidth  = static_cast<int32_t>(width);
+    int32_t mipHeight = static_cast<int32_t>(height);
+    for (uint32_t i = 1; i < mipLevels; ++i)
+    {
+        // Inserting first barrier to wait for blit then transtition to SRC_optimal
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        barrier.newLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                             &barrier);
+
+        // Downscaling image
+        VkImageBlit blit                   = {};
+        blit.srcOffsets[0]                 = {0, 0, 0};
+        blit.srcOffsets[1]                 = {mipWidth, mipHeight, 1};
+        blit.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.mipLevel       = i - 1;  // Prev
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount     = 1;
+
+        blit.dstOffsets[0]                 = {0, 0, 0};
+        blit.dstOffsets[1]                 = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+        blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.mipLevel       = i;  // Current
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount     = 1;
+
+        // Note that image is used for both the srcImage and dstImage parameter.
+        // This is because we’re blitting between different levels of the same image
+        vkCmdBlitImage(commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+                       filter);
+
+        // Inserting second barrier to properly transition our downsampled image into SHADER_READ_ONLY layout
+        barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
+                             nullptr, 1, &barrier);
+
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+    }
+
+    // Last mip case.
+    barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+    barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.newLayout                     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.dstAccessMask                 = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                         &barrier);
+
+    Utility::EndSingleTimeCommands(commandBuffer, context.GetGraphicsCommandPool()->Get(), context.GetDevice()->GetGraphicsQueue(),
+                                   context.GetDevice()->GetLogicalDevice());
 }
 
 VkFilter GauntletTextureFilterToVulkan(ETextureFilter textureFilter)
@@ -287,13 +373,15 @@ void VulkanImage::Invalidate()
         ImageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
+    if (ImageUtils::IsDepthFormat(m_Specification.Format)) GNT_ASSERT(m_Specification.Mips == 1, "Depth image cannot have mips!");
+
     m_Specification.FlipOnLoad = true;
     const auto ImageFormat     = ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format);
     ImageUtils::CreateImage(&m_Image, m_Specification.Width, m_Specification.Height, ImageUsageFlags, ImageFormat, VK_IMAGE_TILING_OPTIMAL,
                             m_Specification.Mips, m_Specification.Layers);
     ImageUtils::CreateImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.Image, &m_Image.ImageView, ImageFormat,
                                 ImageUtils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
-                                m_Specification.Layers == 6 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D);
+                                m_Specification.Layers == 6 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D, m_Specification.Mips);
 
     CreateSampler();
 
@@ -305,9 +393,9 @@ void VulkanImage::Invalidate()
     {
         if (!m_DescriptorSet.Handle)  // Preventing allocating on image resizing, just simply update descriptor set
         {
-            GNT_ASSERT(
-                Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, VulkanRenderer::GetStorageData().ImageDescriptorSetLayout),
-                "Failed to allocate texture/image descriptor set!");
+            GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet,
+                                                                  VulkanRenderer::GetVulkanStorageData().ImageDescriptorSetLayout),
+                       "Failed to allocate texture/image descriptor set!");
         }
 
         auto TextureWriteDescriptorSet =
@@ -316,9 +404,11 @@ void VulkanImage::Invalidate()
     }
 
     if (!ImageUtils::IsDepthFormat(m_Specification.Format))
-        ImageUtils::TransitionImageLayout(m_Image.Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        ImageUtils::TransitionImageLayout(m_Image.Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                          m_Specification.Mips);
 }
 
+// TODO: Check if SamplerMap holds samplers after image destroying!!
 void VulkanImage::CreateSampler()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
@@ -339,17 +429,19 @@ void VulkanImage::CreateSampler()
     samplerCreateInfo.addressModeW =
         bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
 
+    // Anisotropic
     samplerCreateInfo.anisotropyEnable = VK_TRUE;
     samplerCreateInfo.maxAnisotropy    = context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
     samplerCreateInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerCreateInfo.compareEnable    = VK_FALSE;
-    samplerCreateInfo.compareOp        = VK_COMPARE_OP_ALWAYS;
-    samplerCreateInfo.mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerCreateInfo.mipLodBias       = 0.0f;
-    samplerCreateInfo.minLod           = 0.0f;
-    samplerCreateInfo.maxLod           = 0.0f;
+    samplerCreateInfo.compareOp        = VK_COMPARE_OP_NEVER;
+    samplerCreateInfo.mipmapMode =
+        m_Specification.Filter == ETextureFilter::LINEAR ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerCreateInfo.mipLodBias = 0.05f;
+    samplerCreateInfo.minLod     = 0.0f;
+    samplerCreateInfo.maxLod     = static_cast<float>(m_Specification.Mips);
 
-    for (auto& sampler : VulkanRenderer::GetStorageData().Samplers)
+    for (auto& sampler : VulkanRenderer::GetVulkanStorageData().Samplers)
     {
         if (sampler.first.unnormalizedCoordinates == samplerCreateInfo.unnormalizedCoordinates &&  //
 
@@ -381,7 +473,7 @@ void VulkanImage::CreateSampler()
     {
         VK_CHECK(vkCreateSampler(context.GetDevice()->GetLogicalDevice(), &samplerCreateInfo, nullptr, &m_Sampler),
                  "Failed to create an image sampler!");
-        VulkanRenderer::GetStorageData().Samplers[samplerCreateInfo] = m_Sampler;
+        VulkanRenderer::GetVulkanStorageData().Samplers[samplerCreateInfo] = m_Sampler;
     }
 }
 

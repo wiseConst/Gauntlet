@@ -147,16 +147,21 @@ void VulkanDevice::CreateLogicalDevice()
     deviceCI.pQueueCreateInfos    = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
 
+#if !RENDERDOC_DEBUG
     // Useful pipeline features that can be changed in real-time(for instance, polygon mode, primitive topology, etc..)
     VkPhysicalDeviceExtendedDynamicState3FeaturesEXT extendedDynamicState3FeaturesEXT = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT};
     extendedDynamicState3FeaturesEXT.extendedDynamicState3PolygonMode = VK_TRUE;
+#endif
 
     // Useful vulkan 1.2 features
     VkPhysicalDeviceVulkan12Features Vulkan12Features          = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     Vulkan12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     Vulkan12Features.descriptorBindingPartiallyBound           = VK_TRUE;
-    Vulkan12Features.pNext                                     = &extendedDynamicState3FeaturesEXT;
+
+#if !RENDERDOC_DEBUG
+    Vulkan12Features.pNext = &extendedDynamicState3FeaturesEXT;
+#endif
 
     deviceCI.pNext = &Vulkan12Features;
 
@@ -301,7 +306,7 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
     LOG_INFO(" Memory heaps: %u", gpuInfo.GPUMemoryProperties.memoryHeapCount);
     for (uint32_t i = 0; i < gpuInfo.GPUMemoryProperties.memoryHeapCount; ++i)
     {
-        LOG_TRACE("  Size: %u MB", gpuInfo.GPUMemoryProperties.memoryHeaps[i].size / 1024 / 1024);
+        LOG_TRACE("  Size: %0.2f MB", gpuInfo.GPUMemoryProperties.memoryHeaps[i].size / 1024.0f / 1024.0f);
 
         if (gpuInfo.GPUMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) LOG_TRACE("    HEAP_DEVICE_LOCAL_BIT");
 

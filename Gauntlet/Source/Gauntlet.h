@@ -8,6 +8,7 @@
 #include <Gauntlet/Core/Log.h>
 #include <Gauntlet/Layer/Layer.h>
 #include <Gauntlet/Core/Timestep.h>
+#include <Gauntlet/Core/Random.h>
 
 // INPUT
 #include <Gauntlet/Core/Input.h>

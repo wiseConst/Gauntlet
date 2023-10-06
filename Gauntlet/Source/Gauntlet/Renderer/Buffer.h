@@ -5,6 +5,13 @@
 namespace Gauntlet
 {
 
+struct AllocatedBuffer
+{
+  public:
+    AllocatedBuffer()          = default;
+    virtual ~AllocatedBuffer() = default;
+};
+
 enum class EShaderDataType : uint8_t
 {
     None = 0,
@@ -171,6 +178,9 @@ class VertexBuffer : private Uncopyable, private Unmovable
     virtual void SetLayout(const BufferLayout& InLayout)              = 0;
     virtual void SetData(const void* InData, const size_t InDataSize) = 0;
 
+    virtual FORCEINLINE const void* Get() const = 0;
+    virtual FORCEINLINE void* Get()             = 0;
+
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy()            = 0;
 
@@ -185,10 +195,13 @@ class IndexBuffer : private Uncopyable, private Unmovable
     IndexBuffer() = delete;
     IndexBuffer(BufferInfo& InBufferInfo);
 
-    virtual ~IndexBuffer()            = default;
-    virtual uint64_t GetCount() const = 0;
+    virtual ~IndexBuffer() = default;
 
-    virtual void Destroy() = 0;
+    virtual FORCEINLINE const void* Get() const = 0;
+    virtual FORCEINLINE void* Get()             = 0;
+
+    virtual uint64_t GetCount() const = 0;
+    virtual void Destroy()            = 0;
 
     static IndexBuffer* Create(BufferInfo& InBufferInfo);
 };

@@ -5,6 +5,8 @@
 #include "VulkanDevice.h"
 #include "VulkanUtility.h"
 #include "VulkanDescriptors.h"
+#include "VulkanTexture.h"
+#include "VulkanBuffer.h"
 #include "Gauntlet/Renderer/CoreRendererStructs.h"
 
 #include "common/output_stream.h"
@@ -198,10 +200,19 @@ VulkanShader::VulkanShader(const std::string_view& filePath)
     }
 
     // Now we don't need anything. Maybe I shouldn't clear them??
-    for (auto& shaderStage : m_ShaderStages)
+    // for (auto& shaderStage : m_ShaderStages)
+    //{
+    //    shaderStage.DescriptorSetBindings.clear();
+    //    shaderStage.PushConstants.clear();
+    //}
+
+    //
+    for (uint32_t i = 0; i < m_DescriptorSetLayouts.size(); ++i)
     {
-        shaderStage.DescriptorSetBindings.clear();
-        shaderStage.PushConstants.clear();
+        DescriptorSet ds = {};
+        GNT_ASSERT(context.GetDescriptorAllocator()->Allocate(ds, m_DescriptorSetLayouts[i]),
+                   "Failed to allocate descriptor set for shader needs!");
+        m_DescriptorSets.push_back(ds);
     }
 }
 
@@ -325,11 +336,11 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
             }
 
             // TODO: Fill here all push constant blocks to verify them from shaders.
-            if (strcmp(pushConstantBlocks[i]->name, "MeshPushConstants") == 0)
+            if (strcmp(pushConstantBlocks[i]->name, "u_MeshPushConstants") == 0)
             {
                 GNT_ASSERT(sizeof(MeshPushConstants) == pushConstantBlocks[i]->size);
             }
-            else if (strcmp(pushConstantBlocks[i]->name, "LightPushConstants") == 0)
+            else if (strcmp(pushConstantBlocks[i]->name, "u_LightPushConstants") == 0)
             {
                 GNT_ASSERT(sizeof(LightPushConstants) == pushConstantBlocks[i]->size);
             }
@@ -337,7 +348,7 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
             {
                 GNT_ASSERT(sizeof(LightPushConstants) == pushConstantBlocks[i]->size);
             }
-            else if (strcmp(pushConstantBlocks[i]->name, "SkyboxPushConstants") == 0)
+            else if (strcmp(pushConstantBlocks[i]->name, "u_SkyboxPushConstants") == 0)
             {
                 GNT_ASSERT(sizeof(MeshPushConstants) == pushConstantBlocks[i]->size);
             }
@@ -386,11 +397,11 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
             descriptorSetLayoutBinding.binding         = reflectionBinding.binding;
             descriptorSetLayoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflectionBinding.descriptor_type);
             descriptorSetLayoutBinding.stageFlags      = static_cast<VkShaderStageFlagBits>(reflectModule.shader_stage);
-            descriptorSetLayoutBinding.descriptorCount = 1;
-            for (uint32_t iDim = 0; iDim < reflectionBinding.array.dims_count; ++iDim)
+            descriptorSetLayoutBinding.descriptorCount = reflectionBinding.count;  // 1
+            /*for (uint32_t iDim = 0; iDim < reflectionBinding.array.dims_count; ++iDim)
             {
                 descriptorSetLayoutBinding.descriptorCount *= reflectionBinding.array.dims[iDim];
-            }
+            }*/
         }
     }
 }
@@ -443,6 +454,86 @@ VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint8_t>& InShad
     return ShaderModule;
 }
 
+void VulkanShader::Set(const std::string& name, const Ref<Texture2D>& texture)
+{
+    GNT_ASSERT(!name.empty() && texture, "Invalid parameters! VulkanShader::Set()");
+
+    auto vulkanTexture = std::static_pointer_cast<VulkanTexture2D>(texture);
+    GNT_ASSERT(vulkanTexture, "Failed to cast Texture2D to VulkanTexture2D!");
+
+    VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.pImageInfo           = &vulkanTexture->GetImageDescriptorInfo();
+
+    UpdateDescriptorSets(name, writeDescriptorSet);
+}
+
+void VulkanShader::Set(const std::string& name, const Ref<Image>& image)
+{
+    GNT_ASSERT(!name.empty() && image, "Invalid parameters! VulkanShader::Set()");
+
+    auto vulkanImage = std::static_pointer_cast<VulkanImage>(image);
+    GNT_ASSERT(vulkanImage, "Failed to cast Image to VulkanImage!");
+
+    VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.pImageInfo           = &vulkanImage->GetDescriptorInfo();
+
+    UpdateDescriptorSets(name, writeDescriptorSet);
+}
+
+void VulkanShader::Set(const std::string& name, const AllocatedBuffer& buffer, const uint64_t bufferSize, const uint64_t offset)
+{
+    GNT_ASSERT(!name.empty(), "Invalid parameters! VulkanShader::Set()");
+
+    auto vulkanAllocatedBuffer = (VulkanAllocatedBuffer&)buffer;
+    auto descriptorBufferInfo  = Utility::GetDescriptorBufferInfo(vulkanAllocatedBuffer.Buffer, bufferSize);
+
+    VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.pBufferInfo          = &descriptorBufferInfo;
+
+    UpdateDescriptorSets(name, writeDescriptorSet);
+}
+
+void VulkanShader::UpdateDescriptorSets(const std::string& name, VkWriteDescriptorSet& writeDescriptorSet)
+{
+    GNT_ASSERT(!m_DescriptorSets.empty(), "m_DescriptorSets.size() == 0!");
+
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    // Finding descriptor set to update
+    VkDescriptorSet currentVulkanDescriptorSet = VK_NULL_HANDLE;
+
+    // Binding where it's stored
+    uint32_t binding = 0;
+    for (auto& shaderStage : m_ShaderStages)
+    {
+        for (size_t iSet = 0; iSet < shaderStage.DescriptorSetBindings.size(); ++iSet)
+        {
+            if (!shaderStage.DescriptorSetBindings[iSet].Bindings.contains(name)) continue;
+
+            const auto& currentDescriptorSetBindings = shaderStage.DescriptorSetBindings[iSet].Bindings[name];
+            binding                                  = currentDescriptorSetBindings.binding;
+
+            currentVulkanDescriptorSet = m_DescriptorSets[shaderStage.DescriptorSetBindings[iSet].Set].Handle;  // Can simply search by iSet
+            GNT_ASSERT(currentVulkanDescriptorSet, "Retrieved descriptor set is not valid!");
+
+            writeDescriptorSet.descriptorType  = currentDescriptorSetBindings.descriptorType;
+            writeDescriptorSet.dstBinding      = binding;
+            writeDescriptorSet.dstSet          = currentVulkanDescriptorSet;
+            writeDescriptorSet.descriptorCount = currentDescriptorSetBindings.descriptorCount;
+
+            break;
+        }
+
+        if (currentVulkanDescriptorSet) break;
+    }
+
+    if (currentVulkanDescriptorSet)
+        vkUpdateDescriptorSets(context.GetDevice()->GetLogicalDevice(), 1, &writeDescriptorSet, 0, VK_NULL_HANDLE);
+    else
+        LOG_WARN("Failed to find: %s in shader!", name);
+}
+
 void VulkanShader::Destroy()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
@@ -450,6 +541,7 @@ void VulkanShader::Destroy()
 
     for (auto& shaderStage : m_ShaderStages)
     {
+        // TODO: Destroy it earlier, once you've gathered the info.
         spvReflectDestroyShaderModule(&shaderStage.ReflectModule);
         vkDestroyShaderModule(context.GetDevice()->GetLogicalDevice(), shaderStage.Module, nullptr);
     }
