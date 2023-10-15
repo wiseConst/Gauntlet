@@ -67,95 +67,21 @@ void VulkanMaterial::Invalidate()
         Writes.push_back(WhiteTextureWriteSet);
     }
 
-#if 0
-    if (!m_EmissiveTextures.empty())
-    {
-        auto EmissiveImageInfo = std::static_pointer_cast<VulkanTexture2D>(m_EmissiveTextures[0])->GetImageDescriptorInfo();
-        const auto EmissiveTextureWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2, m_DescriptorSet.Handle, 1, &EmissiveImageInfo);
-
-        Writes.push_back(EmissiveTextureWriteSet);
-    }
-    else
-    {
-        WhiteTextureWriteSet.dstBinding = 2;
-        Writes.push_back(WhiteTextureWriteSet);
-    }
-
-    // Environment Map Texture
-    if (auto CubeMapTexture = std::static_pointer_cast<VulkanTextureCube>(VulkanRendererStorageData.DefaultSkybox->GetCubeMapTexture()))
-    {
-        auto CubeMapTextureImageInfo      = CubeMapTexture->GetImage()->GetDescriptorInfo();
-        const auto CubeMapTextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
-                                                                           m_DescriptorSet.Handle, 1, &CubeMapTextureImageInfo);
-
-        Writes.push_back(CubeMapTextureWriteSet);
-    }
-    else
-    {
-        WhiteTextureWriteSet.dstBinding = 3;
-        Writes.push_back(WhiteTextureWriteSet);
-    }
-#endif
-
+    auto vulkanCameraUB = std::static_pointer_cast<VulkanUniformBuffer>(RendererStorageData.CameraUniformBuffer);
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
         VkDescriptorBufferInfo CameraDataBufferInfo = {};
-        CameraDataBufferInfo.buffer                 = VulkanRendererStorageData.UniformCameraDataBuffers[i].Buffer;
-        CameraDataBufferInfo.range                  = sizeof(CameraDataBuffer);
+        CameraDataBufferInfo.buffer                 = vulkanCameraUB->GetHandles()[i].Buffer;
+        CameraDataBufferInfo.range                  = sizeof(UBCamera);
         CameraDataBufferInfo.offset                 = 0;
 
         // CameraWrite
         auto CameraDataBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 /*4*/, m_DescriptorSet.Handle, 1, &CameraDataBufferInfo);
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, m_DescriptorSet.Handle, 1, &CameraDataBufferInfo);
 
         Writes.push_back(CameraDataBufferWriteSet);
         vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
                                VK_NULL_HANDLE);
-#if 0
-        VkDescriptorBufferInfo LightingModelBufferInfo = {};
-        LightingModelBufferInfo.buffer                 = RendererStorageData.UniformPhongModelBuffers[i].Buffer;
-        LightingModelBufferInfo.range                  = sizeof(LightingModelBuffer);
-        LightingModelBufferInfo.offset                 = 0;
-
-        // PhongModel
-        auto PhongModelBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, m_DescriptorSet.Handle, 1, &LightingModelBufferInfo);
-
-        Writes.push_back(PhongModelBufferWriteSet);
-
-        // Shadows
-        if (auto ShadowMapImage = RendererStorageData.ShadowMapFramebuffer->GetDepthAttachment())
-        {
-            auto ShadowMapImageInfo             = ShadowMapImage->GetDescriptorInfo();
-            const auto ShadowMapTextureWriteSet = Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6,
-                                                                                 m_DescriptorSet.Handle, 1, &ShadowMapImageInfo);
-
-            Writes.push_back(ShadowMapTextureWriteSet);
-        }
-        else
-        {
-            WhiteTextureWriteSet.dstBinding = 6;
-            Writes.push_back(WhiteTextureWriteSet);
-        }
-
-        VkDescriptorBufferInfo ShadowsBufferInfo = {};
-        ShadowsBufferInfo.buffer                 = RendererStorageData.UniformShadowsBuffers[CurrentFrameIndex].Buffer;
-        ShadowsBufferInfo.range                  = sizeof(ShadowsBuffer);
-        ShadowsBufferInfo.offset                 = 0;
-
-        // Shadows
-        auto ShadowsBufferWriteSet =
-            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, m_DescriptorSet.Handle, 1, &ShadowsBufferInfo);
-        Writes.push_back(ShadowsBufferWriteSet);
-
-        vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
-                               VK_NULL_HANDLE);
-
-        Writes.pop_back();
-        Writes.pop_back();
-        Writes.pop_back();
-#endif
 
         Writes.pop_back();
     }

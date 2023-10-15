@@ -104,8 +104,9 @@ void VulkanImGuiLayer::OnAttach()
         auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Device->GetLogicalDevice());
         ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
 
-        Utility::EndSingleTimeCommands(CommandBuffer, m_ImGuiCommandPool->Get(), Device->GetGraphicsQueue(), Device->GetLogicalDevice());
-        m_Context.GetDevice()->WaitDeviceOnFinish();
+        Utility::EndSingleTimeCommands(CommandBuffer, m_ImGuiCommandPool->Get(), Device->GetGraphicsQueue(), Device->GetLogicalDevice(),
+                                       m_Context.GetUploadFence());
+        m_Context.WaitDeviceOnFinish();
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
@@ -114,7 +115,7 @@ void VulkanImGuiLayer::OnAttach()
 
 void VulkanImGuiLayer::OnDetach()
 {
-    m_Context.GetDevice()->WaitDeviceOnFinish();
+    m_Context.WaitDeviceOnFinish();
     vkDestroyDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
 
     m_ImGuiCommandPool->Destroy();

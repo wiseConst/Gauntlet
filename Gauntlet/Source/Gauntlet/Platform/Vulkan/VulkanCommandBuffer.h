@@ -5,7 +5,7 @@
 
 #include <volk/volk.h>
 
-#include <glm/glm.hpp>
+#include "Gauntlet/Core/Math.h"
 
 namespace Gauntlet
 {
@@ -21,7 +21,7 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
     FORCEINLINE const auto& Get() const { return m_CommandBuffer; }
     FORCEINLINE auto& Get() { return m_CommandBuffer; }
 
-    FORCEINLINE const auto& GetLevel() const { return m_Level; }
+    FORCEINLINE const auto GetLevel() const { return m_Level; }
 
     // Unused
     FORCEINLINE void Reset() const { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }

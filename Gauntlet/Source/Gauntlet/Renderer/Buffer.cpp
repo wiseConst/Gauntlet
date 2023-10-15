@@ -51,4 +51,23 @@ IndexBuffer* IndexBuffer::Create(BufferInfo& InBufferInfo)
     GNT_ASSERT(false, "Unknown RendererAPI!");
     return nullptr;
 }
+Ref<UniformBuffer> UniformBuffer::Create(const uint64_t bufferSize)
+{
+    switch (RendererAPI::Get())
+    {
+        case RendererAPI::EAPI::None:
+        {
+            GNT_ASSERT(false, "RendererAPI is none!");
+            return nullptr;
+        }
+        case RendererAPI::EAPI::Vulkan:
+        {
+            return MakeRef<VulkanUniformBuffer>(bufferSize);
+        }
+    }
+
+    GNT_ASSERT(false, "Unknown RendererAPI!");
+    return nullptr;
+}
+
 }  // namespace Gauntlet

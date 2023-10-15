@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
+#include "Buffer.h"
 
 #pragma warning(disable : 4834)
 
@@ -16,8 +17,9 @@ enum class EShaderStage : uint8_t
 };
 
 class Texture2D;
+class TextureCube;
 class Image;
-struct AllocatedBuffer;
+class UniformBuffer;
 
 class Shader
 {
@@ -25,12 +27,13 @@ class Shader
     Shader()          = default;
     virtual ~Shader() = default;
 
-    virtual void Destroy() = 0;
-    // TODO: Fill these gaps virtual void SetInt()
+    virtual BufferLayout GetVertexBufferLayout() = 0;
+    virtual void Destroy()                       = 0;
 
-    virtual void Set(const std::string& name, const Ref<Texture2D>& texture)                                                       = 0;
-    virtual void Set(const std::string& name, const Ref<Image>& image)                                                             = 0;
-    virtual void Set(const std::string& name, const AllocatedBuffer& buffer, const uint64_t bufferSize, const uint64_t offset = 0) = 0;
+    virtual void Set(const std::string& name, const Ref<Texture2D>& texture)                                      = 0;
+    virtual void Set(const std::string& name, const Ref<TextureCube>& texture)                                    = 0;
+    virtual void Set(const std::string& name, const Ref<Image>& image)                                            = 0;
+    virtual void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) = 0;
 
     static Ref<Shader> Create(const std::string_view& filePath);
 };

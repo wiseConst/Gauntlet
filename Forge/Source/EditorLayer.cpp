@@ -126,6 +126,10 @@ void EditorLayer::OnImGuiRender()
         ImGui::Text("DrawCalls: %llu", Stats.DrawCalls.load());
         ImGui::Text("QuadCount: %llu", Stats.QuadCount.load());
 
+        static constexpr uint32_t uint32MAX = 300;
+        ImGui::InputScalar("FPS Capping( 0 means no fps cap)", ImGuiDataType_U32, &Application::Get().GetSpecification().FPSLock);
+        if (Application::Get().GetSpecification().FPSLock > uint32MAX) Application::Get().GetSpecification().FPSLock = 0;
+
         ImGui::End();
     }
 

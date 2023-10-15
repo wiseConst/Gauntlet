@@ -79,6 +79,11 @@ struct PipelineSpecification
 class Pipeline : private Uncopyable, private Unmovable
 {
   public:
+    Pipeline()          = default;
+    virtual ~Pipeline() = default;
+
+    virtual void Destroy() = 0;
+
     static Ref<Pipeline> Create(const PipelineSpecification& pipelineSpec);
 
     FORCEINLINE virtual PipelineSpecification& GetSpecification() = 0;

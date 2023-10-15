@@ -3,6 +3,7 @@
 #include "Gauntlet/Core/Core.h"
 #include "CoreRendererStructs.h"
 
+#include "Gauntlet/Core/Math.h"
 #include "Gauntlet/Renderer/Camera/Camera.h"
 
 namespace Gauntlet

@@ -67,6 +67,11 @@ void Thread::SetThreadAffinity(const uint32_t threadID)
     const BOOL PriorityResult = SetThreadPriority(NativeHandle, THREAD_PRIORITY_HIGHEST);
     GNT_ASSERT(PriorityResult != 0, "Failed to set thread priority to THREAD_PRIORITY_HIGHEST");
 
+    std::wstringstream wss;
+    wss << "JobSystem_" << threadID;
+    HRESULT hr = SetThreadDescription(NativeHandle, wss.str().data());
+    GNT_ASSERT(SUCCEEDED(hr));
+
 #endif
 }
 

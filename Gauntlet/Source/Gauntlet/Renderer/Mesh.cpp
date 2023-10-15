@@ -11,7 +11,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
+#include "Gauntlet/Core/Application.h"
 namespace Gauntlet
 {
 Ref<Mesh> Mesh::Create(const std::string& filePath)
@@ -58,7 +58,7 @@ Mesh::Mesh(const std::string& meshPath)
             IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
 
             // MeshesData loaded, let's populate index/vertex buffers
-            for (auto& OneMeshData : m_MeshesData)
+            for (auto& OneMeshData : m_Submeshes)
             {
                 VertexBufferInfo.Count = OneMeshData.Vertices.size();
                 Ref<Gauntlet::VertexBuffer> VertexBuffer(Gauntlet::VertexBuffer::Create(VertexBufferInfo));
@@ -109,7 +109,7 @@ void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
     for (unsigned int i = 0; i < node->mNumMeshes; ++i)
     {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        m_MeshesData.push_back(ProcessMeshData(mesh, scene));
+        m_Submeshes.push_back(ProcessSubmesh(mesh, scene));
     }
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i)
@@ -118,7 +118,7 @@ void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
     }
 }
 
-Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
+Submesh Mesh::ProcessSubmesh(aiMesh* mesh, const aiScene* scene)
 {
     // Vertices
     std::vector<MeshVertex> Vertices;
@@ -138,13 +138,8 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         Vertex.TexCoord = glm::vec2(0.0f);
         if (mesh->HasTextureCoords(0)) Vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
 
-        Vertex.Tangent   = glm::vec3(0.0f);
-        Vertex.Bitangent = glm::vec3(0.0f);
-        if (mesh->HasTangentsAndBitangents())
-        {
-            Vertex.Tangent   = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
-            Vertex.Bitangent = glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
-        }
+        Vertex.Tangent = glm::vec3(0.0f);
+        if (mesh->HasTangentsAndBitangents()) Vertex.Tangent = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
 
         Vertices.push_back(Vertex);
     }
@@ -179,15 +174,15 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
         if (DiffuseTextures.empty())
         {
             auto DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
-            if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
-            if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
+            // if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
+            // if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
             DiffuseTextures.insert(DiffuseTextures.end(), DiffuseMaps.begin(), DiffuseMaps.end());
         }
 
-        auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
-        if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
-        if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
-        EmissiveTextures.insert(EmissiveTextures.end(), EmissiveMaps.begin(), EmissiveMaps.end());
+        // auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
+        // if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
+        // if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
+        // EmissiveTextures.insert(EmissiveTextures.end(), EmissiveMaps.begin(), EmissiveMaps.end());
     }
 
     Ref<Gauntlet::Material> Material = Material::Create();
@@ -195,11 +190,11 @@ Mesh::MeshData Mesh::ProcessMeshData(aiMesh* mesh, const aiScene* scene)
     Material->SetNormalMapTextures(NormalMapTextures);
 
     // Currently unused
-    Material->SetEmissiveTextures(EmissiveTextures);
+    //   Material->SetEmissiveTextures(EmissiveTextures);
 
     Material->Invalidate();
 
-    return MeshData(mesh->mName.C_Str(), Vertices, Indices, Material);
+    return Submesh(mesh->mName.C_Str(), Vertices, Indices, Material);
 }
 
 std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextureType type)
@@ -209,9 +204,10 @@ std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextur
     for (uint32_t i = 0; i < TextureCount; ++i)
     {
         aiString str;
-        mat->GetTexture(type, i, &str);
+        aiReturn res = mat->GetTexture(type, i, &str);
+        if (res != aiReturn_SUCCESS) LOG_WARN("Failed to load texture %s", str.C_Str());
 
-        bool bIsLoaded = m_LoadedTextures.contains(str.C_Str());
+        const bool bIsLoaded = m_LoadedTextures.contains(str.C_Str());
         if (bIsLoaded)
         {
             Textures.push_back(m_LoadedTextures[str.C_Str()]);
@@ -265,7 +261,7 @@ void Mesh::Destroy()
     for (auto& IndexBuffer : m_IndexBuffers)
         IndexBuffer->Destroy();
 
-    for (auto& submesh : m_MeshesData)
+    for (auto& submesh : m_Submeshes)
         submesh.Material->Destroy();
 
     for (auto& LoadedTexture : m_LoadedTextures)

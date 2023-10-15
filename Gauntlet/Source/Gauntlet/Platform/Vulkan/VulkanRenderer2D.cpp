@@ -69,7 +69,7 @@ void VulkanRenderer2D::Create()
         PipelineSpec.bDepthTest            = VK_TRUE;
         PipelineSpec.bDepthWrite           = VK_TRUE;
         PipelineSpec.DepthCompareOp        = ECompareOp::COMPARE_OP_LESS;
-        PipelineSpec.TargetFramebuffer     = VulkanRenderer::GetVulkanStorageData().GeometryFramebuffer;
+        PipelineSpec.TargetFramebuffer     = Renderer::GetStorageData().GeometryFramebuffer;
         PipelineSpec.Shader                = FlatColorShader;
         PipelineSpec.bDynamicPolygonMode   = VK_TRUE;
 
@@ -361,7 +361,9 @@ void VulkanRenderer2D::FlushImpl()
 
     auto& GeneralStorageData = VulkanRenderer::GetVulkanStorageData();
     GeneralStorageData.CurrentCommandBuffer->BeginDebugLabel("2D-Batch", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-    GeneralStorageData.GeometryFramebuffer->BeginRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
+
+    auto targetFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(Renderer::GetStorageData().GeometryFramebuffer);
+    targetFramebuffer->BeginRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
 
     GeneralStorageData.CurrentCommandBuffer->SetPipelinePolygonMode(
         s_Data2D.QuadPipeline, Renderer::GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
@@ -382,7 +384,7 @@ void VulkanRenderer2D::FlushImpl()
 
     GeneralStorageData.CurrentCommandBuffer->DrawIndexed(s_Data2D.QuadIndexCount);
 
-    GeneralStorageData.GeometryFramebuffer->EndRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
+    targetFramebuffer->EndRenderPass(GeneralStorageData.CurrentCommandBuffer->Get());
     GeneralStorageData.CurrentCommandBuffer->EndDebugLabel();
 
     ++Renderer::GetStats().DrawCalls;
@@ -392,7 +394,7 @@ void VulkanRenderer2D::FlushImpl()
 
 void VulkanRenderer2D::Destroy()
 {
-    m_Context.GetDevice()->WaitDeviceOnFinish();
+    m_Context.WaitDeviceOnFinish();
 
     m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(s_Data2D.QuadDescriptorSets.data(),
                                                               static_cast<uint32_t>(s_Data2D.QuadDescriptorSets.size()));

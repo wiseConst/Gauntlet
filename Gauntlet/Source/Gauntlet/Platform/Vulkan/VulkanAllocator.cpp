@@ -121,15 +121,8 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& bufferCrea
 {
     VmaAllocationCreateInfo allocationCreateInfo = {};
     allocationCreateInfo.usage                   = memoryUsage;
-    auto& rendererStats                          = Renderer::GetStats();
 
-    if (rendererStats.GPUMemoryAllocated + bufferCreateInfo.size >= m_VRAMSize * 0.80f && memoryUsage == VMA_MEMORY_USAGE_GPU_ONLY)
-    {
-        allocationCreateInfo.usage         = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-        allocationCreateInfo.flags         = 0;
-        allocationCreateInfo.requiredFlags = 0;
-    }
-    else if (bufferCreateInfo.usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)  // Staging buffer case
+    if (bufferCreateInfo.usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)  // Staging buffer case
     {
         allocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         allocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
@@ -142,12 +135,10 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& bufferCrea
     VmaAllocationInfo allocationInfo = {};
     QueryAllocationInfo(allocationInfo, allocation);
 
-    auto& context = (VulkanContext&)VulkanContext::Get();
+    auto& context       = (VulkanContext&)VulkanContext::Get();
+    auto& rendererStats = Renderer::GetStats();
     if (IsAllocatedOnGPU(context.GetDevice(), allocationInfo))
-    {
         rendererStats.GPUMemoryAllocated += allocationInfo.size;
-        //  LOG_WARN("CreateBuffer: %0.2f MB", rendererStats.GPUMemoryAllocated.load() / 1024.0f / 1024.0f);
-    }
     else
         rendererStats.RAMMemoryAllocated += allocationInfo.size;
 

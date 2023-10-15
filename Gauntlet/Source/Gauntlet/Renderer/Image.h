@@ -9,10 +9,13 @@ enum class EImageFormat : uint8_t
 {
     NONE = 0,
     RGB,
+    RGB16F,
+    RGB32F,
     RGBA,
     SRGB,
 
     RGBA16F,
+    RGBA32F,
     R32F,
 
     DEPTH32F,

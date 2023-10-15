@@ -7,9 +7,7 @@
 #include "Gauntlet/Event/WindowEvent.h"
 #include "Gauntlet/Event/MouseEvent.h"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
+#include "Gauntlet/Core/Math.h"
 #include "Gauntlet/Core/Application.h"
 #include "Gauntlet/Core/Window.h"
 

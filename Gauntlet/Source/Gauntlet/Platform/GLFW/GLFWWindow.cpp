@@ -223,8 +223,8 @@ void GLFWWindow::SetVSync(bool bIsVsync)
     if (m_bIsVSync == bIsVsync) return;
     m_bIsVSync = bIsVsync;
 
-    auto& Context = GraphicsContext::Get();
-    Context.SetVSync(bIsVsync);
+    auto& gc = GraphicsContext::Get();
+    gc.SetVSync(bIsVsync);
 }
 
 void GLFWWindow::SetWindowTitle(const std::string_view& title)

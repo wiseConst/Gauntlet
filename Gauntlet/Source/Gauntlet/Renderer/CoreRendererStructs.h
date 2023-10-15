@@ -1,7 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "Gauntlet/Core/Math.h"
 
 namespace Gauntlet
 {
@@ -24,7 +23,6 @@ struct MeshVertex
     glm::vec2 TexCoord;
     glm::vec3 Normal;
     glm::vec3 Tangent;
-    glm::vec3 Bitangent;
 };
 
 struct Vertex
@@ -36,7 +34,7 @@ struct Vertex
 
 // Camera
 
-struct CameraDataBuffer
+struct UBCamera
 {
     glm::mat4 Projection;
     glm::mat4 View;
@@ -45,14 +43,15 @@ struct CameraDataBuffer
 
 // Lighting
 static constexpr uint32_t s_MAX_POINT_LIGHTS = 16;
+static constexpr uint32_t s_MAX_DIR_LIGHTS   = 4;
 
 // TODO: Add bool CastShadows;
 struct PointLight
 {
     glm::vec4 Position                 = glm::vec4(0.0f);
     glm::vec4 Color                    = glm::vec4(0.0f);
-    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-    glm::vec4 CLQActive                = glm::vec4(1.0f, glm::vec3(0.0f));  // Attenuation: Constant Linear Quadratic IsActive?
+    glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);  // w reserved for CastShadows
+    glm::vec4 CLQActive                = glm::vec4(1.0f, glm::vec3(0.0f));   // Attenuation: Constant Linear Quadratic IsActive?
 };
 
 struct DirectionalLight
@@ -62,7 +61,7 @@ struct DirectionalLight
     glm::vec4 AmbientSpecularShininess = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);  // w is bCastShadows
 };
 
-struct LightingModelBuffer
+struct UBBlinnPhong
 {
     DirectionalLight DirLight;
     PointLight PointLights[s_MAX_POINT_LIGHTS];
@@ -70,15 +69,15 @@ struct LightingModelBuffer
     alignas(16) float Gamma;
 };
 
-struct ShadowsBuffer
+struct UBShadows
 {
     glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);
 };
 
-struct SSAOBuffer
+struct UBSSAO
 {
     glm::mat4 CameraProjection = glm::mat4(1.0f);
-    glm::vec4 Samples[64];
+    glm::vec4 Samples[16];
     glm::vec4 ViewportSizeNoiseFactor = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
 };
 

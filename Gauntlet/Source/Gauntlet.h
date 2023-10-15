@@ -10,6 +10,9 @@
 #include <Gauntlet/Core/Timestep.h>
 #include <Gauntlet/Core/Random.h>
 
+// Math defines
+#include <Gauntlet/Core/Math.h>
+
 // INPUT
 #include <Gauntlet/Core/Input.h>
 #include <Gauntlet/Core/InputCodes.h>

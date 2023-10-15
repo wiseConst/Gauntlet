@@ -6,6 +6,7 @@
 #include "VulkanUtility.h"
 #include "VulkanDescriptors.h"
 #include "VulkanTexture.h"
+#include "VulkanTextureCube.h"
 #include "VulkanBuffer.h"
 #include "Gauntlet/Renderer/CoreRendererStructs.h"
 
@@ -467,6 +468,19 @@ void VulkanShader::Set(const std::string& name, const Ref<Texture2D>& texture)
     UpdateDescriptorSets(name, writeDescriptorSet);
 }
 
+void VulkanShader::Set(const std::string& name, const Ref<TextureCube>& texture)
+{
+    GNT_ASSERT(!name.empty() && texture, "Invalid parameters! VulkanShader::Set()");
+
+    auto vulkanTexture = std::static_pointer_cast<VulkanTextureCube>(texture);
+    GNT_ASSERT(vulkanTexture, "Failed to cast Texture2D to VulkanTexture2D!");
+
+    VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.pImageInfo           = &vulkanTexture->GetImageDescriptorInfo();
+
+    UpdateDescriptorSets(name, writeDescriptorSet);
+}
+
 void VulkanShader::Set(const std::string& name, const Ref<Image>& image)
 {
     GNT_ASSERT(!name.empty() && image, "Invalid parameters! VulkanShader::Set()");
@@ -480,12 +494,15 @@ void VulkanShader::Set(const std::string& name, const Ref<Image>& image)
     UpdateDescriptorSets(name, writeDescriptorSet);
 }
 
-void VulkanShader::Set(const std::string& name, const AllocatedBuffer& buffer, const uint64_t bufferSize, const uint64_t offset)
+void VulkanShader::Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset)
 {
-    GNT_ASSERT(!name.empty(), "Invalid parameters! VulkanShader::Set()");
+    GNT_ASSERT(!name.empty() && uniformBuffer, "Invalid parameters! VulkanShader::Set()");
 
-    auto vulkanAllocatedBuffer = (VulkanAllocatedBuffer&)buffer;
-    auto descriptorBufferInfo  = Utility::GetDescriptorBufferInfo(vulkanAllocatedBuffer.Buffer, bufferSize);
+    auto vulkanUniformBuffer = std::static_pointer_cast<VulkanUniformBuffer>(uniformBuffer);
+    GNT_ASSERT(vulkanUniformBuffer, "Failed to cast UniformBuffer to VulkanUniformBuffer!");
+
+    auto descriptorBufferInfo = Utility::GetDescriptorBufferInfo(
+        vulkanUniformBuffer->GetHandles()[GraphicsContext::Get().GetCurrentFrameIndex()].Buffer, vulkanUniformBuffer->GetSize());
 
     VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     writeDescriptorSet.pBufferInfo          = &descriptorBufferInfo;
@@ -517,6 +534,7 @@ void VulkanShader::UpdateDescriptorSets(const std::string& name, VkWriteDescript
             currentVulkanDescriptorSet = m_DescriptorSets[shaderStage.DescriptorSetBindings[iSet].Set].Handle;  // Can simply search by iSet
             GNT_ASSERT(currentVulkanDescriptorSet, "Retrieved descriptor set is not valid!");
 
+            // Here I assume that pImageInfo or pBufferInfo already specified to make this function "templated".
             writeDescriptorSet.descriptorType  = currentDescriptorSetBindings.descriptorType;
             writeDescriptorSet.dstBinding      = binding;
             writeDescriptorSet.dstSet          = currentVulkanDescriptorSet;

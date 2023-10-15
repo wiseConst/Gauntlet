@@ -5,14 +5,14 @@ layout(location = 1) in vec4 InColor;
 layout(location = 2) in vec2 InTexCoord;
 layout(location = 3) in vec3 InNormal;
 layout(location = 4) in vec3 InTangent;
-layout(location = 5) in vec3 InBitangent;
 
 layout(location = 0) out vec4 OutColor;
 layout(location = 1) out vec3 OutNormal;
 layout(location = 2) out vec2 OutTexCoord;
 layout(location = 3) out vec3 OutFragmentPosition;
-layout(location = 4) out vec3 OutTangent;
-layout(location = 5) out vec3 OutBitangent;
+// layout(location = 4) out vec3 OutTangent;
+// layout(location = 5) out vec3 OutBitangent;
+layout(location = 6) out mat3 OutTBN;
 
 layout( push_constant ) uniform PushConstants
 {	
@@ -37,6 +37,12 @@ void main()
 
 	const mat3 mNormal = transpose(inverse(mat3(u_MeshPushConstants.TransformMatrix)));
 	OutNormal = mNormal * normalize(InNormal);
-	OutTangent = mNormal * normalize(InTangent);
-	OutBitangent = mNormal * normalize(InBitangent);
+	vec3 OutTangent = mNormal * normalize(InTangent);
+	vec3 OutBitangent = mNormal * normalize(cross(InNormal, InTangent));
+
+	// Calculate normal in tangent space
+	vec3 T = normalize(OutTangent);
+	vec3 B = normalize(OutBitangent);
+	vec3 N = normalize(OutNormal);
+	OutTBN = mat3(T, B, N);
 }

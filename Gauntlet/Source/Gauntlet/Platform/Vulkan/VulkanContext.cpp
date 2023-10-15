@@ -79,8 +79,7 @@ void VulkanContext::CreateInstance()
 #endif
 
     const auto& app                    = Application::Get();
-    VkApplicationInfo ApplicationInfo  = {};
-    ApplicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    VkApplicationInfo ApplicationInfo  = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     ApplicationInfo.apiVersion         = GNT_VK_API_VERSION;
     ApplicationInfo.applicationVersion = ApplicationVersion;
     ApplicationInfo.engineVersion      = EngineVersion;
@@ -257,7 +256,9 @@ void VulkanContext::CreateSyncObjects()
 
     VkFenceCreateInfo FenceCreateInfo = {};
     FenceCreateInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    FenceCreateInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    vkCreateFence(m_Device->GetLogicalDevice(), &FenceCreateInfo, nullptr, &m_UploadFence);
+    FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     m_InFlightFences.resize(FRAMES_IN_FLIGHT);
     m_RenderFinishedSemaphores.resize(FRAMES_IN_FLIGHT);
@@ -325,7 +326,7 @@ void VulkanContext::SwapBuffers()
 
 void VulkanContext::SetVSync(bool bIsVSync)
 {
-    m_Device->WaitDeviceOnFinish();
+    WaitDeviceOnFinish();
 
     float SwapchainRecreationStartTime = Application::Get().GetTimeNow();
     m_Swapchain->Invalidate();
@@ -336,7 +337,7 @@ void VulkanContext::SetVSync(bool bIsVSync)
 
 void VulkanContext::Destroy()
 {
-    m_Device->WaitDeviceOnFinish();
+    WaitDeviceOnFinish();
 
     m_CurrentCommandBuffer = nullptr;
     m_DescriptorAllocator->Destroy();
@@ -346,6 +347,8 @@ void VulkanContext::Destroy()
         vkDestroySemaphore(m_Device->GetLogicalDevice(), m_RenderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(m_Device->GetLogicalDevice(), m_ImageAcquiredSemaphores[i], nullptr);
     }
+
+    vkDestroyFence(m_Device->GetLogicalDevice(), m_UploadFence, nullptr);
 
     m_TransferCommandPool->Destroy();
     m_GraphicsCommandPool->Destroy();
@@ -365,6 +368,16 @@ void VulkanContext::Destroy()
 #if GNT_DEBUG
     LOG_INFO("Vulkan context destroyed!");
 #endif
+}
+
+void VulkanContext::WaitDeviceOnFinish()
+{
+    m_Device->WaitDeviceOnFinish();
+}
+
+uint32_t VulkanContext::GetCurrentFrameIndex() const
+{
+    return m_Swapchain->GetCurrentFrameIndex();
 }
 
 void VulkanContext::AddSwapchainResizeCallback(const std::function<void()>& resizeCallback)

@@ -5,13 +5,6 @@
 namespace Gauntlet
 {
 
-struct AllocatedBuffer
-{
-  public:
-    AllocatedBuffer()          = default;
-    virtual ~AllocatedBuffer() = default;
-};
-
 enum class EShaderDataType : uint8_t
 {
     None = 0,
@@ -205,4 +198,23 @@ class IndexBuffer : private Uncopyable, private Unmovable
 
     static IndexBuffer* Create(BufferInfo& InBufferInfo);
 };
+
+class UniformBuffer : private Uncopyable, private Unmovable
+{
+  public:
+    UniformBuffer()          = default;
+    virtual ~UniformBuffer() = default;
+
+    virtual void Destroy() = 0;
+
+    virtual void MapPersistent()   = 0;
+    virtual void* RetrieveMapped() = 0;
+    virtual void Unmap()           = 0;
+
+    virtual FORCEINLINE const uint64_t GetSize() const   = 0;
+    virtual void Update(void* data, const uint64_t size) = 0;
+
+    static Ref<UniformBuffer> Create(const uint64_t bufferSize);
+};
+
 }  // namespace Gauntlet

@@ -1,11 +1,10 @@
 #pragma once
 
 #include "Gauntlet/Renderer/TextureCube.h"
+#include "VulkanImage.h"
 
 namespace Gauntlet
 {
-class VulkanTexture2D;
-class VulkanImage;
 
 class VulkanTextureCube final : public TextureCube
 {
@@ -16,7 +15,8 @@ class VulkanTextureCube final : public TextureCube
 
     void Destroy() final override;
 
-    FORCEINLINE const auto& GetImage() const { return m_Image; }
+    FORCEINLINE const auto& GetImageDescriptorInfo() const { return m_Image->GetDescriptorInfo(); }
+    FORCEINLINE auto& GetImageDescriptorInfo() { return m_Image->GetDescriptorInfo(); }
 
   private:
     const std::vector<std::string> m_Faces;

@@ -42,15 +42,16 @@ class VulkanShader final : public Shader
     FORCEINLINE const auto& GetStages() const { return m_ShaderStages; }
     void Destroy() final override;
 
-    BufferLayout GetVertexBufferLayout();
+    BufferLayout GetVertexBufferLayout() final override;
     FORCEINLINE const auto& GetPushConstants() const { return m_PushConstants; }
     FORCEINLINE const auto& GetDescriptorSetLayouts() const { return m_DescriptorSetLayouts; }
 
     void Set(const std::string& name, const Ref<Texture2D>& texture) final override;
+    void Set(const std::string& name, const Ref<TextureCube>& texture) final override;
     void Set(const std::string& name, const Ref<Image>& image) final override;
 
     // TODO: Add bufferSize var in AllocatedBuffer struct to prevent these.
-    void Set(const std::string& name, const AllocatedBuffer& buffer, const uint64_t bufferSize, const uint64_t offset = 0) final override;
+    void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) final override;
 
     FORCEINLINE auto& GetDescriptorSets() { return m_DescriptorSets; }
 

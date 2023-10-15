@@ -2,8 +2,10 @@
 
 #include "RendererAPI.h"
 
-#include <glm/glm.hpp>
+#include "Gauntlet/Core/Math.h"
+
 #include "Buffer.h"
+#include "CoreRendererStructs.h"
 
 namespace Gauntlet
 {
@@ -18,6 +20,8 @@ class Texture2D;
 class Material;
 class VertexBuffer;
 class IndexBuffer;
+class Framebuffer;
+class Pipeline;
 
 struct RendererOutput
 {
@@ -27,9 +31,20 @@ struct RendererOutput
 
 class Renderer : private Uncopyable, private Unmovable
 {
+  protected:
+    struct GeometryData
+    {
+        Ref<Gauntlet::Material> Material;
+        Ref<Gauntlet::VertexBuffer> VertexBuffer;
+        Ref<Gauntlet::IndexBuffer> IndexBuffer;
+        glm::mat4 Transform;
+    };
+
   public:
-    Renderer()  = default;
-    ~Renderer() = default;
+    Renderer()          = default;
+    virtual ~Renderer() = default;
+
+    virtual void PostInit() = 0;
 
     static void Init();
     static void Shutdown();
@@ -37,34 +52,47 @@ class Renderer : private Uncopyable, private Unmovable
     static void Begin();
     static void Flush();
 
-    FORCEINLINE static void BeginScene(const Camera& camera) { s_Renderer->BeginSceneImpl(camera); }
-    FORCEINLINE static void EndScene() { s_Renderer->EndSceneImpl(); }
-    FORCEINLINE static void SubmitMesh(const Ref<Mesh>& mesh, const glm::mat4& transform = glm::mat4(1.0f))
+    static void BeginScene(const Camera& camera);
+    static void EndScene();
+
+    FORCEINLINE static void BeginRenderPass(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f))
     {
-        s_Renderer->SubmitMeshImpl(mesh, transform);
+        s_Renderer->BeginRenderPassImpl(framebuffer, debugLabelColor);
+    }
+    FORCEINLINE static void EndRenderPass(const Ref<Framebuffer>& framebuffer) { s_Renderer->EndRenderPassImpl(framebuffer); }
+
+    // TODO: Refactor bWithMaterial(means should it use descriptor set from geometry->Material)
+    FORCEINLINE static void RenderGeometry(Ref<Pipeline>& pipeline, const GeometryData& geometry, bool bWithMaterial = true,
+                                           void* pushConstants = nullptr)
+    {
+        s_Renderer->RenderGeometryImpl(pipeline, geometry, bWithMaterial, pushConstants);
     }
 
-    FORCEINLINE static void AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
-                                          const glm::vec3& CLQ)
+    FORCEINLINE static void SubmitFullscreenQuad(Ref<Pipeline>& pipeline, void* pushConstants = nullptr)
     {
-        s_Renderer->AddPointLightImpl(position, color, AmbientSpecularShininess, CLQ);
+        s_Renderer->SubmitFullscreenQuadImpl(pipeline, pushConstants);
     }
 
-    FORCEINLINE static void AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction,
-                                                const glm::vec4& AmbientSpecularShininessCastShadows)
-    {
-        s_Renderer->AddDirectionalLightImpl(color, direction, AmbientSpecularShininessCastShadows);
-    }
+    static void SubmitMesh(const Ref<Mesh>& mesh, const glm::mat4& transform = glm::mat4(1.0f));
+    static void AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
+                              const glm::vec3& CLQ);
 
-    FORCEINLINE static void ResizeFramebuffers(uint32_t width, uint32_t height) { s_Renderer->ResizeFramebuffersImpl(width, height); };
+    static void AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction,
+                                    const glm::vec4& AmbientSpecularShininessCastShadows);
+
+    FORCEINLINE static void ResizeFramebuffers(uint32_t width, uint32_t height)
+    {
+        s_RendererStorage->bFramebuffersNeedResize = true;
+        s_RendererStorage->NewFramebufferSize      = {width, height};
+    }
 
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
     FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
 
-    FORCEINLINE static const Ref<Image>& GetFinalImage() { return s_Renderer->GetFinalImageImpl(); }
+    static const Ref<Image>& GetFinalImage();
     FORCEINLINE static std::mutex& GetResourceAccessMutex() { return s_ResourceAccessMutex; }
 
-    FORCEINLINE static std::vector<RendererOutput> GetRendererOutput() { return s_Renderer->GetRendererOutputImpl(); }
+    static std::vector<RendererOutput> GetRendererOutput();
     FORCEINLINE static const auto& GetStorageData() { return *s_RendererStorage; }
 
   protected:
@@ -77,7 +105,7 @@ class Renderer : private Uncopyable, private Unmovable
         bool VSync          = false;
         bool RenderShadows  = true;
         bool EnableSSAO     = true;
-        bool BlurSSAO     = true;
+        bool BlurSSAO       = true;
         float Gamma         = 1.1f;
     } static s_RendererSettings;
 
@@ -104,32 +132,80 @@ class Renderer : private Uncopyable, private Unmovable
 
     struct RendererStorage
     {
-        BufferLayout MeshVertexBufferLayout;
+        // Viewports
+        bool bFramebuffersNeedResize  = {false};
+        glm::uvec2 NewFramebufferSize = {1280, 720};
 
         // Defaults
+        BufferLayout MeshVertexBufferLayout;
         Ref<Texture2D> WhiteTexture = nullptr;
+
+        // GBuffer (Deferred rendering)
+        Ref<Framebuffer> GeometryFramebuffer = nullptr;
+        Ref<Pipeline> GeometryPipeline       = nullptr;
+
+        // Clear-Pass
+        Ref<Framebuffer> SetupFramebuffer = nullptr;
+
+        // ShadowMapping
+        Ref<Framebuffer> ShadowMapFramebuffer = nullptr;
+        Ref<Pipeline> ShadowMapPipeline       = nullptr;
+
+        // Shadows UB
+        Ref<UniformBuffer> ShadowsUniformBuffer;
+        UBShadows MeshShadowsBuffer;
+
+        // SSAO
+        Ref<Framebuffer> SSAOFramebuffer = nullptr;
+        Ref<Pipeline> SSAOPipeline       = nullptr;
+
+        // SSAO UB
+        Ref<UniformBuffer> SSAOUniformBuffer = nullptr;
+        UBSSAO SSAODataBuffer;
+
+        // SSAO-Blur
+        Ref<Framebuffer> SSAOBlurFramebuffer = nullptr;
+        Ref<Pipeline> SSAOBlurPipeline       = nullptr;
+        Ref<Texture2D> SSAONoiseTexture      = nullptr;
+
+        // Forward Rendering
+        Ref<Pipeline> ForwardPassPipeline = nullptr;
+
+        // Final Lighting
+        Ref<Framebuffer> LightingFramebuffer = nullptr;
+        Ref<Pipeline> LightingPipeline       = nullptr;
+
+        // Camera UB
+        Ref<UniformBuffer> CameraUniformBuffer = nullptr;
+        UBCamera UBGlobalCamera;
+
+        // TODO: Add multiple directional lights
+        // Global blinn-phong lighting UB
+        Ref<UniformBuffer> LightingUniformBuffer = nullptr;
+        UBBlinnPhong UBGlobalLighting;
+        uint32_t CurrentPointLightIndex = 0;
+
+        // Skybox on testing
+        /* Ref<Skybox> DefaultSkybox          = nullptr;
+         Ref<Pipeline> SkyboxPipeline = nullptr;*/
+
+        // Misc
+        std::vector<GeometryData> SortedGeometry;
     } static* s_RendererStorage;
 
   protected:
-    virtual void Create()  = 0;
-    virtual void Destroy() = 0;
-
-    virtual void AddPointLightImpl(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
-                                   const glm::vec3& CLQ)                                       = 0;
-    virtual void AddDirectionalLightImpl(const glm::vec3& color, const glm::vec3& direction,
-                                         const glm::vec4& AmbientSpecularShininessCastShadows) = 0;
-
     virtual void BeginSceneImpl(const Camera& camera) = 0;
     virtual void EndSceneImpl()                       = 0;
-
-    virtual void SubmitMeshImpl(const Ref<Mesh>& mesh, const glm::mat4& transform) = 0;
-    virtual void ResizeFramebuffersImpl(uint32_t width, uint32_t height)           = 0;
 
     virtual void BeginImpl() = 0;
     virtual void FlushImpl() = 0;
 
-    virtual const Ref<Image>& GetFinalImageImpl()               = 0;
-    virtual std::vector<RendererOutput> GetRendererOutputImpl() = 0;
+    virtual void BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f)) = 0;
+    virtual void EndRenderPassImpl(const Ref<Framebuffer>& framebuffer)                                                       = 0;
+
+    virtual void SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants = nullptr) = 0;
+    virtual void RenderGeometryImpl(Ref<Pipeline>& pipeline, const GeometryData& geometry, bool bWithMaterial = true,
+                                    void* pushConstants = nullptr)                                = 0;
 };
 
 }  // namespace Gauntlet

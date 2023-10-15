@@ -4,8 +4,7 @@
 
 #include <string>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "Gauntlet/Core/Math.h"
 
 #include "Gauntlet/Core/UUID.h"
 #include "Gauntlet/Renderer/Camera/Camera.h"

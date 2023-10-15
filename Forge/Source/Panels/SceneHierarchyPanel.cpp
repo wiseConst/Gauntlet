@@ -312,9 +312,9 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                          if (NormalMapTexture && NormalMapTexture->GetTextureID())
                                              ImGui::Image(NormalMapTexture->GetTextureID(), ImageSize);
 
-                                         Ref<Texture2D> EmissiveTexture = Mat->GetEmissiveTexture(0);
-                                         if (EmissiveTexture && EmissiveTexture->GetTextureID())
-                                             ImGui::Image(EmissiveTexture->GetTextureID(), ImageSize);
+                                         /* Ref<Texture2D> EmissiveTexture = Mat->GetEmissiveTexture(0);
+                                           if (EmissiveTexture && EmissiveTexture->GetTextureID())
+                                               ImGui::Image(EmissiveTexture->GetTextureID(), ImageSize);*/
                                      }
                                  });
 }

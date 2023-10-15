@@ -4,7 +4,6 @@
 #include "Gauntlet/Renderer/GraphicsContext.h"
 
 #include <volk/volk.h>
-#include <glm/glm.hpp>
 
 #include "VulkanCommandBuffer.h"
 
@@ -33,6 +32,12 @@ class VulkanContext final : public GraphicsContext
     void SwapBuffers() final override;
     void SetVSync(bool bIsVSync) final override;
     void Destroy() final override;
+
+    void WaitDeviceOnFinish() final override;
+    uint32_t GetCurrentFrameIndex() const final override;
+
+    FORCEINLINE const auto& GetUploadFence() const { return m_UploadFence; }
+    FORCEINLINE auto& GetUploadFence() { return m_UploadFence; }
 
     FORCEINLINE const auto& GetInstance() const { return m_Instance; }
     FORCEINLINE auto& GetInstance() { return m_Instance; }
@@ -78,6 +83,8 @@ class VulkanContext final : public GraphicsContext
     // Sync objects CPU-GPU
     std::vector<VkFence> m_InFlightFences;
     float m_LastGPUWaitTime = 0.0f;
+
+    VkFence m_UploadFence = VK_NULL_HANDLE;
 
     void CreateInstance();
     void CreateDebugMessenger();

@@ -24,52 +24,6 @@
         "Name": "Default/Cube.gltf"
       }
     },
-    "6334374566258862207": {
-      "TagComponent": "Sphere",
-      "TransformComponent": {
-        "Translation": [
-          -0.6000000238418579,
-          3.9000000953674316,
-          0.10000000149011612
-        ],
-        "Rotation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Scale": [
-          0.4000000059604645,
-          0.4000000059604645,
-          0.4000000059604645
-        ]
-      },
-      "MeshComponent": {
-        "Name": "Default/Sphere.gltf"
-      }
-    },
-    "17858952966400796195": {
-      "TagComponent": "Torus",
-      "TransformComponent": {
-        "Translation": [
-          5.25,
-          1.75,
-          0.0
-        ],
-        "Rotation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "MeshComponent": {
-        "Name": "Default/Torus.gltf"
-      }
-    },
     "15445115217175449651": {
       "TagComponent": "Sponza",
       "TransformComponent": {
@@ -102,8 +56,8 @@
           0.0
         ],
         "Rotation": [
-          -0.5,
-          -1.350000023841858,
+          0.05000000074505806,
+          -0.10000000149011612,
           0.0
         ],
         "Scale": [
@@ -114,13 +68,13 @@
       },
       "DirectionalLightComponent": {
         "Color": [
-          0.0854872390627861,
-          0.06055363267660141,
-          0.343137264251709
+          0.7009804248809814,
+          0.41062334179878235,
+          0.12026625126600266
         ],
         "AmbientSpecularShininess": [
           0.15000000596046448,
-          1.0,
+          1.2999999523162842,
           64.0
         ],
         "CastShadows": [

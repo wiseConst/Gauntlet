@@ -17,6 +17,11 @@ VulkanPipeline::VulkanPipeline(const PipelineSpecification& pipelineSpecificatio
     Invalidate();
 }
 
+VulkanPipeline::~VulkanPipeline()
+{
+    // Destroy();
+}
+
 void VulkanPipeline::Invalidate()
 {
     if (m_Handle) Destroy();

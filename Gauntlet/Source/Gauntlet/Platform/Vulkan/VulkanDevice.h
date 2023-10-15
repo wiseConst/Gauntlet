@@ -52,8 +52,7 @@ struct QueueFamilyIndices
 #endif
             }
 
-            // Dedicated compute queue
-            if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT && Indices.ComputeFamily == UINT32_MAX)
             {
                 Indices.ComputeFamily = i;
 #if LOG_VULKAN_INFO
@@ -127,8 +126,10 @@ class VulkanDevice final : private Uncopyable, private Unmovable
 
     FORCEINLINE void WaitDeviceOnFinish() const
     {
+        GNT_ASSERT(IsValid(), "Rendering device is not valid!");
+
         const auto result = vkDeviceWaitIdle(m_GPUInfo.LogicalDevice);
-        GNT_ASSERT(result == VK_SUCCESS, "Failed to wait for device to finish other operations.");
+        GNT_ASSERT(result == VK_SUCCESS, "Failed to wait for rendering device to finish other operations.");
     }
 
     FORCEINLINE bool IsValid() const { return m_GPUInfo.PhysicalDevice && m_GPUInfo.LogicalDevice; }

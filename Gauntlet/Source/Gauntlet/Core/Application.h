@@ -31,6 +31,7 @@ struct ApplicationSpecification final
     uint32_t Height;
     RendererAPI::EAPI GraphicsAPI;
     bool bUseCustomTitleBar = false;
+    uint32_t FPSLock        = 0;  // "0" means no lock at all
 };
 
 class Application : private Uncopyable, private Unmovable

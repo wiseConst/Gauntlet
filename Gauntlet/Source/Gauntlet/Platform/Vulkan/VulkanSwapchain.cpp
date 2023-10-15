@@ -24,8 +24,7 @@ void VulkanSwapchain::BeginRenderPass(const VkCommandBuffer& commandBuffer)
     ClearValues[0].color        = {m_ClearColor};
     ClearValues[1].depthStencil = {1.0f};
 
-    VkRenderPassBeginInfo RenderPassBeginInfo = {};
-    RenderPassBeginInfo.sType                 = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    VkRenderPassBeginInfo RenderPassBeginInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     RenderPassBeginInfo.framebuffer           = m_Framebuffers[m_ImageIndex];
     RenderPassBeginInfo.pClearValues          = ClearValues.data();
     RenderPassBeginInfo.clearValueCount       = static_cast<uint32_t>(ClearValues.size());
@@ -58,8 +57,7 @@ bool VulkanSwapchain::TryAcquireNextImage(const VkSemaphore& imageAcquiredSemaph
 
 void VulkanSwapchain::PresentImage(const VkSemaphore& renderFinishedSemaphore)
 {
-    VkPresentInfoKHR presentInfo   = {};
-    presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    VkPresentInfoKHR presentInfo   = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores    = &renderFinishedSemaphore;
     presentInfo.pImageIndices      = &m_ImageIndex;
@@ -99,8 +97,7 @@ void VulkanSwapchain::Invalidate()
     m_ImageIndex = 0;
     m_FrameIndex = 0;
 
-    VkSwapchainCreateInfoKHR SwapchainCreateInfo = {};
-    SwapchainCreateInfo.sType                    = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    VkSwapchainCreateInfoKHR SwapchainCreateInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     SwapchainCreateInfo.compositeAlpha           = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     SwapchainCreateInfo.clipped                  = VK_TRUE;
     SwapchainCreateInfo.imageArrayLayers         = 1;

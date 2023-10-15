@@ -13,10 +13,9 @@ class VulkanPipeline final : public Pipeline
 {
   public:
     VulkanPipeline(const PipelineSpecification& pipelineSpecification);
-    VulkanPipeline()  = delete;
-    ~VulkanPipeline() = default;
+    ~VulkanPipeline();
 
-    void Destroy();
+    void Destroy() final override;
 
     FORCEINLINE auto& Get() const { return m_Handle; }
     FORCEINLINE auto& GetLayout() const { return m_Layout; }

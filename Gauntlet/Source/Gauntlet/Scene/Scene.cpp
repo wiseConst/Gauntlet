@@ -5,6 +5,8 @@
 #include "Gauntlet/Renderer/Renderer2D.h"
 #include "Gauntlet/Renderer/Renderer.h"
 
+#pragma warning(disable : 4996)
+
 namespace Gauntlet
 {
 

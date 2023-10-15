@@ -4,12 +4,13 @@
 #include "Gauntlet/Renderer/Buffer.h"
 
 #include "VulkanAllocator.h"
+#include "Gauntlet/Renderer/GraphicsContext.h"
 
 namespace Gauntlet
 {
 
 // TODO: Should this class allow copying/moving itself??
-struct VulkanAllocatedBuffer : public AllocatedBuffer /*: private Uncopyable, private Unmovable */
+struct VulkanAllocatedBuffer /*: private Uncopyable, private Unmovable*/
 {
   public:
     VulkanAllocatedBuffer() : Allocation(VK_NULL_HANDLE), Buffer(VK_NULL_HANDLE) {}
@@ -64,6 +65,32 @@ class VulkanIndexBuffer final : public IndexBuffer
   private:
     VulkanAllocatedBuffer m_AllocatedBuffer;
     uint64_t m_IndicesCount = 0;
+};
+
+// UNIFORM BUFFER
+// TODO: Refactor
+class VulkanUniformBuffer final : public UniformBuffer
+{
+  public:
+    VulkanUniformBuffer() = delete;
+    VulkanUniformBuffer(const uint64_t bufferSize);
+    ~VulkanUniformBuffer() = default;
+
+    void Destroy() final override;
+
+    void MapPersistent() final override;
+    void* RetrieveMapped() final override;
+    void Unmap() final override;
+
+    void Update(void* data, const uint64_t size) final override;
+
+    FORCEINLINE const auto& GetHandles() const { return m_AllocatedBuffers; }
+    const uint64_t GetSize() const final override { return m_Size; }
+
+  private:
+    std::vector<VulkanAllocatedBuffer> m_AllocatedBuffers;  // Per-frame
+    std::vector<bool> m_bAreMapped;                         // Per-frame for buffers
+    VkDeviceSize m_Size = 0;
 };
 
 namespace BufferUtils

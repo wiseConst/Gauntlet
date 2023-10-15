@@ -89,10 +89,9 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     {
         // Then each level will be transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL after the blit command reading from it is
         // finished.
-        ImageUtils::GenerateMipmaps(m_Image->Get(), ImageUtils::GauntletImageFormatToVulkan(m_Image->GetSpecification().Format),
-                                    ImageUtils::GauntletTextureFilterToVulkan(m_Image->GetSpecification().Filter),
-                                    m_Image->GetSpecification().Width, m_Image->GetSpecification().Height,
-                                    m_Image->GetSpecification().Mips);
+        ImageUtils::GenerateMipmaps(m_Image->Get(), ImageUtils::GauntletImageFormatToVulkan(ImageSpec.Format),
+                                    ImageUtils::GauntletTextureFilterToVulkan(ImageSpec.Filter), ImageSpec.Width, ImageSpec.Height,
+                                    ImageSpec.Mips);
     }
     else
         ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,

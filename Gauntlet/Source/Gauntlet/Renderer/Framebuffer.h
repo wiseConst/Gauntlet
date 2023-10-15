@@ -3,7 +3,7 @@
 #include "Gauntlet/Core/Core.h"
 #include "Image.h"
 
-#include <glm/glm.hpp>
+#include "Gauntlet/Core/Math.h"
 
 namespace Gauntlet
 {
@@ -61,6 +61,9 @@ class Framebuffer : private Uncopyable, private Unmovable
 
     virtual void Destroy()                               = 0;
     virtual void Resize(uint32_t width, uint32_t height) = 0;
+
+    virtual void SetDepthStencilClearColor(const float depth, const uint32_t stencil)    = 0;
+    FORCEINLINE virtual const std::vector<FramebufferAttachment>& GetAttachments() const = 0;
 
     virtual const uint32_t GetWidth() const  = 0;
     virtual const uint32_t GetHeight() const = 0;

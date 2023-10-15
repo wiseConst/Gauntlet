@@ -5,7 +5,6 @@ layout(location = 1) in vec4 InColor;
 layout(location = 2) in vec2 InTexCoord;
 layout(location = 3) in vec3 InNormal;
 layout(location = 4) in vec3 InTangent;
-layout(location = 5) in vec3 InBitangent;
 
 layout(location = 0) out vec4 OutColor;
 layout(location = 1) out vec3 OutNormal;
@@ -45,7 +44,7 @@ void main()
 	OutNormal = mat3(transpose(inverse(u_MeshPushConstants.TransformMatrix))) * InNormal;
 	OutTexCoord = InTexCoord;
 	OutTangent = InTangent;
-	OutBitangent = OutBitangent;
+	OutBitangent = cross(InNormal, OutTangent);
 	OutViewVector = normalize(VertexWorldPosition.xyz - u_CameraDataBuffer.Position);
 	OutFragmentPosition = VertexWorldPosition.xyz;
 	OutLightSpaceFragPos = u_ShadowsBuffer.LightSpaceMatrix * vec4(OutFragmentPosition, 1.0);

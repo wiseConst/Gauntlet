@@ -38,7 +38,7 @@ static const char* GetVendorNameCString(uint32_t vendorID)
     }
 
     GNT_ASSERT(false, "Unknown vendor!");
-    return nullptr;
+    return "None";
 }
 
 static const char* GetDeviceTypeCString(VkPhysicalDeviceType deviceType)
@@ -201,37 +201,18 @@ uint32_t VulkanDevice::RateDeviceSuitability(GPUInfo& gpuInfo, const VkSurfaceKH
     uint32_t score = 0;
     switch (gpuInfo.GPUProperties.deviceType)
     {
-        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-        {
-            score += 50;
-            break;
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        {
-            score += 800;
-            break;
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        {
-            score += 1500;
-            break;
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-        {
-            score += 250;
-            break;
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_CPU:
-        {
-            score += 400;
-            break;
-        }
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER: score += 50; break;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: score += 250; break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU: score += 400; break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: score += 800; break;
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: score += 1500; break;
     }
 
     // Maximum possible size of textures affects graphics quality
     score += gpuInfo.GPUProperties.limits.maxImageDimension2D;
 
     score += gpuInfo.GPUProperties.limits.maxViewports;
+    score += gpuInfo.GPUProperties.limits.maxDescriptorSetSampledImages;
 
     // Maximum size of fast(-accessible) uniform data in shaders.
     score += gpuInfo.GPUProperties.limits.maxPushConstantsSize;

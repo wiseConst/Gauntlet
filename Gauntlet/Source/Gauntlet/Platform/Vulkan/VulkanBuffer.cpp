@@ -36,7 +36,8 @@ VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage bufferUsage)
     return BufferUsageFlags;
 }
 
-void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, VulkanAllocatedBuffer& outAllocatedBuffer, VmaMemoryUsage memoryUsage)
+void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, VulkanAllocatedBuffer& outAllocatedBuffer,
+                  VmaMemoryUsage memoryUsage)
 {
     VkBufferCreateInfo BufferCreateInfo = {};
     BufferCreateInfo.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -44,18 +45,16 @@ void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, Vulka
     BufferCreateInfo.size               = size;
     BufferCreateInfo.sharingMode        = VK_SHARING_MODE_EXCLUSIVE;
 
-    auto& Context                 = (VulkanContext&)VulkanContext::Get();
-    outAllocatedBuffer.Allocation = Context.GetAllocator()->CreateBuffer(BufferCreateInfo, &outAllocatedBuffer.Buffer, memoryUsage);
+    auto& context                 = (VulkanContext&)VulkanContext::Get();
+    outAllocatedBuffer.Allocation = context.GetAllocator()->CreateBuffer(BufferCreateInfo, &outAllocatedBuffer.Buffer, memoryUsage);
 }
 
 void CopyBuffer(const VkBuffer& sourceBuffer, VkBuffer& destBuffer, const VkDeviceSize size)
 {
     GRAPHICS_GUARD_LOCK;
 
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
-
-    auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
+    auto& context      = (VulkanContext&)VulkanContext::Get();
+    auto CommandBuffer = Utility::BeginSingleTimeCommands(context.GetTransferCommandPool()->Get(), context.GetDevice()->GetLogicalDevice());
 
     VkBufferCopy CopyRegion = {};
     CopyRegion.size         = size;
@@ -63,18 +62,18 @@ void CopyBuffer(const VkBuffer& sourceBuffer, VkBuffer& destBuffer, const VkDevi
     CopyRegion.dstOffset    = 0;  // Optional
 
     vkCmdCopyBuffer(CommandBuffer, sourceBuffer, destBuffer, 1, &CopyRegion);
-    Utility::EndSingleTimeCommands(CommandBuffer, Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetTransferQueue(),
-                                   Context.GetDevice()->GetLogicalDevice());
+    Utility::EndSingleTimeCommands(CommandBuffer, context.GetTransferCommandPool()->Get(), context.GetDevice()->GetTransferQueue(),
+                                   context.GetDevice()->GetLogicalDevice(), context.GetUploadFence());
 }
 
 void DestroyBuffer(VulkanAllocatedBuffer& InBuffer)
 {
     GRAPHICS_GUARD_LOCK;
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    Context.GetDevice()->WaitDeviceOnFinish();
-    Context.GetAllocator()->DestroyBuffer(InBuffer.Buffer, InBuffer.Allocation);
+    context.WaitDeviceOnFinish();
+    context.GetAllocator()->DestroyBuffer(InBuffer.Buffer, InBuffer.Allocation);
     InBuffer.Buffer     = VK_NULL_HANDLE;
     InBuffer.Allocation = VK_NULL_HANDLE;
 }
@@ -82,12 +81,12 @@ void DestroyBuffer(VulkanAllocatedBuffer& InBuffer)
 // Usually used for copying data to staging buffer
 void CopyDataToBuffer(VulkanAllocatedBuffer& buffer, const VkDeviceSize dataSize, const void* data)
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
+    auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(data, "Data you want to copy is not valid!");
 
-    void* Mapped = Context.GetAllocator()->Map(buffer.Allocation);
+    void* Mapped = context.GetAllocator()->Map(buffer.Allocation);
     memcpy(Mapped, data, dataSize);
-    Context.GetAllocator()->Unmap(buffer.Allocation);
+    context.GetAllocator()->Unmap(buffer.Allocation);
 }
 
 }  // namespace BufferUtils
@@ -164,6 +163,101 @@ VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& bufferInfo) : IndexBuffer(buffe
 void VulkanIndexBuffer::Destroy()
 {
     BufferUtils::DestroyBuffer(m_AllocatedBuffer);
+}
+
+// UNIFORM BUFFER
+
+VulkanUniformBuffer::VulkanUniformBuffer(const uint64_t bufferSize) : m_Size(bufferSize)
+{
+    m_bAreMapped.resize(FRAMES_IN_FLIGHT);
+    for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+        m_bAreMapped[frame] = false;
+
+    m_AllocatedBuffers.resize(FRAMES_IN_FLIGHT);
+    for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+        BufferUtils::CreateBuffer(EBufferUsageFlags::UNIFORM_BUFFER, bufferSize, m_AllocatedBuffers[frame], VMA_MEMORY_USAGE_CPU_ONLY);
+}
+
+void VulkanUniformBuffer::Destroy()
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    for (uint32_t i = 0; i < m_AllocatedBuffers.size(); ++i)
+    {
+        if (m_bAreMapped[i])
+        {
+            context.GetAllocator()->Unmap(m_AllocatedBuffers[i].Allocation);
+            m_bAreMapped[i] = false;
+        }
+
+        BufferUtils::DestroyBuffer(m_AllocatedBuffers[i]);
+    }
+    m_Size = 0;
+}
+
+void VulkanUniformBuffer::MapPersistent()
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    for (auto& buffer : m_AllocatedBuffers)
+    {
+        if (m_bAreMapped[context.GetCurrentFrameIndex()]) continue;
+
+        context.GetAllocator()->Map(buffer.Allocation);
+        m_bAreMapped[context.GetCurrentFrameIndex()] = true;
+    }
+}
+
+void* VulkanUniformBuffer::RetrieveMapped()
+{
+    if (m_bAreMapped[GraphicsContext::Get().GetCurrentFrameIndex()])
+    {
+        auto& context = (VulkanContext&)VulkanContext::Get();
+
+        VmaAllocationInfo allocationInfo = {};
+        context.GetAllocator()->QueryAllocationInfo(allocationInfo, m_AllocatedBuffers[context.GetCurrentFrameIndex()].Allocation);
+        return allocationInfo.pMappedData;
+    }
+
+    auto& context                                               = (VulkanContext&)VulkanContext::Get();
+    m_bAreMapped[GraphicsContext::Get().GetCurrentFrameIndex()] = true;
+    return context.GetAllocator()->Map(m_AllocatedBuffers[GraphicsContext::Get().GetCurrentFrameIndex()].Allocation);
+}
+
+void VulkanUniformBuffer::Unmap()
+{
+    if (!m_bAreMapped[GraphicsContext::Get().GetCurrentFrameIndex()]) return;
+
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    context.GetAllocator()->Unmap(m_AllocatedBuffers[GraphicsContext::Get().GetCurrentFrameIndex()].Allocation);
+    m_bAreMapped[GraphicsContext::Get().GetCurrentFrameIndex()] = false;
+}
+
+void VulkanUniformBuffer::Update(void* data, const uint64_t size)
+{
+    auto& context                    = (VulkanContext&)VulkanContext::Get();
+    const uint32_t currentFrameIndex = context.GetCurrentFrameIndex();
+
+    void* mapped = nullptr;
+    if (!m_bAreMapped[currentFrameIndex])
+    {
+        m_bAreMapped[currentFrameIndex] = true;
+        mapped                          = context.GetAllocator()->Map(m_AllocatedBuffers[currentFrameIndex].Allocation);
+    }
+    else
+    {
+        VmaAllocationInfo allocationInfo = {};
+        context.GetAllocator()->QueryAllocationInfo(allocationInfo, m_AllocatedBuffers[currentFrameIndex].Allocation);
+        mapped = allocationInfo.pMappedData;
+    }
+
+    GNT_ASSERT(mapped, "Failed to map uniform buffer!");
+    memcpy(mapped, data, size);
+
+    if (m_bAreMapped[currentFrameIndex])
+    {
+        m_bAreMapped[currentFrameIndex] = false;
+        context.GetAllocator()->Unmap(m_AllocatedBuffers[currentFrameIndex].Allocation);
+    }
+    mapped = nullptr;
 }
 
 }  // namespace Gauntlet

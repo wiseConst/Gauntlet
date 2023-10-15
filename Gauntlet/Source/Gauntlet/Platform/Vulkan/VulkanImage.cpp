@@ -99,6 +99,9 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
         case EImageFormat::RGBA: return VK_FORMAT_R8G8B8A8_UNORM;
         case EImageFormat::SRGB: return VK_FORMAT_R8G8B8A8_SRGB;
         case EImageFormat::RGBA16F: return VK_FORMAT_R16G16B16A16_SFLOAT;
+        case EImageFormat::RGBA32F: return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case EImageFormat::RGB32F: return VK_FORMAT_R32G32B32_SFLOAT;
+        case EImageFormat::RGB16F: return VK_FORMAT_R16G16B16_SFLOAT;
         case EImageFormat::R32F: return VK_FORMAT_R32_SFLOAT;
         case EImageFormat::DEPTH32F: return VK_FORMAT_D32_SFLOAT;
         case EImageFormat::DEPTH24STENCIL8: return VK_FORMAT_D24_UNORM_S8_UINT;
@@ -203,7 +206,7 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
         CommandBuffer,
         bIsFragmentShaderStageInDestination ? Context.GetGraphicsCommandPool()->Get() : Context.GetTransferCommandPool()->Get(),
         bIsFragmentShaderStageInDestination ? Context.GetDevice()->GetGraphicsQueue() : Context.GetDevice()->GetTransferQueue(),
-        Context.GetDevice()->GetLogicalDevice());
+        Context.GetDevice()->GetLogicalDevice(), Context.GetUploadFence());
 }
 
 void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent, const bool bIsCubeMap)
@@ -220,7 +223,7 @@ void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationIma
     vkCmdCopyBufferToImage(CommandBuffer, sourceBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &CopyRegion);
 
     Utility::EndSingleTimeCommands(CommandBuffer, Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetTransferQueue(),
-                                   Context.GetDevice()->GetLogicalDevice());
+                                   Context.GetDevice()->GetLogicalDevice(), Context.GetUploadFence());
 }
 
 void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filter, const uint32_t width, const uint32_t height,
@@ -241,7 +244,6 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
                        "Linear blitting is not supported");
     }
 
-    // TODO: If you want to use dedicated transfer queue, make sure it's also compatible with graphics.
     auto commandBuffer = Utility::BeginSingleTimeCommands(context.GetGraphicsCommandPool()->Get(), context.GetDevice()->GetLogicalDevice());
 
     VkImageMemoryBarrier barrier            = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -257,7 +259,7 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
     int32_t mipHeight = static_cast<int32_t>(height);
     for (uint32_t i = 1; i < mipLevels; ++i)
     {
-        // Inserting first barrier to wait for blit then transtition to SRC_optimal
+        // Inserting first barrier to wait for TRANSITION to SRC_optimal then BLIT
         barrier.subresourceRange.baseMipLevel = i - 1;
         barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -311,7 +313,7 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
                          &barrier);
 
     Utility::EndSingleTimeCommands(commandBuffer, context.GetGraphicsCommandPool()->Get(), context.GetDevice()->GetGraphicsQueue(),
-                                   context.GetDevice()->GetLogicalDevice());
+                                   context.GetDevice()->GetLogicalDevice(), context.GetUploadFence());
 }
 
 VkFilter GauntletTextureFilterToVulkan(ETextureFilter textureFilter)
@@ -479,17 +481,15 @@ void VulkanImage::CreateSampler()
 
 void VulkanImage::Destroy()
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
 
-    if (m_DescriptorSet.Handle) Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
+    if (m_DescriptorSet.Handle) context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
 
     GRAPHICS_GUARD_LOCK;
+    context.WaitDeviceOnFinish();
+    context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 
-    Context.GetDevice()->WaitDeviceOnFinish();
-    Context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
-
-    vkDestroyImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);
+    vkDestroyImageView(context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);
     m_Image.ImageView = VK_NULL_HANDLE;
 }
 

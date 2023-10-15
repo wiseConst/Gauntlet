@@ -68,9 +68,12 @@ void Application::Run()
 
     uint32_t FrameCount = 0;
     float LastTime      = 0.0f;
-    float LastFrameTime = 0.0f;
+
+    float LastFrameTime = 0.0F;
     while (m_Window->IsRunning())
     {
+        const std::chrono::duration<float> frameTimeLimit(1.0f / m_Specification.FPSLock);
+
         if (!m_Window->IsMinimized())
         {
             m_Context->BeginRender();
@@ -94,11 +97,12 @@ void Application::Run()
 
         m_Window->OnUpdate();
 
-        // MainThread delta
-        const float CurrentTime = GetTimeNow();
-        m_MainThreadDelta       = CurrentTime - LastFrameTime;
-        LastFrameTime           = CurrentTime;
+        JobSystem::Update();
 
+        // MainThread delta
+        const float CurrentTime        = GetTimeNow();
+        m_MainThreadDelta              = CurrentTime - LastFrameTime;
+        LastFrameTime                  = CurrentTime;
         Renderer::GetStats().FrameTime = m_MainThreadDelta;
 
         // FPS
@@ -111,7 +115,13 @@ void Application::Run()
             LastTime                 = CurrentTime;
         }
 
-        JobSystem::Update();
+        if (m_Specification.FPSLock == 0) continue;
+
+        if (m_MainThreadDelta < frameTimeLimit.count())
+        {
+            const std::chrono::duration<float> frameDuration(m_MainThreadDelta);
+            std::this_thread::sleep_for(frameTimeLimit - frameDuration);
+        }
     }
 }
 
