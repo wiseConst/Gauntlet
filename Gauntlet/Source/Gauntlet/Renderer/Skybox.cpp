@@ -13,7 +13,8 @@ Skybox::Skybox(const std::vector<std::string>& faces)
 
 void Skybox::Create(const std::vector<std::string>& faces)
 {
-    m_Cube = Mesh::CreateCube();
+    GNT_ASSERT(false);
+    // m_Cube = Mesh::CreateCube();
 
     m_CubeMapTexture = TextureCube::Create(faces);
 }

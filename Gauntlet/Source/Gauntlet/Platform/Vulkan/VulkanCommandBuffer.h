@@ -70,9 +70,9 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         vkCmdDraw(m_CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
-    FORCEINLINE void DrawIndirect(const VkBuffer& buffer, const VkDeviceSize offset, const uint32_t drawCount, const uint32_t stride)
+    FORCEINLINE void DrawIndexedIndirect(const VkBuffer& buffer, const VkDeviceSize offset, const uint32_t drawCount, const uint32_t stride)
     {
-        vkCmdDrawIndirect(m_CommandBuffer, buffer, offset, drawCount, stride);
+        vkCmdDrawIndexedIndirect(m_CommandBuffer, buffer, offset, drawCount, stride);
     }
 
     FORCEINLINE void BindVertexBuffers(const uint32_t firstBinding = 0, const uint32_t bindingCount = 1, VkBuffer* buffers = VK_NULL_HANDLE,
@@ -82,10 +82,33 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         vkCmdBindVertexBuffers(m_CommandBuffer, firstBinding, bindingCount, buffers, offsets);
     }
 
-    FORCEINLINE void BindIndexBuffer(const VkBuffer& buffer, const VkDeviceSize offset = 0,
-                                     VkIndexType indexType = VK_INDEX_TYPE_UINT32) const
+    FORCEINLINE void Dispatch(const uint32_t groupCountX, const uint32_t groupCountY, const uint32_t groupCountZ)
+    {
+        vkCmdDispatch(m_CommandBuffer, groupCountX, groupCountY, groupCountZ);
+    }
+
+    FORCEINLINE
+    void BindIndexBuffer(const VkBuffer& buffer, const VkDeviceSize offset = 0, VkIndexType indexType = VK_INDEX_TYPE_UINT32) const
     {
         vkCmdBindIndexBuffer(m_CommandBuffer, buffer, offset, indexType);
+    }
+
+    // RTX Part
+
+    FORCEINLINE void TraceRays(const VkStridedDeviceAddressRegionKHR* raygenShaderBindingTable,
+                               const VkStridedDeviceAddressRegionKHR* missShaderBindingTable,
+                               const VkStridedDeviceAddressRegionKHR* hitShaderBindingTable,
+                               const VkStridedDeviceAddressRegionKHR* callableShaderBindingTable, uint32_t width, uint32_t height,
+                               uint32_t depth = 1) const
+    {
+        vkCmdTraceRaysKHR(m_CommandBuffer, raygenShaderBindingTable, missShaderBindingTable, hitShaderBindingTable,
+                          callableShaderBindingTable, width, height, depth);
+    }
+
+    FORCEINLINE void BuildAccelerationStructure(uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR* infos,
+                                                const VkAccelerationStructureBuildRangeInfoKHR* const* buildRangeInfos)
+    {
+        vkCmdBuildAccelerationStructuresKHR(m_CommandBuffer, infoCount, infos, buildRangeInfos);
     }
 
   private:

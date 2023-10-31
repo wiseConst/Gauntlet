@@ -84,7 +84,7 @@ class Log final
 
         // Format the time with timezone
         char FormattedTime[MAX_TIME_FORMAT_LENGTH] = {0};
-        std::strftime(FormattedTime, MAX_TIME_FORMAT_LENGTH, "[%d:%m:%Y|%H:%M:%S]", CurrentLocalTime);
+        std::strftime(FormattedTime, MAX_TIME_FORMAT_LENGTH, "[%d/%m/%Y|%H:%M:%S]", CurrentLocalTime);
 
         char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
         sprintf(FinalOutMessage, "%s %s%s", FormattedTime, LevelStrings[LevelIndex], FormattedMessage);

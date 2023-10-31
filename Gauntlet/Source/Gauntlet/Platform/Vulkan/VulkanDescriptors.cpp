@@ -121,9 +121,9 @@ VkDescriptorPool VulkanDescriptorAllocator::CreatePool(const uint32_t count, VkD
         PoolSizes[i].descriptorCount = static_cast<uint32_t>(m_DefaultPoolSizes[i].second * count);
     }
 
-    const auto DescriptorPoolCreateInfo =
-        Utility::GetDescriptorPoolCreateInfo(static_cast<uint32_t>(PoolSizes.size()), count, PoolSizes.data(),
-                                             VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | descriptorPoolCreateFlags);
+    const auto DescriptorPoolCreateInfo = Utility::GetDescriptorPoolCreateInfo(
+        static_cast<uint32_t>(PoolSizes.size()), count, PoolSizes.data(),
+        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | descriptorPoolCreateFlags);
 
     VkDescriptorPool NewDescriptorPool = VK_NULL_HANDLE;
     VK_CHECK(vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &DescriptorPoolCreateInfo, nullptr, &NewDescriptorPool),

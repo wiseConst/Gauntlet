@@ -240,6 +240,12 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
             ImGui::CloseCurrentPopup();
         }
 
+        if (ImGui::MenuItem("Spot Light"))
+        {
+            m_SelectionContext.AddComponent<SpotLightComponent>();
+            ImGui::CloseCurrentPopup();
+        }
+
         ImGui::EndPopup();
     }
     ImGui::PopItemWidth();
@@ -292,6 +298,26 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                                  ImGui::Checkbox("Cast Shadows", &dlc.bCastShadows);
                                              });
 
+    DrawComponent<SpotLightComponent>("SpotLightComponent", entity,
+                                      [](auto& slc)
+                                      {
+                                          ImGui::Separator();
+                                          ImGui::Text("LightColor");
+                                          ImGui::ColorPicker3("Color", (float*)&slc.Color);
+
+                                          ImGui::Separator();
+                                          ImGui::Text("Phong Model Settings");
+                                          ImGui::DragFloat("Ambient", &slc.AmbientSpecularShininess.x, 0.05f, 0.0f, 1.0f, "%.2f");
+                                          ImGui::DragFloat("Specular", &slc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
+                                          ImGui::DragFloat("Shininess", &slc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
+
+                                          ImGui::Separator();
+                                          ImGui::DragFloat("Cut Off", &slc.CutOff, 1.0f);
+
+                                          ImGui::Separator();
+                                          ImGui::Checkbox("Active", &slc.bIsActive);
+                                      });
+
     DrawComponent<MeshComponent>("Mesh", entity,
                                  [](auto& mc)
                                  {
@@ -300,21 +326,53 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                          ImGui::Separator();
                                          ImGui::Text(mc.Mesh->GetSubmeshName(i).data());
 
-                                         const Ref<Gauntlet::Material>& Mat = mc.Mesh->GetMaterial(i);
+                                         const Ref<Material>& mat = mc.Mesh->GetMaterial(i);
+                                         static constexpr ImVec2 ImageSize(256.0f, 256.0f);
 
-                                         constexpr ImVec2 ImageSize(256.0f, 256.0f);
+                                         PBRMaterial& materialData = mat->GetData();
 
-                                         Ref<Texture2D> DiffuseTexture = Mat->GetDiffuseTexture(0);
-                                         if (DiffuseTexture && DiffuseTexture->GetTextureID())
-                                             ImGui::Image(DiffuseTexture->GetTextureID(), ImageSize);
+                                         Ref<Texture2D> albedo = mat->GetAlbedo();
+                                         if (albedo && albedo->GetTextureID())
+                                         {
+                                             ImGui::Text("Albedo");
+                                             ImGui::ColorEdit3("BaseColor", (float*)&materialData.BaseColor);
+                                             ImGui::Image(albedo->GetTextureID(), ImageSize);
+                                             ImGui::Separator();
+                                         }
 
-                                         Ref<Texture2D> NormalMapTexture = Mat->GetNormalMapTexture(0);
-                                         if (NormalMapTexture && NormalMapTexture->GetTextureID())
-                                             ImGui::Image(NormalMapTexture->GetTextureID(), ImageSize);
+                                         Ref<Texture2D> normalMap = mat->GetNormalMap();
+                                         if (normalMap && normalMap->GetTextureID())
+                                         {
+                                             ImGui::Text("NormalMap");
+                                             ImGui::Image(normalMap->GetTextureID(), ImageSize);
+                                             ImGui::Separator();
+                                         }
 
-                                         /* Ref<Texture2D> EmissiveTexture = Mat->GetEmissiveTexture(0);
-                                           if (EmissiveTexture && EmissiveTexture->GetTextureID())
-                                               ImGui::Image(EmissiveTexture->GetTextureID(), ImageSize);*/
+                                         Ref<Texture2D> metallic = mat->GetMetallic();
+                                         if (metallic && metallic->GetTextureID())
+                                         {
+                                             ImGui::Text("Metallic");
+                                             ImGui::SliderFloat("Metallic", &materialData.Metallic, 0.0f, 1.0f);
+                                             ImGui::Image(metallic->GetTextureID(), ImageSize);
+                                             ImGui::Separator();
+                                         }
+
+                                         Ref<Texture2D> roughness = mat->GetRoughness();
+                                         if (roughness && roughness->GetTextureID())
+                                         {
+                                             ImGui::Text("Roughness");
+                                             ImGui::SliderFloat("Roughness", &materialData.Roughness, 0.0f, 1.0f);
+                                             ImGui::Image(roughness->GetTextureID(), ImageSize);
+                                             ImGui::Separator();
+                                         }
+
+                                         Ref<Texture2D> ao = mat->GetAO();
+                                         if (ao && ao->GetTextureID())
+                                         {
+                                             ImGui::Text("AO");
+                                             ImGui::Image(ao->GetTextureID(), ImageSize);
+                                             ImGui::Separator();
+                                         }
                                      }
                                  });
 }

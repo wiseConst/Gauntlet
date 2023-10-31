@@ -14,24 +14,12 @@ void EditorLayer::OnAttach()
     m_ActiveScene  = MakeRef<Scene>("EmptyScene");
 
     m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-
-    {
-        TextureSpecification textureSpec = {};
-        textureSpec.CreateTextureID      = true;
-        textureSpec.Filter               = ETextureFilter::LINEAR;
-
-        m_PlayIcon = Texture2D::Create("Resources/Icons/icons8/play-48.png", textureSpec);
-        m_StopIcon = Texture2D::Create("Resources/Icons/icons8/stop-48.png", textureSpec);
-    }
 }
 
 void EditorLayer::OnDetach()
 {
     SceneSerializer serializer(m_ActiveScene);
     serializer.Serialize("Resources/Scenes/" + m_ActiveScene->GetName() + ".gntlt");
-
-    m_PlayIcon->Destroy();
-    m_StopIcon->Destroy();
 }
 
 void EditorLayer::OnUpdate(const float deltaTime)
@@ -93,9 +81,16 @@ void EditorLayer::OnImGuiRender()
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM"))
         {
             const wchar_t* path = (const wchar_t*)payload->Data;
-            const std::filesystem::path scenePath(path);
+            const std::filesystem::path fsPath(path);
 
-            if (scenePath.extension().string() == std::string(".gntlt")) OpenScene(scenePath.string());
+            if (fsPath.extension().string() == std::string(".gntlt"))
+                OpenScene(fsPath.string());
+            else if (fsPath.extension().string() == std::string(".gltf"))
+            {
+                std::string meshPath = fsPath.string();
+                std::replace(meshPath.begin(), meshPath.end(), '\\', '/');
+                m_ActiveScene->CreateEntity("New Entity").AddComponent<MeshComponent>(meshPath);
+            }
         }
         ImGui::EndDragDropTarget();
     }
@@ -125,6 +120,7 @@ void EditorLayer::OnImGuiRender()
         ImGui::Text("VMA Allocations: %llu", Stats.Allocations.load());
         ImGui::Text("DrawCalls: %llu", Stats.DrawCalls.load());
         ImGui::Text("QuadCount: %llu", Stats.QuadCount.load());
+        ImGui::Text("Rendering Device: %s", Stats.RenderingDevice.data());
 
         static constexpr uint32_t uint32MAX = 300;
         ImGui::InputScalar("FPS Capping( 0 means no fps cap)", ImGuiDataType_U32, &Application::Get().GetSpecification().FPSLock);
@@ -136,11 +132,40 @@ void EditorLayer::OnImGuiRender()
     ImGui::Begin("Renderer Settings");
     auto& rs = Renderer::GetSettings();
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
+    ImGui::Checkbox("ChromaticAberration View", &rs.ChromaticAberrationView);
+    ImGui::Checkbox("Pixelated View", &rs.PixelatedView);
     ImGui::Checkbox("VSync", &rs.VSync);
-    ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
-    ImGui::Checkbox("SSAO", &rs.EnableSSAO);
-    ImGui::Checkbox("SSAO-Blur", &rs.BlurSSAO);
     ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.6f, "%0.1f");
+    //   ImGui::SliderFloat("Exposure", &rs.Exposure, 0.0f, 5.0f, "%0.1f");
+    if (ImGui::TreeNodeEx("Shadows", ImGuiTreeNodeFlags_Framed))
+    {
+        ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("SSAO", ImGuiTreeNodeFlags_Framed))
+    {
+        ImGui::Checkbox("Enable SSAO", &rs.EnableSSAO);
+        ImGui::Checkbox("Enable SSAO-Blur", &rs.BlurSSAO);
+        ImGui::SliderFloat("Sample Radius", &rs.Radius, 0.5f, 5.0f);
+        ImGui::SliderFloat("Sample Bias", &rs.Bias, 0.0f, 2.0f);
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("Pipeline Statistics", ImGuiTreeNodeFlags_Framed))
+    {
+        const auto pipelineStatNames = Renderer::GetPipelineStatNames();
+        const auto pipelineStats     = Renderer::GetPipelineStats();
+        for (uint32_t i = 0; i < pipelineStats.size(); ++i)
+        {
+            std::string str = pipelineStatNames[i] + " %u";
+            ImGui::Text(str.data(), pipelineStats[i]);
+        }
+        ImGui::TreePop();
+    }
+
     ImGui::End();
 
     ImGui::Begin("Renderer Outputs");
@@ -148,7 +173,7 @@ void EditorLayer::OnImGuiRender()
     {
         ImGui::Text(rendererOuput.Name.data());
         ImGui::Image(rendererOuput.Attachment->GetTextureID(),
-                     {ImGui::GetContentRegionAvail().x / 2, ImGui::GetContentRegionAvail().x / 2});
+                     {ImGui::GetContentRegionAvail().x * 0.75f, ImGui::GetContentRegionAvail().x * 0.75f});
         ImGui::Separator();
     }
 
@@ -158,33 +183,7 @@ void EditorLayer::OnImGuiRender()
 
     m_ContentBrowserPanel.OnImGuiRender();
 
-    UI_Toolbar();
-
     EndDockspace();
-}
-
-void EditorLayer::UI_Toolbar()
-{
-    // TODO: Currently unused
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-
-    ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-
-    const float size = ImGui::GetWindowHeight() - 4.0f;
-    const auto icon  = m_SceneState == ESceneState::Edit ? m_PlayIcon : m_StopIcon;
-    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x * 0.5f - size * 0.5f);
-    if (ImGui::ImageButton(icon->GetTextureID(), ImVec2(size, size)))
-    {
-        if (m_SceneState == ESceneState::Edit)
-            OnScenePlay();
-        else if (m_SceneState == ESceneState::Play)
-            OnSceneStop();
-    }
-    ImGui::End();
-
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
 }
 
 void EditorLayer::BeginDockspace()

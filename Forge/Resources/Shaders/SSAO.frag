@@ -13,6 +13,7 @@ layout(set = 0, binding = 3) uniform UBSSAO
 	mat4 CameraProjection;
 	vec4 Samples[16];
 	vec4 ViewportSizeNoiseFactor;
+	vec4 RadiusBias;
 } u_UBSSAO;
 
 void main()
@@ -30,12 +31,12 @@ void main()
 	const mat3 TBN       = mat3(tangent, bitangent, normal);
 
 	float occlusion = 0.0f;
-	const float radius = 0.5f;
-	const float bias = 0.025f;
+	//const float radius = 0.5f;
+	//const float bias = 0.025f;
 	for(int i = 0; i < 16; ++i)
 	{
 	    vec3 Sample = TBN * u_UBSSAO.Samples[i].xyz;
-	    Sample = fragPos + Sample * radius; 
+	    Sample = fragPos + Sample * u_UBSSAO.RadiusBias.x; // radius; 
 	
 		vec4 offset = vec4(Sample, 1.0);
 		offset      = u_UBSSAO.CameraProjection * offset; 
@@ -43,8 +44,8 @@ void main()
 		offset.xyz  = offset.xyz * 0.5 + 0.5;
 
 		const float sampleDepth = texture(u_PositionMap, offset.xy).z;
-		 // const float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - sampleDepth));
-		occlusion += (sampleDepth >= Sample.z + bias ? 1.0f : 0.0f) /* * rangeCheck */;
+		const float rangeCheck = smoothstep(0.0, 1.0,  u_UBSSAO.RadiusBias.x / abs(fragPos.z - sampleDepth));
+		occlusion += (sampleDepth >= Sample.z +  u_UBSSAO.RadiusBias.y/* bias */ ? 1.0f : 0.0f) * rangeCheck;
 	}
 	occlusion = 1.0 - (occlusion / 16);
 	OutFragColor = occlusion; 

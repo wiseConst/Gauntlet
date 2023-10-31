@@ -11,18 +11,11 @@
 #include "VulkanPipeline.h"
 #include "VulkanFramebuffer.h"
 
-#include "VulkanRenderer2D.h"
 #include "VulkanUtility.h"
 #include "VulkanShader.h"
 #include "VulkanTexture.h"
-#include "VulkanTextureCube.h"
 #include "VulkanBuffer.h"
 #include "VulkanMaterial.h"
-
-#include "Gauntlet/Renderer/Skybox.h"
-#include "Gauntlet/Renderer/Mesh.h"
-
-#include "Gauntlet/Core/Random.h"
 
 #pragma warning(disable : 4834)
 
@@ -32,6 +25,7 @@ namespace Gauntlet
 VulkanRenderer::VulkanRenderer() : m_Context((VulkanContext&)VulkanContext::Get())
 {
     {
+        // Stolen from ImGui
         const auto TextureDescriptorSetLayoutBinding =
             Utility::GetDescriptorSetLayoutBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
         VkDescriptorSetLayoutCreateInfo ImageDescriptorSetLayoutCreateInfo =
@@ -40,115 +34,94 @@ VulkanRenderer::VulkanRenderer() : m_Context((VulkanContext&)VulkanContext::Get(
                                              &s_Data.ImageDescriptorSetLayout),
                  "Failed to create texture(UI) descriptor set layout!");
     }
+
+    s_PipelineStatNames = {"Input assembly vertex count        ", "Input assembly primitives count    ",
+                           "Vertex shader invocations          "};
+
+    auto& device                              = m_Context.GetDevice();
+    VkQueryPoolCreateInfo queryPoolCreateInfo = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
+    // This query pool will store pipeline statistics
+    queryPoolCreateInfo.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
+    // Pipeline counters to be returned for this pool
+    queryPoolCreateInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |      // Input assembly vertices
+                                             VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |    // Input assembly primitives
+                                             VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |    // Vertex shader invocations
+                                             VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |  // Fragment shader invocations
+                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |         // Clipping invocations
+                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |          // Clipped primitives
+                                             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;    // Compute shader invocations
+
+    if (device->GetGPUFeatures().geometryShader)
+    {
+        queryPoolCreateInfo.pipelineStatistics |=
+            VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT | VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT;
+
+        s_PipelineStatNames.emplace_back("Geometry Shader Invocations        ");
+        s_PipelineStatNames.emplace_back("Geometry Shader Primitives         ");
+    }
+
+    s_PipelineStatNames.emplace_back("Clipping stage primitives processed");
+    s_PipelineStatNames.emplace_back("Clipping stage primitives output   ");
+    s_PipelineStatNames.emplace_back("Fragment shader invocations        ");
+
+    if (device->GetGPUFeatures().tessellationShader)
+    {
+        queryPoolCreateInfo.pipelineStatistics |= VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
+                                                  VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT;
+
+        s_PipelineStatNames.push_back("Tess. control shader patches       ");
+        s_PipelineStatNames.push_back("Tess. eval. shader invocations     ");
+    }
+
+    s_PipelineStatNames.emplace_back("Compute shader invocations         ");
+
+    queryPoolCreateInfo.queryCount = 1;
+
+    VK_CHECK(vkCreateQueryPool(device->GetLogicalDevice(), &queryPoolCreateInfo, nullptr, &s_Data.QueryPool),
+             "Failed to create query pool!");
+    s_PipelineStats.resize(s_PipelineStatNames.size());
 }
 
 void VulkanRenderer::PostInit()
 {
-    // SetupSkybox();
-
-    s_Data.GeometryDescriptorSetLayout =
-        std::static_pointer_cast<VulkanShader>(s_RendererStorage->GeometryPipeline->GetSpecification().Shader)
-            ->GetDescriptorSetLayouts()[0];
+    // TODO: Get rid of it?
+    s_Data.GeometryDescriptorSetLayout = /*
+         std::static_pointer_cast<VulkanShader>(s_RendererStorage->GeometryPipeline->GetSpecification().Shader)
+             ->GetDescriptorSetLayouts()[0];*/
+        std::static_pointer_cast<VulkanShader>(s_RendererStorage->PBRPipeline->GetSpecification().Shader)->GetDescriptorSetLayouts()[0];
 }
 
 VulkanRenderer::~VulkanRenderer()
 {
     m_Context.WaitDeviceOnFinish();
 
+    vkDestroyQueryPool(m_Context.GetDevice()->GetLogicalDevice(), s_Data.QueryPool, nullptr);
+
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);
 
     s_Data.CurrentCommandBuffer = nullptr;
 
-    // DestroySkybox();
-
     for (auto& sampler : s_Data.Samplers)
         vkDestroySampler(m_Context.GetDevice()->GetLogicalDevice(), sampler.second, nullptr);
-}
-
-void VulkanRenderer::BeginSceneImpl(const Camera& camera)
-{
-    VulkanRenderer2D::GetStorageData().CameraProjectionMatrix = camera.GetViewProjectionMatrix();
-    s_Data.SkyboxPushConstants.TransformMatrix =
-        camera.GetProjectionMatrix() *
-        glm::mat4(glm::mat3(camera.GetViewMatrix()));  // Removing 4th column of view martix which contains translation;
 }
 
 void VulkanRenderer::BeginImpl()
 {
     s_Data.CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
+
+    s_Data.CurrentPipelineToBind.reset();
 }
 
-void VulkanRenderer::SetupSkybox()
+void VulkanRenderer::BeginQuery()
 {
-    const auto SkyboxPath                = std::string("Resources/Textures/Skybox/Yokohama2/");
-    const std::vector<std::string> Faces = {
-        SkyboxPath + "right.jpg",   //
-        SkyboxPath + "left.jpg",    //
-        SkyboxPath + "bottom.jpg",  // Swapped because I flip the viewport's Y axis
-        SkyboxPath + "top.jpg",     // Swapped
-        SkyboxPath + "front.jpg",   //
-        SkyboxPath + "back.jpg"     //
-    };
-    s_Data.DefaultSkybox = MakeRef<Skybox>(Faces);
+    vkCmdResetQueryPool(s_Data.CurrentCommandBuffer->Get(), s_Data.QueryPool, 0, 1);
 
-    auto SkyboxShader          = std::static_pointer_cast<VulkanShader>(ShaderLibrary::Load("Resources/Cached/Shaders/Skybox"));
-    s_Data.SkyboxDescriptorSet = SkyboxShader->GetDescriptorSets()[0];
-
-    // Base skybox pipeline creation
-    PipelineSpecification skyboxPipelineSpec = {};
-    skyboxPipelineSpec.Name                  = "Skybox";
-    skyboxPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-    skyboxPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-    skyboxPipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    skyboxPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
-    skyboxPipelineSpec.bDepthTest            = VK_TRUE;
-
-    skyboxPipelineSpec.TargetFramebuffer = s_RendererStorage->GeometryFramebuffer;
-    skyboxPipelineSpec.Shader            = SkyboxShader;
-
-    s_Data.SkyboxPipeline = MakeRef<VulkanPipeline>(skyboxPipelineSpec);
-    SkyboxShader->Set("u_CubeMap", s_Data.DefaultSkybox->GetCubeMapTexture());
+    vkCmdBeginQuery(s_Data.CurrentCommandBuffer->Get(), s_Data.QueryPool, 0, 0);
 }
-
-void VulkanRenderer::DrawSkybox()
+void VulkanRenderer::EndQuery()
 {
-    GNT_ASSERT(s_Data.CurrentCommandBuffer, "You can't render skybox before you've acquired valid command buffer!");
-    s_Data.CurrentCommandBuffer->BeginDebugLabel("Skybox", glm::vec4(0.0f, 0.0f, 0.25f, 1.0f));
-
-    static constexpr uint32_t s_MaxSkyboxSize = 500;
-    s_Data.SkyboxPushConstants.TransformMatrix *= glm::scale(glm::mat4(1.0f), glm::vec3(s_MaxSkyboxSize));
-
-    // const auto& CubeMesh = s_Data.DefaultSkybox->GetCubeMesh();
-    //  DrawIndexedInternal(s_Data.SkyboxPipeline, CubeMesh->GetIndexBuffers()[0], CubeMesh->GetVertexBuffers()[0],
-    //  &s_Data.SkyboxPushConstants,
-    //                    &s_Data.SkyboxDescriptorSet.Handle, 1);
-
-    s_Data.CurrentCommandBuffer->EndDebugLabel();
-}
-
-void VulkanRenderer::DestroySkybox()
-{
-    m_Context.GetDescriptorAllocator()->ReleaseDescriptorSets(&s_Data.SkyboxDescriptorSet, 1);
-    s_Data.SkyboxPipeline->Destroy();
-    s_Data.DefaultSkybox->Destroy();
-}
-
-void VulkanRenderer::EndSceneImpl()
-{
-    GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
-}
-
-void VulkanRenderer::FlushImpl()
-{
-    // Render skybox as last geometry to prevent depth testing as mush as possible
-    /* s_Data.CurrentCommandBuffer->BeginDebugLabel("Skybox", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-     s_Data.GeometryFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
-
-     DrawSkybox();
-
-     s_Data.GeometryFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
-     s_Data.CurrentCommandBuffer->EndDebugLabel();*/
+    vkCmdEndQuery(s_Data.CurrentCommandBuffer->Get(), s_Data.QueryPool, 0);
 }
 
 void VulkanRenderer::BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor)
@@ -170,17 +143,16 @@ void VulkanRenderer::EndRenderPassImpl(const Ref<Framebuffer>& framebuffer)
     s_Data.CurrentCommandBuffer->EndDebugLabel();
 }
 
-void VulkanRenderer::RenderGeometryImpl(Ref<Pipeline>& pipeline, const GeometryData& geometry, bool bWithMaterial, void* pushConstants)
+void VulkanRenderer::SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
+                                    Ref<Material>& material, void* pushConstants)
 {
-    if (bWithMaterial)
+    if (material)
     {
-        VkDescriptorSet ds = (VkDescriptorSet)geometry.Material->GetDescriptorSet();
-        DrawIndexedInternal(pipeline, geometry.IndexBuffer, geometry.VertexBuffer, pushConstants, &ds, 1);
+        VkDescriptorSet ds = (VkDescriptorSet)material->GetDescriptorSet();
+        DrawIndexedInternal(pipeline, indexBuffer, vertexBuffer, pushConstants, &ds, 1);
     }
     else
-    {
-        DrawIndexedInternal(pipeline, geometry.IndexBuffer, geometry.VertexBuffer, pushConstants);
-    }
+        DrawIndexedInternal(pipeline, indexBuffer, vertexBuffer, pushConstants);
 }
 
 void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<IndexBuffer>& indexBuffer,
@@ -189,10 +161,16 @@ void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<Inde
 {
     GNT_ASSERT(s_Data.CurrentCommandBuffer);
 
+    // Prevent same pipeline binding
     auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
-    s_Data.CurrentCommandBuffer->SetPipelinePolygonMode(vulkanPipeline, GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE
-                                                                                                     : EPolygonMode::POLYGON_MODE_FILL);
-    s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+    if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
+    {
+        s_Data.CurrentCommandBuffer->SetPipelinePolygonMode(vulkanPipeline, GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE
+                                                                                                         : EPolygonMode::POLYGON_MODE_FILL);
+        s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+
+        s_Data.CurrentPipelineToBind = pipeline;
+    }
 
     if (pushConstants)
         s_Data.CurrentCommandBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
@@ -200,7 +178,7 @@ void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<Inde
 
     if (!descriptorSets)
     {
-        auto vulkanShader = std::static_pointer_cast<VulkanShader>(pipeline->GetSpecification().Shader);
+        auto vulkanShader = std::static_pointer_cast<VulkanShader>(vulkanPipeline->GetSpecification().Shader);
         std::vector<VkDescriptorSet> shaderDescriptorSets;
         for (auto& descriptorSet : vulkanShader->GetDescriptorSets())
             shaderDescriptorSets.push_back(descriptorSet.Handle);
@@ -229,7 +207,12 @@ void VulkanRenderer::SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pus
     GNT_ASSERT(s_Data.CurrentCommandBuffer);
 
     auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
-    s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+    if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
+    {
+        s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+
+        s_Data.CurrentPipelineToBind = pipeline;
+    }
 
     if (pushConstants)
         s_Data.CurrentCommandBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
@@ -245,5 +228,44 @@ void VulkanRenderer::SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pus
                                                         descriptorSets.data());
 
     s_Data.CurrentCommandBuffer->Draw(3);
+}
+
+void VulkanRenderer::DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
+                                  const uint32_t indicesCount, void* pushConstants)
+{
+    GNT_ASSERT(s_Data.CurrentCommandBuffer);
+
+    auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
+    if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
+    {
+
+        s_Data.CurrentCommandBuffer->SetPipelinePolygonMode(
+            vulkanPipeline, Renderer::GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
+        s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+
+        s_Data.CurrentPipelineToBind = pipeline;
+    }
+
+    VkDeviceSize Offset = 0;
+    VkBuffer vb         = (VkBuffer)vertexBuffer->Get();
+    s_Data.CurrentCommandBuffer->BindVertexBuffers(0, 1, &vb, &Offset);
+
+    VkBuffer ib = (VkBuffer)indexBuffer->Get();
+    s_Data.CurrentCommandBuffer->BindIndexBuffer(ib);
+
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(pipeline->GetSpecification().Shader);
+    std::vector<VkDescriptorSet> descriptorSets;
+    for (auto& descriptorSet : vulkanShader->GetDescriptorSets())
+        descriptorSets.push_back(descriptorSet.Handle);
+
+    if (!descriptorSets.empty())
+        s_Data.CurrentCommandBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()),
+                                                        descriptorSets.data());
+
+    if (pushConstants)
+        s_Data.CurrentCommandBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                                       vulkanPipeline->GetPushConstantsSize(), pushConstants);
+
+    s_Data.CurrentCommandBuffer->DrawIndexed(indicesCount);
 }
 }  // namespace Gauntlet

@@ -11,6 +11,7 @@ class VulkanTextureCube final : public TextureCube
   public:
     VulkanTextureCube() = delete;
     VulkanTextureCube(const std::vector<std::string>& faces);
+    VulkanTextureCube(const TextureCubeSpecification& textureCubeSpec);
     ~VulkanTextureCube() = default;
 
     void Destroy() final override;

@@ -103,6 +103,7 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
         case EImageFormat::RGB32F: return VK_FORMAT_R32G32B32_SFLOAT;
         case EImageFormat::RGB16F: return VK_FORMAT_R16G16B16_SFLOAT;
         case EImageFormat::R32F: return VK_FORMAT_R32_SFLOAT;
+        case EImageFormat::R11G11B10: return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
         case EImageFormat::DEPTH32F: return VK_FORMAT_D32_SFLOAT;
         case EImageFormat::DEPTH24STENCIL8: return VK_FORMAT_D24_UNORM_S8_UINT;
     }
@@ -115,8 +116,6 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
                            const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
-
-    auto& Context = (VulkanContext&)VulkanContext::Get();
 
     VkImageSubresourceRange SubresourceRange = {};
     SubresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -186,7 +185,8 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
         GNT_ASSERT(false, "Unsupported image layout transition!");
     }
 
-    // Crutch.
+    auto& Context = (VulkanContext&)VulkanContext::Get();
+
     // Problem: The transfer queue does not support VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT -- only the graphics queue does.
     const bool bIsFragmentShaderStageInDestination = PipelineDestinationStageFlags == VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     auto CommandBuffer = Utility::BeginSingleTimeCommands(bIsFragmentShaderStageInDestination ? Context.GetGraphicsCommandPool()->Get()
@@ -332,7 +332,8 @@ VkSamplerAddressMode GauntletTextureWrapToVulkan(ETextureWrap textureWrap)
     switch (textureWrap)
     {
         case ETextureWrap::REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        case ETextureWrap::CLAMP: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case ETextureWrap::CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case ETextureWrap::CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     }
 
     GNT_ASSERT(false, "Unknown texture wrap!");
@@ -482,11 +483,13 @@ void VulkanImage::CreateSampler()
 void VulkanImage::Destroy()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
+    {
+        GRAPHICS_GUARD_LOCK;
+        context.WaitDeviceOnFinish();
+    }
 
     if (m_DescriptorSet.Handle) context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
 
-    GRAPHICS_GUARD_LOCK;
-    context.WaitDeviceOnFinish();
     context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 
     vkDestroyImageView(context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);

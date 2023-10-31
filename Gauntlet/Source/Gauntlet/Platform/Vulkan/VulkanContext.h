@@ -84,6 +84,7 @@ class VulkanContext final : public GraphicsContext
     std::vector<VkFence> m_InFlightFences;
     float m_LastGPUWaitTime = 0.0f;
 
+    // For single-time commands
     VkFence m_UploadFence = VK_NULL_HANDLE;
 
     void CreateInstance();

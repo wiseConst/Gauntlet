@@ -1,0 +1,28 @@
+{
+  "Scene": "EmptyScene",
+  "Entities": {
+    "910224805072539488": {
+      "TagComponent": "New Entity",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "MeshComponent": {
+        "Name": "Cerberus/scene.gltf"
+      }
+    }
+  }
+}

@@ -31,14 +31,31 @@ struct PointLight
 	vec4 CLQActive; // Constant Linear Quadratic IsActive
 };
 
-#define MAX_POINT_LIGHTS 16
-
-layout(set = 0, binding = 5) uniform LightingModelBuffer
+struct SpotLight
 {
-	DirectionalLight DirLight;
+   vec4 Position;
+   vec4 Color;
+   vec3 Direction;
+   float CutOff;
+
+   float Ambient;
+   float Specular;
+   float Shininess;
+   int Active;
+};
+
+#define MAX_POINT_LIGHTS 16
+#define MAX_SPOT_LIGHTS 8
+#define MAX_DIR_LIGHTS 4
+
+layout(set = 0, binding = 5) uniform UBBlinnPhong
+{
+	DirectionalLight DirLights[MAX_DIR_LIGHTS];
+	SpotLight SpotLights[MAX_SPOT_LIGHTS];
 	PointLight PointLights[MAX_POINT_LIGHTS];
 
 	float Gamma;
+	float Exposure;
 } u_LightingModelBuffer;
 
 float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, const vec3 LightDirection)
@@ -48,15 +65,16 @@ float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, cons
 
 	// DepthMap's range is [0, 1] => transform from NDC to screen space [0, 1]
 	projCoords = projCoords * 0.5 + 0.5;
+	if(projCoords.z > 1.0) return  0.0f;
 
 	const float currentDepth = projCoords.z;
 	const float closestDepth = texture(u_ShadowMap, projCoords.xy).r;
 
 	const vec3 normalizedLightDirection = normalize(-LightDirection);
-	const float bias = max(0.05f * (1.0f - dot(UnitNormal, normalizedLightDirection)), 0.005f);
-	float shadow = 0.0f;
-	const vec2 texelSize = 1.0 / textureSize(u_ShadowMap, 0);
+	const float bias = max(0.05 * (1.0 - dot(UnitNormal, normalizedLightDirection)), 0.005);
 
+	const vec2 texelSize = 1.0 / textureSize(u_ShadowMap, 0);
+	float shadow = 0.0f;
 	for(int x = -1; x <= 1; ++x)
 	{
 		for(int y= -1; y<=1;++y)
@@ -67,23 +85,18 @@ float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, cons
 	}
 	shadow /= 9.0;
 
-	if(projCoords.z > 1.0) shadow = 0.0f;
-
 	return shadow;
 }
 
-vec3 CalculateDirectionalLight(const float ssao, const DirectionalLight DirLight, const vec3 ViewVector, const vec3 UnitNormal, const float shadow)
+vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 ViewVector, const vec3 UnitNormal, const float shadow)
 {
-	// Ambient
-	const vec3 AmbientColor = ssao * DirLight.AmbientSpecularShininessCastShadows.x * vec3(DirLight.Color);
-
+	vec3 AmbientColor = DirLight.AmbientSpecularShininessCastShadows.x * vec3(DirLight.Color);
+	
 	const vec3 NormalizedLightDirection = normalize(-DirLight.Direction.xyz);
 
-	// Diffuse
 	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
 	const vec3 DiffuseColor = DiffuseFactor * vec3(DirLight.Color);	
 
-	// Specular Blinn-Phong
 	const vec3 HalfwayDir = normalize(-ViewVector + NormalizedLightDirection);
 	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), DirLight.AmbientSpecularShininessCastShadows.z);
 	const vec3 SpecularColor = DirLight.AmbientSpecularShininessCastShadows.y * SpecularFactor * vec3(DirLight.Color);  
@@ -91,69 +104,106 @@ vec3 CalculateDirectionalLight(const float ssao, const DirectionalLight DirLight
 	return AmbientColor + (1.0f - shadow) * (DiffuseColor + SpecularColor);
 }
 
-vec3 CalculatePointLightColor(const float ssao, PointLight InPointLight, const vec3 FragPos, const vec3 ViewVector, const vec3 UnitNormal) {
-	// Ambient
-	const vec3 AmbientColor = ssao * vec3(InPointLight.AmbientSpecularShininess.x * vec3(InPointLight.Color));
+vec3 CalculateSpotLight(const SpotLight spotlight, const vec3 fragPos, const vec3 unitNormal, const vec3 viewVector)
+{
+	const vec3 ambient = spotlight.Ambient * spotlight.Color.xyz;
+	const vec3 lightDir = normalize(spotlight.Position.xyz - fragPos);
 	
-	// Point light direction towards light source
+	const float diff = max(dot(unitNormal, lightDir), 0.0);
+	const vec3 diffuse = diff * spotlight.Color.xyz;
+	
+	const vec3 HalfwayDir = normalize(-viewVector + lightDir);
+	const float spec = pow(max(dot(HalfwayDir, unitNormal), 0.0), spotlight.Shininess);
+	const vec3 specular = spotlight.Specular * spec * spotlight.Color.xyz;  
+
+	const float angle = dot(spotlight.Direction, -lightDir);
+	const float intensity = clamp(angle - spotlight.CutOff, 0.0, 1.0);
+
+	return ambient + intensity * (diffuse + specular);
+
+//	const vec3 lightDir = normalize(spotlight.Position.xyz - fragPos);
+//	const float theta = dot(lightDir, normalize(-spotlight.Direction));
+//	if(theta > spotlight.CutOff) 
+//	{       
+//	    const vec3 ambient = spotlight.Ambient * spotlight.Color.xyz;
+//    
+//		const float diff = max(dot(unitNormal, lightDir), 0.0);
+//		const vec3 diffuse = diff * spotlight.Color.xyz;
+//
+//		const vec3 halfwayDir = normalize(-viewVector + lightDir);
+//		const float spec = pow(max(dot(halfwayDir, unitNormal), 0.0), spotlight.Shininess);
+//		const vec3 specular = spotlight.Specular * spec * spotlight.Color.xyz;
+//
+//        // TODO: Attenuation
+//        return /* attenuation * */ (ambient + diffuse + specular);
+//	}
+//	
+//	return spotlight.Ambient * spotlight.Color.xyz;
+}
+
+vec3 CalculatePointLight(PointLight InPointLight, const vec3 FragPos, const vec3 ViewVector, const vec3 UnitNormal) {
+	const vec3 AmbientColor = vec3(InPointLight.AmbientSpecularShininess.x * vec3(InPointLight.Color));
 	const vec3 NormalizedLightDirection = normalize(vec3(InPointLight.Position) - FragPos);
 	
-	// Diffuse
 	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
 	const vec3 DiffuseColor = DiffuseFactor * vec3(InPointLight.Color);
 	
-	// Specular Blinn-Phong
 	const vec3 HalfwayDir = normalize(-ViewVector + NormalizedLightDirection);
 	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), InPointLight.AmbientSpecularShininess.z);
 	const vec3 SpecularColor = InPointLight.AmbientSpecularShininess.y * SpecularFactor * vec3(InPointLight.Color);  
 	
-	// Attenuation based on distance
-	const float Distance = length(vec3(InPointLight.Position) - FragPos);
-	const float Attenutaion = 1.0 / (InPointLight.CLQActive.x + InPointLight.CLQActive.y * Distance + InPointLight.CLQActive.z * (Distance * Distance));
+	const float dist = length(vec3(InPointLight.Position) - FragPos);
+	const float Attenutaion = 1.0 / (InPointLight.CLQActive.x + InPointLight.CLQActive.y * dist + InPointLight.CLQActive.z * (dist * dist));
 
 	return Attenutaion * (AmbientColor + DiffuseColor + SpecularColor);
 }
 
 void main()
 {
-	const vec3 FragPos = texture(u_PositionMap, InTexCoord).rgb;
-    const vec3 Normal =  texture(u_NormalMap,   InTexCoord).rgb;
     const vec4 Albedo =  texture(u_AlbedoMap,   InTexCoord);
-	const float ssao =   texture(u_SSAOMap,     InTexCoord).r;
+    if(Albedo.a == 0.0) discard;
 
-	// 2D or SKYBOX case
-//	if(FragPos.x == 0.0) 
-//	{
-//		OutFragColor = vec4(Albedo.rgb, 1.0);
-//		return;
-//	}
-
-
-	vec4 FinalColor = vec4(Albedo.rgb  * ssao   * 0.45, 1.0);
-
-	const vec3 ViewVector = normalize(FragPos - u_MeshPushConstants.Data.xyz);
-
-	const vec4 LightSpaceFragPos = u_MeshPushConstants.TransformMatrix * vec4(FragPos, 1.0);
-	
-	float dirShadow = 0.0f;
-	if(u_LightingModelBuffer.DirLight.AmbientSpecularShininessCastShadows.w == 1.0f)
-	{
-		dirShadow = CalculateShadows(LightSpaceFragPos, Normal, u_LightingModelBuffer.DirLight.Direction.xyz);
+    const vec3 Normal =  texture(u_NormalMap,   InTexCoord).rgb;
+	if(Normal == vec3(0.0)) { 
+		OutFragColor = Albedo;
+		return;
 	}
+
+    const vec3 FragPos = texture(u_PositionMap, InTexCoord).rgb;
+    const float ssao =   texture(u_SSAOMap,     InTexCoord).r;
+
+	vec4 FinalColor = vec4(Albedo.rgb  * ssao  * 0.45, 1.0);
+	const vec3 ViewVector = normalize(FragPos - u_MeshPushConstants.Data.xyz);
 	
-	if(u_LightingModelBuffer.DirLight.Color.xyz != vec3(0.0)) 
-		FinalColor.rgb += CalculateDirectionalLight(ssao, u_LightingModelBuffer.DirLight, ViewVector, Normal, dirShadow);
+	const vec4 LightSpaceFragPos = u_MeshPushConstants.TransformMatrix * vec4(FragPos, 1.0);
+	for(int i = 0; i < MAX_DIR_LIGHTS; ++i)
+	{
+		float dirShadow = 0.0f;
 		
+		if(u_LightingModelBuffer.DirLights[i].AmbientSpecularShininessCastShadows.w == 1.0f)
+		{
+			dirShadow = CalculateShadows(LightSpaceFragPos, Normal, u_LightingModelBuffer.DirLights[i].Direction.xyz);
+		}
+	
+		if(u_LightingModelBuffer.DirLights[i].Color.xyz != vec3(0.0)) 
+			FinalColor.rgb += CalculateDirectionalLight(u_LightingModelBuffer.DirLights[i], ViewVector, Normal, dirShadow);
+	}
+
+	for(int i = 0; i < MAX_SPOT_LIGHTS; ++i)
+	{
+		if(u_LightingModelBuffer.SpotLights[i].Active == 1) FinalColor.rgb += CalculateSpotLight(u_LightingModelBuffer.SpotLights[i], FragPos, Normal, ViewVector);
+	}
+
 	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
 	{
-		if(u_LightingModelBuffer.PointLights[i].CLQActive.w == 0.0f) continue;
+		if(u_LightingModelBuffer.PointLights[i].CLQActive.w == 0.0) continue;
 		
-		FinalColor.rgb += CalculatePointLightColor(ssao, u_LightingModelBuffer.PointLights[i], FragPos, ViewVector, Normal);
+		FinalColor.rgb += CalculatePointLight(u_LightingModelBuffer.PointLights[i], FragPos, ViewVector, Normal);
 	}
 
 	// reinhard tone mapping
 	FinalColor.rgb = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
 
 	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0 / u_LightingModelBuffer.Gamma));
-	OutFragColor = FinalColor;
+	OutFragColor = vec4(FinalColor.rgb, 1.0);
 }

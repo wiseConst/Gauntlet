@@ -36,6 +36,7 @@ class OrthographicCamera final : public Camera
 
         SetRotation(m_Rotation);
 
+        m_DeltaTime              = deltaTime;
         m_CameraTranslationSpeed = m_ZoomLevel;
         SetPosition(m_Position);
     }

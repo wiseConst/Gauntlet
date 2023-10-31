@@ -18,10 +18,7 @@
 
 namespace Gauntlet
 {
-VulkanImGuiLayer::VulkanImGuiLayer()
-    : ImGuiLayer("ImGuiLayer"), m_ImGuiCommandPool(nullptr), m_Context((VulkanContext&)VulkanContext::Get())
-{
-}
+VulkanImGuiLayer::VulkanImGuiLayer() : ImGuiLayer("ImGuiLayer"), m_Context((VulkanContext&)VulkanContext::Get()) {}
 
 void VulkanImGuiLayer::OnAttach()
 {
@@ -66,15 +63,6 @@ void VulkanImGuiLayer::OnAttach()
                                        &m_Context.GetInstance()),
         "Failed to load functions into ImGui!");
 
-    // ImGui CommandBuffers
-    {
-        CommandPoolSpecification CommandPoolSpec = {};
-        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
-        CommandPoolSpec.QueueFamilyIndex         = Device->GetQueueFamilyIndices().GraphicsFamily;
-
-        m_ImGuiCommandPool = MakeRef<VulkanCommandPool>(CommandPoolSpec);
-    }
-
     const auto& Swapchain     = m_Context.GetSwapchain();
     const uint32_t ImageCount = Swapchain->GetImageCount();
 
@@ -96,21 +84,18 @@ void VulkanImGuiLayer::OnAttach()
 
     // Load default font
     {
-        auto FontPath  = std::string("../Resources/Fonts/Tektur/Tektur-Regular.ttf");
+        auto FontPath  = std::string("../Resources/Fonts/Rubik/Rubik-Regular.ttf");
         io.FontDefault = io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
-        FontPath       = std::string("../Resources/Fonts/Tektur/Tektur-Bold.ttf");
-        io.Fonts->AddFontFromFileTTF(FontPath.data(), 18.0f);
 
-        auto CommandBuffer = Utility::BeginSingleTimeCommands(m_ImGuiCommandPool->Get(), Device->GetLogicalDevice());
+        io.Fonts->AddFontFromFileTTF("../Resources/Fonts/Rubik/Rubik-Bold.ttf", 18.0f);
+
+        auto CommandBuffer = Utility::BeginSingleTimeCommands(m_Context.GetGraphicsCommandPool()->Get(), Device->GetLogicalDevice());
         ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
 
-        Utility::EndSingleTimeCommands(CommandBuffer, m_ImGuiCommandPool->Get(), Device->GetGraphicsQueue(), Device->GetLogicalDevice(),
-                                       m_Context.GetUploadFence());
-        m_Context.WaitDeviceOnFinish();
+        Utility::EndSingleTimeCommands(CommandBuffer, m_Context.GetGraphicsCommandPool()->Get(), Device->GetGraphicsQueue(),
+                                       Device->GetLogicalDevice(), m_Context.GetUploadFence());
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
-
-    CreateSyncObjects();
 }
 
 void VulkanImGuiLayer::OnDetach()
@@ -118,11 +103,7 @@ void VulkanImGuiLayer::OnDetach()
     m_Context.WaitDeviceOnFinish();
     vkDestroyDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
 
-    m_ImGuiCommandPool->Destroy();
     m_CurrentCommandBuffer = nullptr;
-
-    for (auto& inFlightFence : m_InFlightFences)
-        vkDestroyFence(m_Context.GetDevice()->GetLogicalDevice(), inFlightFence, nullptr);
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -131,20 +112,10 @@ void VulkanImGuiLayer::OnDetach()
 
 void VulkanImGuiLayer::BeginRender()
 {
-    VK_CHECK(vkWaitForFences(m_Context.GetDevice()->GetLogicalDevice(), 1,
-                             &m_InFlightFences[m_Context.GetSwapchain()->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
-             "Failed to wait for UI Render fence!");
-
-    VK_CHECK(
-        vkResetFences(m_Context.GetDevice()->GetLogicalDevice(), 1, &m_InFlightFences[m_Context.GetSwapchain()->GetCurrentFrameIndex()]),
-        "Failed to reset UI render fence!");
-
-    m_CurrentCommandBuffer = &m_ImGuiCommandPool->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
+    m_CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
     GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve imgui command buffer!");
 
-    m_CurrentCommandBuffer->BeginRecording();
     m_CurrentCommandBuffer->BeginDebugLabel("Swapchain + UI Pass", glm::vec4(0.0f, 0.0f, 0.8f, 1.0f));
-
     m_Context.GetSwapchain()->BeginRenderPass(m_CurrentCommandBuffer->Get());
 
     // Start the Dear ImGui frame
@@ -162,23 +133,12 @@ void VulkanImGuiLayer::EndRender()
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
-        GLFWwindow* BackupCurrentContext = glfwGetCurrentContext();
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
-        glfwMakeContextCurrent(BackupCurrentContext);
     }
 
     m_Context.GetSwapchain()->EndRenderPass(m_CurrentCommandBuffer->Get());
     m_CurrentCommandBuffer->EndDebugLabel();
-    m_CurrentCommandBuffer->EndRecording();
-
-    VkSubmitInfo SubmitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers    = &m_CurrentCommandBuffer->Get();
-
-    VK_CHECK(vkQueueSubmit(m_Context.GetDevice()->GetGraphicsQueue(), 1, &SubmitInfo,
-                           m_InFlightFences[m_Context.GetSwapchain()->GetCurrentFrameIndex()]),
-             "Failed to submit imgui render commands!");
 }
 
 void VulkanImGuiLayer::OnEvent(Event& event)
@@ -191,25 +151,8 @@ void VulkanImGuiLayer::OnEvent(Event& event)
     }
 }
 
-void VulkanImGuiLayer::CreateSyncObjects()
-{
-    VkFenceCreateInfo FenceCreateInfo = {};
-    FenceCreateInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    FenceCreateInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
-
-    m_InFlightFences.resize(FRAMES_IN_FLIGHT);
-    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
-    {
-        vkCreateFence(m_Context.GetDevice()->GetLogicalDevice(), &FenceCreateInfo, nullptr, &m_InFlightFences[i]);
-    }
-}
-
 void VulkanImGuiLayer::SetCustomUIStyle()
 {
-    // Setup Dear ImGui style
-    // ImGui::StyleColorsDark();
-    // ImGui::StyleColorsLight();
-
     ImGui::GetStyle().WindowBorderSize = 0.0f;
     auto& colors                       = ImGui::GetStyle().Colors;
     colors[ImGuiCol_WindowBg]          = ImVec4{0.1f, 0.105f, 0.11f, 1.0f};

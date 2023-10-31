@@ -36,17 +36,15 @@ VulkanAllocator::VulkanAllocator(const VkInstance& instance, const Scoped<Vulkan
     vmaVulkanFunctions.vkGetDeviceProcAddr   = vkGetDeviceProcAddr;
     vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
 
-    // Retrieve vram size, allocation will depend on it.
-    VkDeviceSize maxVRAMsize = 0;
+    // Retrieve VRAM, allocation will depend on it.
     for (uint32_t i = 0; i < device->GetMemoryProperties().memoryHeapCount; ++i)
     {
         auto& currentHeap = device->GetMemoryProperties().memoryHeaps[i];
-        if ((currentHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) == VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-            maxVRAMsize = std::max(maxVRAMsize, currentHeap.size);
+        if ((currentHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)) m_VRAMSize = std::max(m_VRAMSize, currentHeap.size);
     }
-    GNT_ASSERT(maxVRAMsize > 0, "VRAM Memory 0 GB?");
+    GNT_ASSERT(m_VRAMSize > 0, "VRAM 0 GB?");
 
-    m_VRAMSize                                 = maxVRAMsize;
+    m_VRAMLimit                                = static_cast<VkDeviceSize>(m_VRAMSize * 0.85f);
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
     allocatorCreateInfo.instance               = instance;
     allocatorCreateInfo.device                 = device->GetLogicalDevice();
@@ -60,17 +58,16 @@ VulkanAllocator::VulkanAllocator(const VkInstance& instance, const Scoped<Vulkan
 VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& imageCreateInfo, VkImage* outImage) const
 {
     VmaAllocationCreateInfo allocationCreateInfo = {};
-    // Prefer allocate on GPU
-    allocationCreateInfo.usage         = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocationCreateInfo.flags         = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    allocationCreateInfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
+    //    allocationCreateInfo.flags                   = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
     allocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    auto& rendererStats = Renderer::GetStats();
     // Approximate image size
     const VkDeviceSize approximateImageSize = imageCreateInfo.extent.width * imageCreateInfo.extent.height * 4;
 
     // Limiting VRAM usage up to 80% -> use system RAM
-    if (rendererStats.GPUMemoryAllocated + approximateImageSize >= m_VRAMSize * 0.80f)
+    auto& rendererStats = Renderer::GetStats();
+    if (rendererStats.GPUMemoryAllocated + approximateImageSize >= m_VRAMLimit)
     {
         allocationCreateInfo.usage         = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
         allocationCreateInfo.flags         = 0;
@@ -89,7 +86,9 @@ VmaAllocation VulkanAllocator::CreateImage(const VkImageCreateInfo& imageCreateI
     {
         rendererStats.GPUMemoryAllocated += allocationInfo.size;
 
-        //    LOG_WARN("CreateImage: %0.2f MB", rendererStats.GPUMemoryAllocated.load() / 1024.0f / 1024.0f);
+        // LOG_WARN("CreateImage (%u, %u), size: %0.2f MB. Current VRAM load: %0.2f MB", imageCreateInfo.extent.width,
+        //          imageCreateInfo.extent.height, approximateImageSize / 1024.0f / 1024.0f,
+        //          rendererStats.GPUMemoryAllocated.load() / 1024.0f / 1024.0f);
     }
     else
         rendererStats.RAMMemoryAllocated += allocationInfo.size;
@@ -104,8 +103,8 @@ void VulkanAllocator::DestroyImage(VkImage& image, VmaAllocation& allocation) co
     VmaAllocationInfo allocationInfo = {};
     QueryAllocationInfo(allocationInfo, allocation);
 
-    auto& rendererStats = Renderer::GetStats();
     auto& context       = (VulkanContext&)VulkanContext::Get();
+    auto& rendererStats = Renderer::GetStats();
     if (IsAllocatedOnGPU(context.GetDevice(), allocationInfo))
         rendererStats.GPUMemoryAllocated -= allocationInfo.size;
     else
@@ -149,10 +148,10 @@ VmaAllocation VulkanAllocator::CreateBuffer(const VkBufferCreateInfo& bufferCrea
 
 void VulkanAllocator::DestroyBuffer(VkBuffer& buffer, VmaAllocation& allocation) const
 {
-    auto& context                    = (VulkanContext&)VulkanContext::Get();
     VmaAllocationInfo allocationInfo = {};
     QueryAllocationInfo(allocationInfo, allocation);
 
+    auto& context       = (VulkanContext&)VulkanContext::Get();
     auto& rendererStats = Renderer::GetStats();
     if (IsAllocatedOnGPU(context.GetDevice(), allocationInfo))
         rendererStats.GPUMemoryAllocated -= allocationInfo.size;

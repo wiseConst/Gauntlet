@@ -11,10 +11,12 @@
 namespace Gauntlet
 {
 
+#define LOG_VULKAN_SHADER_REFLECTION 0
 #define LOG_VULKAN_INFO 0
 #define LOG_VMA_INFO 0
 #define RENDERDOC_DEBUG 1
 #define VK_PREFER_IGPU 0
+#define VK_RTX 0
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
 
@@ -25,13 +27,11 @@ const std::vector<const char*> DeviceExtensions = {
 #if !RENDERDOC_DEBUG
     VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,  // For useful pipeline features that can be changed real-time.
 #endif
-    //  VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,    // To build acceleration structures
-    // VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,      // To use vkCmdTraceRaysKHR
-    // VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,  // Required by ray tracing pipeline
-    /*
-    * https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_full_screen_exclusive.html
-    VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME
-    "VK_KHR_get_surface_capabilities2"*/
+#if VK_RTX
+    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,    // To build acceleration structures
+    VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,      // To use vkCmdTraceRaysKHR
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,  // Required by ray tracing pipeline
+#endif
 };
 
 #ifdef GNT_DEBUG
@@ -40,9 +40,9 @@ static constexpr bool s_bEnableValidationLayers = true;
 static constexpr bool s_bEnableValidationLayers = false;
 #endif
 
-static const char* GetStringVulkanResult(VkResult InResult)
+static const char* GetStringVulkanResult(VkResult result)
 {
-    switch (InResult)
+    switch (result)
     {
         case VK_SUCCESS: return "VK_SUCCESS";
         case VK_NOT_READY: return "VK_NOT_READY";
@@ -149,6 +149,9 @@ static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStag
         case EShaderStage::SHADER_STAGE_GEOMETRY: return VK_SHADER_STAGE_GEOMETRY_BIT;
         case EShaderStage::SHADER_STAGE_FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
         case EShaderStage::SHADER_STAGE_COMPUTE: return VK_SHADER_STAGE_COMPUTE_BIT;
+        case EShaderStage::SHADER_STAGE_RAYGEN: return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        case EShaderStage::SHADER_STAGE_MISS: return VK_SHADER_STAGE_MISS_BIT_KHR;
+        case EShaderStage::SHADER_STAGE_CLOSEST_HIT: return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     }
 
     GNT_ASSERT(false, "Unknown shader stage flag!");
@@ -240,29 +243,25 @@ static void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer, const Vk
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &commandBuffer;
 
-#define WAIT_ON_QUEUE 0
-#if WAIT_ON_QUEUE
-    VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE), "Failed to submit command buffer to the queue!");
-    VK_CHECK(vkQueueWaitIdle(queue), "Failed to wait on queue submit!");
-
-#else
     VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, uploadFence), "Failed to submit command buffer to the queue!");
     VK_CHECK(vkWaitForFences(device, 1, &uploadFence, true, UINT64_MAX), "Failed to wait on upload fence!");
     VK_CHECK(vkResetFences(device, 1, &uploadFence), "Failed to reset upload fence!");
 
-#endif
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
-NODISCARD static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType Format)
+NODISCARD static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType format)
 {
-    switch (Format)
+    switch (format)
     {
         case EShaderDataType::FLOAT: return VK_FORMAT_R32_SFLOAT;
+        case EShaderDataType::Int: return VK_FORMAT_R32_SINT;
         case EShaderDataType::Vec2: return VK_FORMAT_R32G32_SFLOAT;
         case EShaderDataType::Vec3: return VK_FORMAT_R32G32B32_SFLOAT;
         case EShaderDataType::Vec4: return VK_FORMAT_R32G32B32A32_SFLOAT;
         case EShaderDataType::Ivec2: return VK_FORMAT_R32G32_SINT;
+        case EShaderDataType::Ivec3: return VK_FORMAT_R32G32B32_SINT;
+        case EShaderDataType::Ivec4: return VK_FORMAT_R32G32B32A32_SINT;
         case EShaderDataType::Uvec4: return VK_FORMAT_R32G32B32A32_UINT;
         case EShaderDataType::Double: VK_FORMAT_R64_SFLOAT;
     }

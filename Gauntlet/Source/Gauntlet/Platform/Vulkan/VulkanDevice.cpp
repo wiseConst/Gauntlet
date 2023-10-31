@@ -11,30 +11,12 @@ static const char* GetVendorNameCString(uint32_t vendorID)
 {
     switch (vendorID)
     {
-        case 0x1002:
-        {
-            return "AMD";
-        }
-        case 0x1010:
-        {
-            return "ImgTec";
-        }
-        case 0x10DE:
-        {
-            return "NVIDIA";
-        }
-        case 0x13B5:
-        {
-            return "ARM";
-        }
-        case 0x5143:
-        {
-            return "Qualcomm";
-        }
-        case 0x8086:
-        {
-            return "INTEL";
-        }
+        case 0x1002: return "AMD";
+        case 0x1010: return "ImgTec";
+        case 0x10DE: return "NVIDIA";
+        case 0x13B5: return "ARM";
+        case 0x5143: return "Qualcomm";
+        case 0x8086: return "INTEL";
     }
 
     GNT_ASSERT(false, "Unknown vendor!");
@@ -45,26 +27,11 @@ static const char* GetDeviceTypeCString(VkPhysicalDeviceType deviceType)
 {
     switch (deviceType)
     {
-        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-        {
-            return "OTHER";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        {
-            return "INTEGRATED_GPU";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        {
-            return "DISCRETE_GPU";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-        {
-            return "VIRTUAL_GPU";
-        }
-        case VK_PHYSICAL_DEVICE_TYPE_CPU:
-        {
-            return "CPU";
-        }
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER: return "OTHER";
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: return "INTEGRATED_GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: return "DISCRETE_GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: return "VIRTUAL_GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU: return "CPU";
     }
 
     GNT_ASSERT(false, "Unknown device type!");
@@ -132,7 +99,7 @@ void VulkanDevice::CreateLogicalDevice()
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos = {};
     std::set<uint32_t> UniqueQueueFamilies{m_GPUInfo.QueueFamilyIndices.GraphicsFamily, m_GPUInfo.QueueFamilyIndices.PresentFamily,
-                                           m_GPUInfo.QueueFamilyIndices.TransferFamily};
+                                           m_GPUInfo.QueueFamilyIndices.TransferFamily, m_GPUInfo.QueueFamilyIndices.ComputeFamily};
 
     for (auto QueueFamily : UniqueQueueFamilies)
     {
@@ -155,20 +122,42 @@ void VulkanDevice::CreateLogicalDevice()
 #endif
 
     // Useful vulkan 1.2 features
-    VkPhysicalDeviceVulkan12Features Vulkan12Features          = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
-    Vulkan12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-    Vulkan12Features.descriptorBindingPartiallyBound           = VK_TRUE;
+    VkPhysicalDeviceVulkan12Features vulkan12Features              = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+    vulkan12Features.shaderSampledImageArrayNonUniformIndexing     = VK_TRUE;
+    vulkan12Features.descriptorBindingPartiallyBound               = VK_TRUE;
+    vulkan12Features.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
+    vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+    vulkan12Features.descriptorBindingStorageImageUpdateAfterBind  = VK_TRUE;
+    vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
 
 #if !RENDERDOC_DEBUG
-    Vulkan12Features.pNext = &extendedDynamicState3FeaturesEXT;
+    vulkan12Features.pNext = &extendedDynamicState3FeaturesEXT;
 #endif
+    deviceCI.pNext = &vulkan12Features;
 
-    deviceCI.pNext = &Vulkan12Features;
+#if VK_RTX
+    vulkan12Features.bufferDeviceAddress = VK_TRUE;
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR enabledRayTracingPipelineFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
+    enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+    enabledRayTracingPipelineFeatures.pNext              = &vulkan12Features;
+
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR enabledAccelerationStructureFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
+    enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+    enabledAccelerationStructureFeatures.pNext                 = &enabledRayTracingPipelineFeatures;
+
+    deviceCI.pNext = &enabledAccelerationStructureFeatures;
+#endif
 
     // Required gpu features
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
     PhysicalDeviceFeatures.samplerAnisotropy        = VK_TRUE;
     PhysicalDeviceFeatures.fillModeNonSolid         = VK_TRUE;
+    PhysicalDeviceFeatures.pipelineStatisticsQuery  = VK_TRUE;
+    GNT_ASSERT(m_GPUInfo.GPUFeatures.pipelineStatisticsQuery && m_GPUInfo.GPUFeatures.fillModeNonSolid &&
+               m_GPUInfo.GPUFeatures.textureCompressionBC);
 
     deviceCI.pEnabledFeatures        = &PhysicalDeviceFeatures;
     deviceCI.enabledExtensionCount   = static_cast<uint32_t>(DeviceExtensions.size());
@@ -225,16 +214,21 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
     // Query GPU properties(device name, limits, etc..)
     vkGetPhysicalDeviceProperties(gpuInfo.PhysicalDevice, &gpuInfo.GPUProperties);
 
-    // Query GPU features(geometry shader support, multiViewport support)
+    // Query GPU features(geometry shader support, multi-viewport support)
     vkGetPhysicalDeviceFeatures(gpuInfo.PhysicalDevice, &gpuInfo.GPUFeatures);
 
     // Query GPU memory properties
     vkGetPhysicalDeviceMemoryProperties(gpuInfo.PhysicalDevice, &gpuInfo.GPUMemoryProperties);
 
-    gpuInfo.GPUDriverProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
-
     VkPhysicalDeviceProperties2 GPUProperties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     GPUProperties2.pNext                       = &gpuInfo.GPUDriverProperties;
+
+    // Also query for RT pipeline properties
+    gpuInfo.GPUDriverProperties.pNext = &gpuInfo.RTProperties;
+
+    // Query info about acceleration structures
+    gpuInfo.RTProperties.pNext = &gpuInfo.ASProperties;
+
     vkGetPhysicalDeviceProperties2(gpuInfo.PhysicalDevice, &GPUProperties2);
 
 #if LOG_VULKAN_INFO
@@ -252,6 +246,17 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
     LOG_INFO(" Min Memory Map Alignment: %u", gpuInfo.GPUProperties.limits.minMemoryMapAlignment);
     LOG_INFO(" Min Storage Buffer Offset Alignment: %u", gpuInfo.GPUProperties.limits.minStorageBufferOffsetAlignment);
     LOG_INFO(" Max Memory Allocations: %u", gpuInfo.GPUProperties.limits.maxMemoryAllocationCount);
+
+    if (gpuInfo.RTProperties.maxRayRecursionDepth == 0)
+        LOG_INFO(" [RTX]: Not supported :(");
+    else
+    {
+        LOG_INFO(" [RTX]: Max Ray Bounce: %u", gpuInfo.RTProperties.maxRayRecursionDepth);
+        LOG_INFO(" [RTX]: Shader Group Handle Size: %u", gpuInfo.RTProperties.shaderGroupHandleSize);
+        LOG_INFO(" [RTX]: Max Primitive Count: %llu", gpuInfo.ASProperties.maxPrimitiveCount);
+        LOG_INFO(" [RTX]: Max Geometry Count: %llu", gpuInfo.ASProperties.maxGeometryCount);
+        LOG_INFO(" [RTX]: Max Instance(BLAS) Count: %llu", gpuInfo.ASProperties.maxInstanceCount);
+    }
 
     LOG_INFO(" Memory types: %u", gpuInfo.GPUMemoryProperties.memoryTypeCount);
     for (uint32_t i = 0; i < gpuInfo.GPUMemoryProperties.memoryTypeCount; ++i)
@@ -302,19 +307,21 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
     QueueFamilyIndices Indices = QueueFamilyIndices::FindQueueFamilyIndices(surface, gpuInfo.PhysicalDevice);
     gpuInfo.QueueFamilyIndices = Indices;
 
-    bool bIsSwapchainAdequate               = false;
-    const bool bIsDeviceExtensionsSupported = CheckDeviceExtensionSupport(gpuInfo.PhysicalDevice);
-    if (bIsDeviceExtensionsSupported)
-    {
-        SwapchainSupportDetails Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(gpuInfo.PhysicalDevice, surface);
-        bIsSwapchainAdequate            = !Details.ImageFormats.empty() && !Details.PresentModes.empty();
-    }
+    // Check if we couldn't query queue family indices to create our command queues
+    if (!Indices.IsComplete()) return false;
+
+    // Check if device extensions are supported
+    const bool bAreDeviceExtensionsSupported = CheckDeviceExtensionSupport(gpuInfo.PhysicalDevice);
+    if (!bAreDeviceExtensionsSupported) return false;
+
+    // Check if device can create swapchain
+    SwapchainSupportDetails Details = SwapchainSupportDetails::QuerySwapchainSupportDetails(gpuInfo.PhysicalDevice, surface);
+    if (Details.ImageFormats.empty() || Details.PresentModes.empty()) return false;
 
     if (VK_PREFER_IGPU && gpuInfo.GPUProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) return false;
 
     GNT_ASSERT(gpuInfo.GPUProperties.limits.maxSamplerAnisotropy > 0, "GPU has not valid Max Sampler Anisotropy!");
-    return gpuInfo.GPUFeatures.samplerAnisotropy && gpuInfo.GPUFeatures.geometryShader && Indices.IsComplete() &&
-           bIsDeviceExtensionsSupported && bIsSwapchainAdequate;
+    return gpuInfo.GPUFeatures.samplerAnisotropy && gpuInfo.GPUFeatures.geometryShader;
 }
 
 bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& physicalDevice)

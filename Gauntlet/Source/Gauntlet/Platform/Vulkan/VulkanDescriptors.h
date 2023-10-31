@@ -36,7 +36,7 @@ class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
 
     std::vector<VkDescriptorPool> m_Pools;
     VkDescriptorPool m_CurrentPool       = VK_NULL_HANDLE;
-    uint32_t m_CurrentPoolSizeMultiplier = 500;
+    uint32_t m_CurrentPoolSizeMultiplier = 250;
     uint32_t m_BasePoolSizeMultiplier    = 500;
     uint32_t m_AllocatedDescriptorSets   = 0;
 

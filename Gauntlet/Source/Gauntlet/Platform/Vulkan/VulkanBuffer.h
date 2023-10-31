@@ -4,20 +4,35 @@
 #include "Gauntlet/Renderer/Buffer.h"
 
 #include "VulkanAllocator.h"
-#include "Gauntlet/Renderer/GraphicsContext.h"
 
 namespace Gauntlet
 {
 
-// TODO: Should this class allow copying/moving itself??
-struct VulkanAllocatedBuffer /*: private Uncopyable, private Unmovable*/
+struct VulkanAllocatedBuffer final
 {
-  public:
-    VulkanAllocatedBuffer() : Allocation(VK_NULL_HANDLE), Buffer(VK_NULL_HANDLE) {}
+    VulkanAllocatedBuffer()  = default;
     ~VulkanAllocatedBuffer() = default;
 
-    VmaAllocation Allocation;  // Holds the state that the VMA library uses, like the memory that buffer was allocated from, and its size.
-    VkBuffer Buffer;           // A handle to a GPU side Vulkan buffer
+    VmaAllocation Allocation =
+        VK_NULL_HANDLE;  // Holds the state that the VMA library uses, like the memory that buffer was allocated from, and its size.
+    VkBuffer Buffer = VK_NULL_HANDLE;  // A handle to a GPU side Vulkan buffer
+};
+
+class VulkanStagingBuffer final : public StagingBuffer
+{
+  public:
+    VulkanStagingBuffer(const uint64_t bufferSize);
+    ~VulkanStagingBuffer() = default;
+
+    void Destroy() final override;
+    void SetData(const void* data, const uint64_t dataSize) final override;
+    FORCEINLINE void* Get() const final override { return m_AllocatedBuffer.Buffer; }
+
+  private:
+    VulkanAllocatedBuffer m_AllocatedBuffer;
+    VkDeviceSize m_Capacity = 0;
+
+    void Resize(const uint64_t newBufferSize) final override;
 };
 
 // VERTEX BUFFER
@@ -32,14 +47,13 @@ class VulkanVertexBuffer final : public VertexBuffer
     FORCEINLINE const BufferLayout& GetLayout() const final override { return m_Layout; }
     FORCEINLINE void SetLayout(const BufferLayout& layout) final override { m_Layout = layout; }
     void SetData(const void* data, const size_t size) final override;
+    void SetStagedData(const Ref<StagingBuffer>& stagingBuffer, const uint64_t stagingBufferDataSize) final override;
 
     FORCEINLINE uint64_t GetCount() const final override { return m_VertexCount; }
     void Destroy() final override;
 
     FORCEINLINE const void* Get() const final override { return m_AllocatedBuffer.Buffer; }
     FORCEINLINE void* Get() final override { return m_AllocatedBuffer.Buffer; }
-
-    void SetStagedData(const VulkanAllocatedBuffer& stagingBuffer, const VkDeviceSize stagingBufferDataSize);
 
   private:
     VulkanAllocatedBuffer m_AllocatedBuffer;
@@ -68,7 +82,6 @@ class VulkanIndexBuffer final : public IndexBuffer
 };
 
 // UNIFORM BUFFER
-// TODO: Refactor
 class VulkanUniformBuffer final : public UniformBuffer
 {
   public:

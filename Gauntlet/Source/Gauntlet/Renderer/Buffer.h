@@ -159,6 +159,8 @@ struct BufferInfo final
 
 // VERTEX
 
+class StagingBuffer;
+
 class VertexBuffer : private Uncopyable, private Unmovable
 {
   public:
@@ -167,9 +169,10 @@ class VertexBuffer : private Uncopyable, private Unmovable
 
     virtual ~VertexBuffer() = default;
 
-    virtual const BufferLayout& GetLayout() const                     = 0;
-    virtual void SetLayout(const BufferLayout& InLayout)              = 0;
-    virtual void SetData(const void* InData, const size_t InDataSize) = 0;
+    virtual const BufferLayout& GetLayout() const                                                             = 0;
+    virtual void SetLayout(const BufferLayout& InLayout)                                                      = 0;
+    virtual void SetData(const void* InData, const size_t InDataSize)                                         = 0;
+    virtual void SetStagedData(const Ref<StagingBuffer>& stagingBuffer, const uint64_t stagingBufferDataSize) = 0;
 
     virtual FORCEINLINE const void* Get() const = 0;
     virtual FORCEINLINE void* Get()             = 0;
@@ -177,7 +180,7 @@ class VertexBuffer : private Uncopyable, private Unmovable
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy()            = 0;
 
-    static VertexBuffer* Create(BufferInfo& InBufferInfo);
+    static Ref<VertexBuffer> Create(BufferInfo& InBufferInfo);
 };
 
 // INDEX
@@ -196,7 +199,7 @@ class IndexBuffer : private Uncopyable, private Unmovable
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy()            = 0;
 
-    static IndexBuffer* Create(BufferInfo& InBufferInfo);
+    static Ref<IndexBuffer> Create(BufferInfo& InBufferInfo);
 };
 
 class UniformBuffer : private Uncopyable, private Unmovable
@@ -215,6 +218,22 @@ class UniformBuffer : private Uncopyable, private Unmovable
     virtual void Update(void* data, const uint64_t size) = 0;
 
     static Ref<UniformBuffer> Create(const uint64_t bufferSize);
+};
+
+class StagingBuffer : private Uncopyable, private Unmovable
+{
+  public:
+    StagingBuffer()          = default;
+    virtual ~StagingBuffer() = default;
+
+    virtual void Destroy()                                          = 0;
+    virtual void SetData(const void* data, const uint64_t dataSize) = 0;
+    virtual void* Get() const                                     = 0;
+
+    static Ref<StagingBuffer> Create(const uint64_t bufferSize);
+
+  protected:
+    virtual void Resize(const uint64_t newBufferSize) = 0;
 };
 
 }  // namespace Gauntlet

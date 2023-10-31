@@ -14,12 +14,17 @@ class GraphicsContext;
 class ImGuiLayer;
 class WindowCloseEvent;
 
+struct CommandLineArguments
+{
+    int32_t argc = 0;
+    char** argv  = nullptr;
+};
+
 struct ApplicationSpecification final
 {
   public:
     ApplicationSpecification()
-        : AppName("Gauntlet Engine"), WindowLogoPath("Resources/Logo/Gauntlet.jpg"), Width(1280), Height(720),
-          GraphicsAPI(RendererAPI::EAPI::Vulkan)
+        : AppName("Gauntlet Engine"), WindowLogoPath(), Width(1280), Height(720), GraphicsAPI(RendererAPI::EAPI::Vulkan)
     {
     }
 
@@ -27,6 +32,7 @@ struct ApplicationSpecification final
 
     std::string_view AppName;
     std::string_view WindowLogoPath;
+    CommandLineArguments CmdArgs = {};
     uint32_t Width;
     uint32_t Height;
     RendererAPI::EAPI GraphicsAPI;
@@ -73,5 +79,5 @@ class Application : private Uncopyable, private Unmovable
     void OnWindowClosed(WindowCloseEvent& InEvent);
 };
 
-Scoped<Application> CreateApplication();
+Scoped<Application> CreateApplication(const CommandLineArguments& args);
 }  // namespace Gauntlet

@@ -86,13 +86,13 @@ void Application::Run()
             Renderer2D::Flush();
             Renderer::Flush();
 
-            m_Context->EndRender();
-
             m_ImGuiLayer->BeginRender();
 
             m_LayerQueue.OnImGuiRender();
 
             m_ImGuiLayer->EndRender();
+
+            m_Context->EndRender();
         }
 
         m_Window->OnUpdate();
@@ -161,10 +161,11 @@ Application::~Application()
 {
     JobSystem::Shutdown();
 
+    m_LayerQueue.Destroy();
+
     Renderer2D::Shutdown();
     Renderer::Shutdown();
 
-    m_LayerQueue.Destroy();
     m_ImGuiLayer->OnDetach();
 
     m_Context->Destroy();

@@ -10,7 +10,7 @@ namespace Gauntlet
 
 VertexBuffer::VertexBuffer(BufferInfo& InBufferInfo) {}
 
-VertexBuffer* VertexBuffer::Create(BufferInfo& InBufferInfo)
+Ref<VertexBuffer> VertexBuffer::Create(BufferInfo& InBufferInfo)
 {
     switch (RendererAPI::Get())
     {
@@ -21,7 +21,7 @@ VertexBuffer* VertexBuffer::Create(BufferInfo& InBufferInfo)
         }
         case RendererAPI::EAPI::Vulkan:
         {
-            return new VulkanVertexBuffer(InBufferInfo);
+            return MakeRef<VulkanVertexBuffer>(InBufferInfo);
         }
     }
 
@@ -33,7 +33,7 @@ VertexBuffer* VertexBuffer::Create(BufferInfo& InBufferInfo)
 
 IndexBuffer::IndexBuffer(BufferInfo& InBufferInfo) {}
 
-IndexBuffer* IndexBuffer::Create(BufferInfo& InBufferInfo)
+Ref<IndexBuffer> IndexBuffer::Create(BufferInfo& InBufferInfo)
 {
     switch (RendererAPI::Get())
     {
@@ -44,13 +44,14 @@ IndexBuffer* IndexBuffer::Create(BufferInfo& InBufferInfo)
         }
         case RendererAPI::EAPI::Vulkan:
         {
-            return new VulkanIndexBuffer(InBufferInfo);
+            return MakeRef<VulkanIndexBuffer>(InBufferInfo);
         }
     }
 
     GNT_ASSERT(false, "Unknown RendererAPI!");
     return nullptr;
 }
+
 Ref<UniformBuffer> UniformBuffer::Create(const uint64_t bufferSize)
 {
     switch (RendererAPI::Get())
@@ -70,4 +71,22 @@ Ref<UniformBuffer> UniformBuffer::Create(const uint64_t bufferSize)
     return nullptr;
 }
 
+Ref<StagingBuffer> StagingBuffer::Create(const uint64_t bufferSize)
+{
+    switch (RendererAPI::Get())
+    {
+        case RendererAPI::EAPI::None:
+        {
+            GNT_ASSERT(false, "RendererAPI is none!");
+            return nullptr;
+        }
+        case RendererAPI::EAPI::Vulkan:
+        {
+            return MakeRef<VulkanStagingBuffer>(bufferSize);
+        }
+    }
+
+    GNT_ASSERT(false, "Unknown RendererAPI!");
+    return nullptr;
+}
 }  // namespace Gauntlet

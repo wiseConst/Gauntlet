@@ -93,9 +93,9 @@ void CopyDataToBuffer(VulkanAllocatedBuffer& buffer, const VkDeviceSize dataSize
 
 // VERTEX
 
-VulkanVertexBuffer::VulkanVertexBuffer(BufferInfo& bufferInfo) : VertexBuffer(bufferInfo), m_VertexCount(bufferInfo.Count)
+VulkanVertexBuffer::VulkanVertexBuffer(BufferInfo& bufferInfo)
+    : VertexBuffer(bufferInfo), m_VertexCount(bufferInfo.Count), m_Layout(bufferInfo.Layout)
 {
-    // TODO: SetData() ?
 }
 
 void VulkanVertexBuffer::SetData(const void* data, const size_t size)
@@ -118,10 +118,16 @@ void VulkanVertexBuffer::SetData(const void* data, const size_t size)
 
 void VulkanVertexBuffer::Destroy()
 {
+    if (!m_AllocatedBuffer.Allocation)
+    {
+        LOG_TRACE("Unused vulkan buffer! No need to destroy, returning.");
+        return;
+    }
+
     BufferUtils::DestroyBuffer(m_AllocatedBuffer);
 }
 
-void VulkanVertexBuffer::SetStagedData(const VulkanAllocatedBuffer& stagingBuffer, const VkDeviceSize stagingBufferDataSize)
+void VulkanVertexBuffer::SetStagedData(const Ref<StagingBuffer>& stagingBuffer, const uint64_t stagingBufferDataSize)
 {
     // First call on this vertex buffer
     if (!m_AllocatedBuffer.Buffer)
@@ -143,7 +149,9 @@ void VulkanVertexBuffer::SetStagedData(const VulkanAllocatedBuffer& stagingBuffe
                                   m_AllocatedBuffer, VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    BufferUtils::CopyBuffer(stagingBuffer.Buffer, m_AllocatedBuffer.Buffer, stagingBufferDataSize);
+    VkBuffer stagingBufferRaw = (VkBuffer)stagingBuffer->Get();
+    GNT_ASSERT(stagingBufferRaw);
+    BufferUtils::CopyBuffer(stagingBufferRaw, m_AllocatedBuffer.Buffer, stagingBufferDataSize);
 }
 
 // INDEX
@@ -165,7 +173,7 @@ void VulkanIndexBuffer::Destroy()
     BufferUtils::DestroyBuffer(m_AllocatedBuffer);
 }
 
-// UNIFORM BUFFER
+// UNIFORM
 
 VulkanUniformBuffer::VulkanUniformBuffer(const uint64_t bufferSize) : m_Size(bufferSize)
 {
@@ -258,6 +266,36 @@ void VulkanUniformBuffer::Update(void* data, const uint64_t size)
         context.GetAllocator()->Unmap(m_AllocatedBuffers[currentFrameIndex].Allocation);
     }
     mapped = nullptr;
+}
+
+// STAGING
+
+VulkanStagingBuffer::VulkanStagingBuffer(const uint64_t bufferSize) : m_Capacity(bufferSize)
+{
+    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, m_Capacity, m_AllocatedBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
+}
+
+void VulkanStagingBuffer::Destroy()
+{
+    BufferUtils::DestroyBuffer(m_AllocatedBuffer);
+}
+
+void VulkanStagingBuffer::SetData(const void* data, const uint64_t dataSize)
+{
+    if (dataSize > m_Capacity)
+    {
+        Resize(dataSize);
+    }
+
+    BufferUtils::CopyDataToBuffer(m_AllocatedBuffer, dataSize, data);
+}
+
+void VulkanStagingBuffer::Resize(const uint64_t newBufferSize)
+{
+    GraphicsContext::Get().WaitDeviceOnFinish();  // Maybe no need to call it.
+    m_Capacity = newBufferSize;
+    BufferUtils::DestroyBuffer(m_AllocatedBuffer);
+    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, m_Capacity, m_AllocatedBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
 }
 
 }  // namespace Gauntlet

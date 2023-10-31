@@ -32,7 +32,6 @@ class GraphicsContext : private Uncopyable, private Unmovable
 
   protected:
     Scoped<Window>& m_Window;
-
     static GraphicsContext* s_Context;
 };
 

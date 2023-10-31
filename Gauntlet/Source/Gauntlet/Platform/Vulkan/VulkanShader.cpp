@@ -64,16 +64,18 @@ VkFormat ConvertSpvFormatToVulkan(const SpvReflectFormat& format)
     return VK_FORMAT_UNDEFINED;
 }
 
-// TODO: Fill this completely
 EShaderDataType ConvertVulkanFormatToGauntlet(const VkFormat& format)
 {
     switch (format)
     {
         case VK_FORMAT_R32_SFLOAT: return EShaderDataType::FLOAT;
+        case VK_FORMAT_R32_SINT: return EShaderDataType::Int;
         case VK_FORMAT_R32G32_SFLOAT: return EShaderDataType::Vec2;
-        case VK_FORMAT_R32G32B32_SFLOAT: return EShaderDataType::Vec3;
-        case VK_FORMAT_R32G32B32A32_SFLOAT: return EShaderDataType::Vec4;
         case VK_FORMAT_R32G32_SINT: return EShaderDataType::Ivec2;
+        case VK_FORMAT_R32G32B32_SFLOAT: return EShaderDataType::Vec3;
+        case VK_FORMAT_R32G32B32_SINT: return EShaderDataType::Ivec3;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return EShaderDataType::Vec4;
+        case VK_FORMAT_R32G32B32A32_SINT: return EShaderDataType::Ivec4;
         case VK_FORMAT_R32G32B32A32_UINT: return EShaderDataType::Uvec4;
         case VK_FORMAT_R64_SFLOAT: return EShaderDataType::Double;
     }
@@ -84,6 +86,8 @@ EShaderDataType ConvertVulkanFormatToGauntlet(const VkFormat& format)
 
 void PrintDescriptorBinding(const SpvReflectDescriptorBinding& obj)
 {
+    if (!LOG_VULKAN_SHADER_REFLECTION) return;
+
     LOG_DEBUG("Set: %u    binding : %u", obj.set, obj.binding);
     LOG_DEBUG("Type: %s", ToStringDescriptorType(obj.descriptor_type).data());
 
@@ -112,6 +116,8 @@ void PrintDescriptorBinding(const SpvReflectDescriptorBinding& obj)
 
 void PrintDescriptorSet(const SpvReflectDescriptorSet& obj)
 {
+    if (!LOG_VULKAN_SHADER_REFLECTION) return;
+
     LOG_DEBUG("Set           : %u", obj.set);
     LOG_DEBUG("Binding count : %u", obj.binding_count);
 
@@ -123,7 +129,7 @@ void PrintDescriptorSet(const SpvReflectDescriptorSet& obj)
 
 VulkanShader::VulkanShader(const std::string_view& filePath)
 {
-    std::vector<const char*> shaderExtensions = {"vert", "frag", "geom", "comp"};
+    std::vector<const char*> shaderExtensions = {"vert", "frag", "geom", "comp", "miss", "raygen"};
     for (auto& ext : shaderExtensions)
     {
         std::filesystem::path shaderPath(std::string(filePath) + '.' + ext + '.' + "spv");
@@ -175,7 +181,7 @@ VulkanShader::VulkanShader(const std::string_view& filePath)
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
-    const VkDescriptorBindingFlags bindingFlag                   = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+    const VkDescriptorBindingFlags bindingFlag = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
     // Linking descriptor set layout bindings
     for (auto& descriptorSetLayoutBinding : linkedDescriptorSetLayoutBindings)
@@ -192,7 +198,8 @@ VulkanShader::VulkanShader(const std::string_view& filePath)
         bindingFlagsInfo.pBindingFlags = bindingFlags.data();
 
         const auto descriptorSetLayoutCreateInfo =
-            Utility::GetDescriptorSetLayoutCreateInfo(static_cast<uint32_t>(bindings.size()), bindings.data(), 0, &bindingFlagsInfo);
+            Utility::GetDescriptorSetLayoutCreateInfo(static_cast<uint32_t>(bindings.size()), bindings.data(),
+                                                      VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT, &bindingFlagsInfo);
 
         VkDescriptorSetLayout& descriptorSetLayout = m_DescriptorSetLayouts.emplace_back();
         VK_CHECK(vkCreateDescriptorSetLayout(context.GetDevice()->GetLogicalDevice(), &descriptorSetLayoutCreateInfo, nullptr,
@@ -225,10 +232,12 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
     SpvReflectResult result = spvReflectCreateShaderModule(shaderCode.size(), shaderCode.data(), &reflectModule);
     GNT_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
 
+#if LOG_VULKAN_SHADER_REFLECTION
     // Log basic shader module info.
     LOG_DEBUG("Entrypoint      : %s", reflectModule.entry_point_name);
     LOG_DEBUG("Source lang     : %s", spvReflectSourceLanguage(reflectModule.source_language));
     LOG_DEBUG("Source lang ver : %u", reflectModule.source_language_version);
+#endif
 
     // Determine shader stage by shader spirv execution model
     std::string shaderStageString;
@@ -259,7 +268,9 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
             break;
         }
     }
+#if LOG_VULKAN_SHADER_REFLECTION
     LOG_DEBUG("Stage           : %s", shaderStageString.data());
+#endif
 
     // Output vars
     uint32_t count = 0;
@@ -281,11 +292,16 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
         result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &count, pushConstantBlocks.data());
         GNT_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
 
+#if LOG_VULKAN_SHADER_REFLECTION
         LOG_DEBUG("PushConstant count: %u", count);
+#endif
         for (uint32_t i = 0; i < pushConstantBlocks.size(); ++i)
         {
+
+#if LOG_VULKAN_SHADER_REFLECTION
             LOG_DEBUG("PushConstants: (%s)", pushConstantBlocks[i]->name);
             LOG_DEBUG("Members: %u", pushConstantBlocks[i]->member_count);
+#endif
             for (uint32_t k = 0; k < pushConstantBlocks[i]->member_count; ++k)
             {
                 std::string memberInfoString;
@@ -333,29 +349,9 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
                     }
                 }
 
+#if LOG_VULKAN_SHADER_REFLECTION
                 LOG_DEBUG(" %s: %s", memberInfoString.data(), pushConstantBlocks[i]->members[k].name);
-            }
-
-            // TODO: Fill here all push constant blocks to verify them from shaders.
-            if (strcmp(pushConstantBlocks[i]->name, "u_MeshPushConstants") == 0)
-            {
-                GNT_ASSERT(sizeof(MeshPushConstants) == pushConstantBlocks[i]->size);
-            }
-            else if (strcmp(pushConstantBlocks[i]->name, "u_LightPushConstants") == 0)
-            {
-                GNT_ASSERT(sizeof(LightPushConstants) == pushConstantBlocks[i]->size);
-            }
-            else if (strcmp(pushConstantBlocks[i]->name, "u_LightSpaceUBO") == 0)
-            {
-                GNT_ASSERT(sizeof(LightPushConstants) == pushConstantBlocks[i]->size);
-            }
-            else if (strcmp(pushConstantBlocks[i]->name, "u_SkyboxPushConstants") == 0)
-            {
-                GNT_ASSERT(sizeof(MeshPushConstants) == pushConstantBlocks[i]->size);
-            }
-            else
-            {
-                GNT_ASSERT(false, "Unknown push constant block!");
+#endif
             }
 
             const VkPushConstantRange pushConstantRange =
@@ -398,11 +394,7 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
             descriptorSetLayoutBinding.binding         = reflectionBinding.binding;
             descriptorSetLayoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflectionBinding.descriptor_type);
             descriptorSetLayoutBinding.stageFlags      = static_cast<VkShaderStageFlagBits>(reflectModule.shader_stage);
-            descriptorSetLayoutBinding.descriptorCount = reflectionBinding.count;  // 1
-            /*for (uint32_t iDim = 0; iDim < reflectionBinding.array.dims_count; ++iDim)
-            {
-                descriptorSetLayoutBinding.descriptorCount *= reflectionBinding.array.dims[iDim];
-            }*/
+            descriptorSetLayoutBinding.descriptorCount = reflectionBinding.count;
         }
     }
 }
@@ -464,6 +456,7 @@ void VulkanShader::Set(const std::string& name, const Ref<Texture2D>& texture)
 
     VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     writeDescriptorSet.pImageInfo           = &vulkanTexture->GetImageDescriptorInfo();
+    writeDescriptorSet.descriptorCount      = 1;
 
     UpdateDescriptorSets(name, writeDescriptorSet);
 }
@@ -473,10 +466,11 @@ void VulkanShader::Set(const std::string& name, const Ref<TextureCube>& texture)
     GNT_ASSERT(!name.empty() && texture, "Invalid parameters! VulkanShader::Set()");
 
     auto vulkanTexture = std::static_pointer_cast<VulkanTextureCube>(texture);
-    GNT_ASSERT(vulkanTexture, "Failed to cast Texture2D to VulkanTexture2D!");
+    GNT_ASSERT(vulkanTexture, "Failed to cast TextureCube to VulkanTextureCube!");
 
     VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     writeDescriptorSet.pImageInfo           = &vulkanTexture->GetImageDescriptorInfo();
+    writeDescriptorSet.descriptorCount      = 1;
 
     UpdateDescriptorSets(name, writeDescriptorSet);
 }
@@ -490,6 +484,27 @@ void VulkanShader::Set(const std::string& name, const Ref<Image>& image)
 
     VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     writeDescriptorSet.pImageInfo           = &vulkanImage->GetDescriptorInfo();
+    writeDescriptorSet.descriptorCount      = 1;
+
+    UpdateDescriptorSets(name, writeDescriptorSet);
+}
+
+void VulkanShader::Set(const std::string& name, const std::vector<Ref<Texture2D>>& textures)
+{
+    GNT_ASSERT(!name.empty() && !textures.empty(), "Invalid parameters! VulkanShader::Set()");
+
+    std::vector<VkDescriptorImageInfo> imageInfos = {};
+    for (uint32_t i = 0; i < textures.size(); ++i)
+    {
+        auto vulkanTexture = std::static_pointer_cast<VulkanTexture2D>(textures[i]);
+        GNT_ASSERT(vulkanTexture, "Failed to cast Texture2D to VulkanTexture2D!");
+
+        imageInfos.push_back(vulkanTexture->GetImageDescriptorInfo());
+    }
+
+    VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.pImageInfo           = imageInfos.data();
+    writeDescriptorSet.descriptorCount      = static_cast<uint32_t>(imageInfos.size());
 
     UpdateDescriptorSets(name, writeDescriptorSet);
 }
@@ -535,10 +550,11 @@ void VulkanShader::UpdateDescriptorSets(const std::string& name, VkWriteDescript
             GNT_ASSERT(currentVulkanDescriptorSet, "Retrieved descriptor set is not valid!");
 
             // Here I assume that pImageInfo or pBufferInfo already specified to make this function "templated".
-            writeDescriptorSet.descriptorType  = currentDescriptorSetBindings.descriptorType;
-            writeDescriptorSet.dstBinding      = binding;
-            writeDescriptorSet.dstSet          = currentVulkanDescriptorSet;
-            writeDescriptorSet.descriptorCount = currentDescriptorSetBindings.descriptorCount;
+            writeDescriptorSet.descriptorType = currentDescriptorSetBindings.descriptorType;
+            writeDescriptorSet.dstBinding     = binding;
+            writeDescriptorSet.dstSet         = currentVulkanDescriptorSet;
+
+            if (writeDescriptorSet.descriptorCount == 0) writeDescriptorSet.descriptorCount = currentDescriptorSetBindings.descriptorCount;
 
             break;
         }
@@ -549,7 +565,7 @@ void VulkanShader::UpdateDescriptorSets(const std::string& name, VkWriteDescript
     if (currentVulkanDescriptorSet)
         vkUpdateDescriptorSets(context.GetDevice()->GetLogicalDevice(), 1, &writeDescriptorSet, 0, VK_NULL_HANDLE);
     else
-        LOG_WARN("Failed to find: %s in shader!", name);
+        LOG_WARN("Failed to find: %s in shader!", name.data());
 }
 
 void VulkanShader::Destroy()

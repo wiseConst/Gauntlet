@@ -49,6 +49,7 @@ class VulkanShader final : public Shader
     void Set(const std::string& name, const Ref<Texture2D>& texture) final override;
     void Set(const std::string& name, const Ref<TextureCube>& texture) final override;
     void Set(const std::string& name, const Ref<Image>& image) final override;
+    void Set(const std::string& name, const std::vector<Ref<Texture2D>>& textures) final override;
 
     // TODO: Add bufferSize var in AllocatedBuffer struct to prevent these.
     void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) final override;

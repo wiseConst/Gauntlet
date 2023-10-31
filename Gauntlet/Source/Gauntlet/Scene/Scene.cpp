@@ -80,6 +80,14 @@ void Scene::OnUpdate(const float deltaTime)
             {
                 auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
 
+                if (Mesh->IsAnimated())
+                {
+                    // Animate here
+                }
+                else
+                {
+                }
+
                 Renderer::SubmitMesh(Mesh, Transform);
             }
 
@@ -97,6 +105,14 @@ void Scene::OnUpdate(const float deltaTime)
 
                 Renderer::AddDirectionalLight(dlc.Color, glm::radians(Transform.Rotation),
                                               glm::vec4(dlc.AmbientSpecularShininess, (float)dlc.bCastShadows));
+            }
+
+            if (entity.HasComponent<SpotLightComponent>())
+            {
+                auto& slc = entity.GetComponent<SpotLightComponent>();
+
+                Renderer::AddSpotLight(Transform.Translation, glm::radians(Transform.Rotation), slc.Color, slc.AmbientSpecularShininess,
+                                       (int32_t)slc.bIsActive, glm::cos(glm::radians(slc.CutOff)));
             }
         }
     }

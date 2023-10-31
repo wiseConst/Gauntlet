@@ -51,11 +51,19 @@ enum class EPrimitiveTopology : uint8_t
     PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
 };
 
+enum class EPipelineType : uint8_t
+{
+    PIPELINE_TYPE_GRAPHICS = 0,
+    PIPELINE_TYPE_COMPUTE,
+    PIPELINE_TYPE_RAY_TRACING,
+};
+
 class Framebuffer;
 
 struct PipelineSpecification
 {
-    std::string Name = "None";
+    std::string Name           = "None";
+    EPipelineType PipelineType = EPipelineType::PIPELINE_TYPE_GRAPHICS;
 
     Ref<Shader> Shader                 = nullptr;
     Ref<Framebuffer> TargetFramebuffer = nullptr;

@@ -76,6 +76,17 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
             std::initializer_list<float>({dlc.AmbientSpecularShininess.x, dlc.AmbientSpecularShininess.y, dlc.AmbientSpecularShininess.z}));
         node["DirectionalLightComponent"].emplace("CastShadows", std::initializer_list<int32_t>({(int32_t)dlc.bCastShadows}));
     }
+
+    if (entity.HasComponent<SpotLightComponent>())
+    {
+        auto& slc = entity.GetComponent<SpotLightComponent>();
+        node["SpotLightComponent"].emplace("Color", std::initializer_list<float>({slc.Color.x, slc.Color.y, slc.Color.z}));
+        node["SpotLightComponent"].emplace(
+            "AmbientSpecularShininess",
+            std::initializer_list<float>({slc.AmbientSpecularShininess.x, slc.AmbientSpecularShininess.y, slc.AmbientSpecularShininess.z}));
+        node["SpotLightComponent"].emplace("CutOff", std::initializer_list<float>({slc.CutOff}));
+        node["SpotLightComponent"].emplace("Active", std::initializer_list<bool>({slc.bIsActive}));
+    }
 }
 
 SceneSerializer::SceneSerializer(Ref<Scene>& scene) : m_Scene(scene) {}
@@ -205,6 +216,24 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
 
             std::array<int32_t, 1> castShadows = node["DirectionalLightComponent"]["CastShadows"].get<std::array<int32_t, 1>>();
             dlc.bCastShadows                   = castShadows[0];
+        }
+
+        if (node.contains("SpotLightComponent"))
+        {
+            auto& slc = entity.AddComponent<SpotLightComponent>();
+
+            std::array<float, 3> color = node["SpotLightComponent"]["Color"].get<std::array<float, 3>>();
+            slc.Color                  = glm::vec3(color[0], color[1], color[2]);
+
+            std::array<float, 3> ambientSpecularShininess =
+                node["SpotLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
+            slc.AmbientSpecularShininess = glm::vec3(ambientSpecularShininess[0], ambientSpecularShininess[1], ambientSpecularShininess[2]);
+
+            std::array<float, 1> cutOff = node["SpotLightComponent"]["CutOff"].get<std::array<float, 1>>();
+            slc.CutOff                  = cutOff[0];
+
+            std::array<bool, 1> active = node["SpotLightComponent"]["Active"].get<std::array<bool, 1>>();
+            slc.bIsActive              = active[0];
         }
     }
 

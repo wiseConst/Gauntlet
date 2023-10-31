@@ -11,36 +11,57 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include "Gauntlet/Core/Application.h"
+
+#include "Animation.h"
+
 namespace Gauntlet
 {
+
+Bone::Bone(const std::string& name, int32_t ID, const aiNodeAnim* channel) : m_Name(name), m_ID(ID), m_LocalTransform(1.0f)
+{
+    m_NumPositions = channel->mNumPositionKeys;
+
+    for (int32_t positionIndex = 0; positionIndex < m_NumPositions; ++positionIndex)
+    {
+        aiVector3D aiPosition = channel->mPositionKeys[positionIndex].mValue;
+        KeyPosition data;
+        data.Position = glm::vec3(aiPosition.x, aiPosition.y, aiPosition.z);
+        data.Timetamp = channel->mPositionKeys[positionIndex].mTime;
+        m_Positions.push_back(data);
+    }
+
+    m_NumRotations = channel->mNumRotationKeys;
+    for (int32_t rotationIndex = 0; rotationIndex < m_NumRotations; ++rotationIndex)
+    {
+        aiQuaternion aiOrientation = channel->mRotationKeys[rotationIndex].mValue;
+        KeyRotation data;
+        data.Orientation = glm::quat(aiOrientation.w, aiOrientation.x, aiOrientation.y, aiOrientation.z);
+        data.Timestamp   = channel->mRotationKeys[rotationIndex].mTime;
+        m_Rotations.push_back(data);
+    }
+
+    m_NumScalings = channel->mNumScalingKeys;
+    for (int32_t keyIndex = 0; keyIndex < m_NumScalings; ++keyIndex)
+    {
+        aiVector3D scale = channel->mScalingKeys[keyIndex].mValue;
+        KeyScale data;
+        data.Scale     = glm::vec3(scale.x, scale.y, scale.z);
+        data.Timestamp = channel->mScalingKeys[keyIndex].mTime;
+        m_Scales.push_back(data);
+    }
+}
+
+void Bone::Update(float animationTime)
+{
+    glm::mat4 translation = InterpolatePosition(animationTime);
+    glm::mat4 rotation    = InterpolateRotation(animationTime);
+    glm::mat4 scale       = InterpolateScaling(animationTime);
+    m_LocalTransform      = translation * rotation * scale;
+}
+
 Ref<Mesh> Mesh::Create(const std::string& filePath)
 {
     return Ref<Mesh>(new Mesh(filePath));
-}
-
-Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
-{
-    JobSystem::Submit(
-        [this, vertices, indices]
-        {
-            BufferInfo VertexBufferInfo = {};
-            VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
-            VertexBufferInfo.Layout     = {{EShaderDataType::Vec3, "InPosition"}};
-            VertexBufferInfo.Count      = vertices.size();
-
-            Ref<Gauntlet::VertexBuffer> VertexBuffer(Gauntlet::VertexBuffer::Create(VertexBufferInfo));
-            VertexBuffer->SetData(vertices.data(), vertices.size() * sizeof(vertices[0]));
-            m_VertexBuffers.emplace_back(VertexBuffer);
-
-            BufferInfo IndexBufferInfo = {};
-            IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
-            IndexBufferInfo.Count      = indices.size();
-            IndexBufferInfo.Data       = (void*)indices.data();
-            IndexBufferInfo.Size       = indices.size() * sizeof(indices[0]);
-
-            m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(IndexBufferInfo));
-        });
 }
 
 Mesh::Mesh(const std::string& meshPath)
@@ -50,55 +71,75 @@ Mesh::Mesh(const std::string& meshPath)
         {
             LoadMesh(meshPath);
 
-            BufferInfo VertexBufferInfo = {};
-            VertexBufferInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
-            VertexBufferInfo.Layout     = Renderer::GetStorageData().MeshVertexBufferLayout;
+            BufferInfo vbInfo = {};
+            vbInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
+            vbInfo.Layout =
+                m_bIsAnimated ? Renderer::GetStorageData().AnimatedVertexBufferLayout : Renderer::GetStorageData().MeshVertexBufferLayout;
 
-            BufferInfo IndexBufferInfo = {};
-            IndexBufferInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
+            BufferInfo ibInfo = {};
+            ibInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
 
-            // MeshesData loaded, let's populate index/vertex buffers
-            for (auto& OneMeshData : m_Submeshes)
+            for (auto& submesh : m_Submeshes)
             {
-                VertexBufferInfo.Count = OneMeshData.Vertices.size();
-                Ref<Gauntlet::VertexBuffer> VertexBuffer(Gauntlet::VertexBuffer::Create(VertexBufferInfo));
-                VertexBuffer->SetData(OneMeshData.Vertices.data(), OneMeshData.Vertices.size() * sizeof(OneMeshData.Vertices[0]));
-                m_VertexBuffers.emplace_back(VertexBuffer);
+                if (m_bIsAnimated)
+                    vbInfo.Count = submesh.AnimatedVertices.size();
+                else
+                    vbInfo.Count = submesh.Vertices.size();
 
-                IndexBufferInfo.Count = OneMeshData.Indices.size();
-                IndexBufferInfo.Data  = OneMeshData.Indices.data();
-                IndexBufferInfo.Size  = OneMeshData.Indices.size() * sizeof(OneMeshData.Indices[0]);
+                Ref<Gauntlet::VertexBuffer> vertexBuffer = Gauntlet::VertexBuffer::Create(vbInfo);
 
-                m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(IndexBufferInfo));
+                if (m_bIsAnimated)
+                    vertexBuffer->SetData(submesh.AnimatedVertices.data(),
+                                          submesh.AnimatedVertices.size() * sizeof(submesh.AnimatedVertices[0]));
+                else
+                    vertexBuffer->SetData(submesh.Vertices.data(), submesh.Vertices.size() * sizeof(submesh.Vertices[0]));
+
+                m_VertexBuffers.emplace_back(vertexBuffer);
+
+                ibInfo.Count = submesh.Indices.size();
+                ibInfo.Data  = submesh.Indices.data();
+                ibInfo.Size  = submesh.Indices.size() * sizeof(submesh.Indices[0]);
+
+                m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(ibInfo));
             }
         });
+}
+
+void Mesh::LoadAnimation(const aiScene* scene)
+{
+    m_Animation       = MakeRef<Animation>(scene);
+    aiAnimation* anim = scene->mAnimations[0];
+    LOG_WARN("Loading animation: %s", anim->mName.C_Str());
+
+    m_Animation->m_Duration       = anim->mDuration;
+    m_Animation->m_TicksPerSecond = anim->mTicksPerSecond;
 }
 
 void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
-    const auto importFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_PreTransformVertices |
-                             aiProcess_OptimizeMeshes | aiProcess_RemoveRedundantMaterials | aiProcess_ImproveCacheLocality |
-                             aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_SortByPType | aiProcess_FindInstances |
-                             aiProcess_ValidateDataStructure | aiProcess_FindDegenerates | aiProcess_FindInvalidData;
+    const auto importFlags = aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
+                             aiProcess_RemoveRedundantMaterials | aiProcess_ImproveCacheLocality | aiProcess_JoinIdenticalVertices |
+                             aiProcess_GenUVCoords | aiProcess_SortByPType | aiProcess_FindInstances | aiProcess_ValidateDataStructure |
+                             aiProcess_FindDegenerates | aiProcess_FindInvalidData;
     const aiScene* scene = importer.ReadFile(meshPath.data(), importFlags);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         LOG_ERROR("ERROR::ASSIMP:: %s", importer.GetErrorString());
-        GNT_ASSERT(false, "Failed to load model!");
         return;
     }
 
     m_Directory = std::string(meshPath.substr(0, meshPath.find_last_of('/'))) + std::string("/");
     {
-        uint32_t i = 0;  // Models
-        for (i = 2; i < meshPath.size(); ++i)
-        {
-            if (meshPath[i - 2] == 'l' && meshPath[i - 1] == 's' && meshPath[i] == '/') break;
-        }
-        m_Name = std::string(meshPath.substr(i + 1, meshPath.size() - i + 1));
+        size_t pos = meshPath.find("Models/");
+        GNT_ASSERT(pos != std::string::npos);
+
+        m_Name = meshPath.substr(pos + 7, meshPath.size() - pos);
     }
+
+    // m_bIsAnimated = scene->HasAnimations();
+    if (m_bIsAnimated) LoadAnimation(scene);
 
     LOG_TRACE("Loading mesh: %s...", m_Name.data());
     ProcessNode(scene->mRootNode, scene);
@@ -109,7 +150,7 @@ void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
     for (unsigned int i = 0; i < node->mNumMeshes; ++i)
     {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        m_Submeshes.push_back(ProcessSubmesh(mesh, scene));
+        m_Submeshes.push_back(m_bIsAnimated ? ProcessAnimatedSubmesh(mesh, scene) : ProcessSubmesh(mesh, scene));
     }
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i)
@@ -118,11 +159,121 @@ void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
     }
 }
 
+Submesh Mesh::ProcessAnimatedSubmesh(aiMesh* mesh, const aiScene* scene)
+{
+    // Vertices
+    std::vector<AnimatedVertex> Vertices;
+
+    for (uint32_t i = 0; i < mesh->mNumVertices; ++i)
+    {
+        AnimatedVertex vertex;
+        SetVertexBoneDataToDefault(vertex);
+
+        vertex.Position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+        vertex.Normal   = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+        vertex.TexCoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+
+        vertex.Tangent = glm::vec3(0.0f);
+        if (mesh->HasTangentsAndBitangents()) vertex.Tangent = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
+
+        Vertices.push_back(vertex);
+    }
+    ExtractBoneWeightForVertices(Vertices, mesh, scene);
+
+    // Indices
+    std::vector<uint32_t> Indices;
+    for (uint32_t i = 0; i < mesh->mNumFaces; ++i)
+    {
+        aiFace face = mesh->mFaces[i];
+        for (uint32_t j = 0; j < face.mNumIndices; ++j)
+            Indices.push_back(face.mIndices[j]);
+    }
+
+    // Materials
+    std::vector<Ref<Texture2D>> albedoTextures;
+    std::vector<Ref<Texture2D>> normalTextures;
+    std::vector<Ref<Texture2D>> metallicTextures;
+    std::vector<Ref<Texture2D>> roughnessTextures;
+    std::vector<Ref<Texture2D>> aoTextures;
+    if (mesh->mMaterialIndex >= 0)
+    {
+        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+        const auto baseColor = LoadMaterialTextures(material, aiTextureType_BASE_COLOR);
+
+        const auto albedos = LoadMaterialTextures(material, aiTextureType_DIFFUSE);
+        albedoTextures.insert(albedoTextures.end(), albedos.begin(), albedos.end());
+
+        const auto normalMaps = LoadMaterialTextures(material, aiTextureType_NORMALS);
+        normalTextures.insert(normalTextures.end(), normalMaps.begin(), normalMaps.end());
+
+        const auto metallic = LoadMaterialTextures(material, aiTextureType_METALNESS);
+        metallicTextures.insert(metallicTextures.end(), metallic.begin(), metallic.end());
+
+        const auto rougnhess = LoadMaterialTextures(material, aiTextureType_DIFFUSE_ROUGHNESS);
+        roughnessTextures.insert(roughnessTextures.end(), rougnhess.begin(), rougnhess.end());
+
+        const auto ao = LoadMaterialTextures(material, aiTextureType_AMBIENT_OCCLUSION);
+        aoTextures.insert(aoTextures.end(), ao.begin(), ao.end());
+    }
+
+    Ref<Gauntlet::Material> Material = Material::Create();
+    Material->m_AlbedoTextures       = albedoTextures;
+    Material->m_NormalTextures       = normalTextures;
+    Material->m_MetallicTextures     = metallicTextures;
+    Material->m_RougnessTextures     = roughnessTextures;
+    Material->m_AOTextures           = aoTextures;
+    Material->Invalidate();
+
+    return Submesh(mesh->mName.C_Str(), Vertices, Indices, Material);
+}
+
+void Mesh::ExtractBoneWeightForVertices(std::vector<AnimatedVertex>& vertices, aiMesh* mesh, const aiScene* scene)
+{
+    for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex)
+    {
+        int32_t boneID       = -1;
+        std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
+
+        if (m_BoneMap.find(boneName) == m_BoneMap.end())
+        {
+            LOG_DEBUG("BoneInfoMap adding: %s", boneName.c_str());
+
+            BoneInfo newBoneInfo;
+            newBoneInfo.ID = m_BoneMap.size();
+            for (uint32_t i = 0; i < 4; ++i)
+            {
+                for (uint32_t j = 0; j < 4; ++j)
+                {
+                    newBoneInfo.Offset[i][j] = mesh->mBones[boneIndex]->mOffsetMatrix[i][j];
+                }
+            }
+            m_BoneMap[boneName] = newBoneInfo;
+            boneID              = newBoneInfo.ID;
+        }
+        else
+            boneID = m_BoneMap[boneName].ID;
+
+        GNT_ASSERT(boneID != -1);
+        const auto weights       = mesh->mBones[boneIndex]->mWeights;
+        const int32_t numWeights = mesh->mBones[boneIndex]->mNumWeights;
+        for (int32_t weightIndex = 0; weightIndex < numWeights; ++weightIndex)
+        {
+            const int32_t vertexID = weights[weightIndex].mVertexId;
+            float weight           = weights[weightIndex].mWeight;
+            GNT_ASSERT(vertexID <= vertices.size());
+
+            SetVertexBoneData(vertices[vertexID], boneID, weight);
+        }
+    }
+}
+
 Submesh Mesh::ProcessSubmesh(aiMesh* mesh, const aiScene* scene)
 {
     // Vertices
     std::vector<MeshVertex> Vertices;
-    for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+
+    for (uint32_t i = 0; i < mesh->mNumVertices; ++i)
     {
         MeshVertex Vertex;
         Vertex.Position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
@@ -155,43 +306,37 @@ Submesh Mesh::ProcessSubmesh(aiMesh* mesh, const aiScene* scene)
     }
 
     // Materials
-    std::vector<Ref<Texture2D>> DiffuseTextures;
-    std::vector<Ref<Texture2D>> NormalMapTextures;
-    std::vector<Ref<Texture2D>> EmissiveTextures;
+    std::vector<Ref<Texture2D>> albedoTextures;
+    std::vector<Ref<Texture2D>> normalTextures;
+    std::vector<Ref<Texture2D>> metallicTextures;
+    std::vector<Ref<Texture2D>> roughnessTextures;
+    std::vector<Ref<Texture2D>> aoTextures;
     if (mesh->mMaterialIndex >= 0)
     {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-        auto DiffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE);
-        if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_BASE_COLOR);
+        const auto albedos = LoadMaterialTextures(material, aiTextureType_DIFFUSE);
+        albedoTextures.insert(albedoTextures.end(), albedos.begin(), albedos.end());
 
-        DiffuseTextures.insert(DiffuseTextures.end(), DiffuseMaps.begin(), DiffuseMaps.end());
+        const auto normalMaps = LoadMaterialTextures(material, aiTextureType_NORMALS);
+        normalTextures.insert(normalTextures.end(), normalMaps.begin(), normalMaps.end());
 
-        const auto NormalMaps = LoadMaterialTextures(material, aiTextureType_NORMALS);
-        NormalMapTextures.insert(NormalMapTextures.end(), NormalMaps.begin(), NormalMaps.end());
+        const auto metallic = LoadMaterialTextures(material, aiTextureType_METALNESS);
+        metallicTextures.insert(metallicTextures.end(), metallic.begin(), metallic.end());
 
-        // Testing only
-        if (DiffuseTextures.empty())
-        {
-            auto DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
-            // if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
-            // if (DiffuseMaps.empty()) DiffuseMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
-            DiffuseTextures.insert(DiffuseTextures.end(), DiffuseMaps.begin(), DiffuseMaps.end());
-        }
+        const auto rougnhess = LoadMaterialTextures(material, aiTextureType_DIFFUSE_ROUGHNESS);
+        roughnessTextures.insert(roughnessTextures.end(), rougnhess.begin(), rougnhess.end());
 
-        // auto EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSIVE);
-        // if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_SHININESS);
-        // if (EmissiveMaps.empty()) EmissiveMaps = LoadMaterialTextures(material, aiTextureType_EMISSION_COLOR);
-        // EmissiveTextures.insert(EmissiveTextures.end(), EmissiveMaps.begin(), EmissiveMaps.end());
+        const auto ao = LoadMaterialTextures(material, aiTextureType_AMBIENT_OCCLUSION);
+        aoTextures.insert(aoTextures.end(), ao.begin(), ao.end());
     }
 
     Ref<Gauntlet::Material> Material = Material::Create();
-    Material->SetDiffuseTextures(DiffuseTextures);
-    Material->SetNormalMapTextures(NormalMapTextures);
-
-    // Currently unused
-    //   Material->SetEmissiveTextures(EmissiveTextures);
-
+    Material->m_AlbedoTextures       = albedoTextures;
+    Material->m_NormalTextures       = normalTextures;
+    Material->m_MetallicTextures     = metallicTextures;
+    Material->m_RougnessTextures     = roughnessTextures;
+    Material->m_AOTextures           = aoTextures;
     Material->Invalidate();
 
     return Submesh(mesh->mName.C_Str(), Vertices, Indices, Material);
@@ -222,8 +367,7 @@ std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextur
         textureSpec.GenerateMips         = true;
         textureSpec.Filter               = ETextureFilter::LINEAR;
         textureSpec.Wrap                 = ETextureWrap::REPEAT;
-        Ref<Texture2D> texture =
-            Ref<Texture2D>(Texture2D::Create(TexturePath, textureSpec));  // Temporary create TextureID's for Mesh Textures
+        Ref<Texture2D> texture           = Ref<Texture2D>(Texture2D::Create(TexturePath, textureSpec));
 
         LOG_TRACE("Loaded texture: %s", TexturePath.data());
 
@@ -232,25 +376,6 @@ std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextur
     }
 
     return Textures;
-}
-
-Ref<Mesh> Mesh::CreateCube()
-{
-    const std::vector<Vertex> Positions = {
-        Vertex({-1, -1, -1}), Vertex({1, -1, -1}), Vertex({1, 1, -1}), Vertex({-1, 1, -1}),
-        Vertex({-1, -1, 1}),  Vertex({1, -1, 1}),  Vertex({1, 1, 1}),  Vertex({-1, 1, 1}),
-    };
-
-    const std::vector<uint32_t> Indices = {
-        0, 1, 3, 3, 1, 2,  //
-        1, 5, 2, 2, 5, 6,  //
-        5, 4, 6, 6, 4, 7,  //
-        4, 0, 7, 7, 0, 3,  //
-        3, 2, 7, 7, 2, 6,  //
-        4, 5, 0, 0, 5, 1   //
-    };
-
-    return Ref<Mesh>(new Mesh(Positions, Indices));
 }
 
 void Mesh::Destroy()

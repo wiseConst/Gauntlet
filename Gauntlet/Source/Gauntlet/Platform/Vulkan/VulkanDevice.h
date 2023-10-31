@@ -2,14 +2,12 @@
 
 #include <Gauntlet/Core/Core.h>
 #include <volk/volk.h>
+#include "VulkanUtility.h"
 
 namespace Gauntlet
 {
 struct QueueFamilyIndices
 {
-  public:
-    QueueFamilyIndices() : GraphicsFamily(UINT32_MAX), PresentFamily(UINT32_MAX), ComputeFamily(UINT32_MAX), TransferFamily(UINT32_MAX) {}
-
     FORCEINLINE bool IsComplete() const
     {
         return GraphicsFamily != UINT32_MAX && PresentFamily != UINT32_MAX && ComputeFamily != UINT32_MAX && TransferFamily != UINT32_MAX;
@@ -30,8 +28,7 @@ struct QueueFamilyIndices
         LOG_INFO("QueueFamilyCount:%u", QueueFamilyCount);
 #endif
 
-        uint32_t presentFamilyIndex = 0;
-        uint32_t i                  = 0;
+        uint32_t i = 0;
         for (const auto& QueueFamily : QueueFamilies)
         {
 #if LOG_VULKAN_INFO
@@ -52,7 +49,7 @@ struct QueueFamilyIndices
 #endif
             }
 
-            if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT && Indices.ComputeFamily == UINT32_MAX)
+            if (QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
             {
                 Indices.ComputeFamily = i;
 #if LOG_VULKAN_INFO
@@ -60,10 +57,12 @@ struct QueueFamilyIndices
 #endif
             }
 
-            // Dedicated transfer queue.
-            if (QueueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && !(QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            if (QueueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
             {
-                Indices.TransferFamily = i;
+                // Dedicated transfer queue.
+                if (!(QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && !(QueueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                    Indices.TransferFamily = i;
+
 #if LOG_VULKAN_INFO
                 LOG_TRACE("  TRANSFER");
 #endif
@@ -77,15 +76,39 @@ struct QueueFamilyIndices
 
             if (bPresentSupport)
             {
-                presentFamilyIndex = i;
+                Indices.PresentFamily = i;
 
-                if (Indices.ComputeFamily != i && Indices.TransferFamily != i && Indices.GraphicsFamily != i &&
-                    Indices.PresentFamily == UINT32_MAX)
-                    Indices.PresentFamily = i;
 #if LOG_VULKAN_INFO
                 LOG_TRACE("  PRESENT");
 #endif
             }
+
+#if LOG_VULKAN_INFO
+            if (QueueFamily.queueFlags & VK_QUEUE_PROTECTED_BIT)
+            {
+                LOG_TRACE("  PROTECTED");
+            }
+
+            if (QueueFamily.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT)
+            {
+                LOG_TRACE("  SPARSE BINDING");
+            }
+
+            if (QueueFamily.queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+            {
+                LOG_TRACE("  VIDEO DECODE");
+            }
+#ifdef VK_ENABLE_BETA_EXTENSIONS
+            if (QueueFamily.queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR)
+            {
+                LOG_TRACE("  VIDEO ENCODE");
+            }
+#endif
+            if (QueueFamily.queueFlags & VK_QUEUE_OPTICAL_FLOW_BIT_NV)
+            {
+                LOG_TRACE("  OPTICAL FLOW NV");
+            }
+#endif
 
 #if !LOG_VULKAN_INFO
             if (Indices.IsComplete()) break;
@@ -101,17 +124,17 @@ struct QueueFamilyIndices
         // Rely on that graphics queue will be from first family, which contains everything.
         if (Indices.ComputeFamily == UINT32_MAX) Indices.ComputeFamily = Indices.GraphicsFamily;
 
-        // I want to have dedicated present queue, so in case I can't afford it, im gonna use whatever I have
-        if (Indices.PresentFamily == UINT32_MAX) Indices.PresentFamily = presentFamilyIndex;
+        // iGPU issues
+        if (Indices.PresentFamily != Indices.GraphicsFamily) Indices.PresentFamily = Indices.GraphicsFamily;
 
         GNT_ASSERT(Indices.IsComplete(), "QueueFamilyIndices wasn't setup correctly!");
         return Indices;
     }
 
-    uint32_t GraphicsFamily;
-    uint32_t PresentFamily;
-    uint32_t ComputeFamily;
-    uint32_t TransferFamily;
+    uint32_t GraphicsFamily = UINT32_MAX;
+    uint32_t PresentFamily  = UINT32_MAX;
+    uint32_t ComputeFamily  = UINT32_MAX;
+    uint32_t TransferFamily = UINT32_MAX;
 };
 
 class VulkanDevice final : private Uncopyable, private Unmovable
@@ -161,10 +184,13 @@ class VulkanDevice final : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetGPUProperties() const { return m_GPUInfo.GPUProperties; }
     FORCEINLINE auto& GetGPUProperties() { return m_GPUInfo.GPUProperties; }
 
-    FORCEINLINE const size_t GetUniformBufferAlignedSize(const size_t InOriginalSize)
+    FORCEINLINE const auto& GetGPUFeatures() const { return m_GPUInfo.GPUFeatures; }
+    FORCEINLINE auto& GetGPUFeatures() { return m_GPUInfo.GPUFeatures; }
+
+    // Calculate required alignment based on minimum device offset alignment
+    FORCEINLINE const size_t GetUniformBufferAlignedSize(const size_t originalSize)
     {
-        // Calculate required alignment based on minimum device offset alignment
-        size_t alignedSize = InOriginalSize;
+        size_t alignedSize = originalSize;
         if (m_GPUInfo.GPUProperties.limits.minUniformBufferOffsetAlignment > 0)
         {
             alignedSize = (alignedSize + m_GPUInfo.GPUProperties.limits.minUniformBufferOffsetAlignment - 1) &
@@ -185,10 +211,14 @@ class VulkanDevice final : private Uncopyable, private Unmovable
         VkQueue TransferQueue                 = VK_NULL_HANDLE;
         VkQueue ComputeQueue                  = VK_NULL_HANDLE;
 
-        VkPhysicalDeviceProperties GPUProperties             = {};
-        VkPhysicalDeviceFeatures GPUFeatures                 = {};
-        VkPhysicalDeviceMemoryProperties GPUMemoryProperties = {};
-        VkPhysicalDeviceDriverProperties GPUDriverProperties = {};
+        VkPhysicalDeviceProperties GPUProperties                     = {};
+        VkPhysicalDeviceFeatures GPUFeatures                         = {};
+        VkPhysicalDeviceMemoryProperties GPUMemoryProperties         = {};
+        VkPhysicalDeviceDriverProperties GPUDriverProperties         = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR RTProperties = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR ASProperties = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
     } m_GPUInfo;
 
     void PickPhysicalDevice(const VkInstance& instance, const VkSurfaceKHR& surface);

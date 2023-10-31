@@ -10,13 +10,11 @@ layout(location = 0) out vec4 OutColor;
 layout(location = 1) out vec3 OutNormal;
 layout(location = 2) out vec2 OutTexCoord;
 layout(location = 3) out vec3 OutFragmentPosition;
-// layout(location = 4) out vec3 OutTangent;
-// layout(location = 5) out vec3 OutBitangent;
-layout(location = 6) out mat3 OutTBN;
+layout(location = 4) out mat3 OutTBN;
 
 layout( push_constant ) uniform PushConstants
 {	
-	mat4 TransformMatrix;
+	mat4 TransformMatrix; // model matrix here
 	vec4 Data;
 } u_MeshPushConstants;
 

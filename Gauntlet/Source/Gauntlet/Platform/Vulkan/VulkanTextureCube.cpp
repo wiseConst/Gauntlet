@@ -16,6 +16,8 @@ VulkanTextureCube::VulkanTextureCube(const std::vector<std::string>& faces) : m_
     Create();
 }
 
+VulkanTextureCube::VulkanTextureCube(const TextureCubeSpecification& textureCubeSpec) {}
+
 // No TextureCube recreation right now
 void VulkanTextureCube::Create()
 {

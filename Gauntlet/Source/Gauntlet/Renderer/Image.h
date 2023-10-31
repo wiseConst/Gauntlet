@@ -13,10 +13,11 @@ enum class EImageFormat : uint8_t
     RGB32F,
     RGBA,
     SRGB,
-
     RGBA16F,
     RGBA32F,
     R32F,
+
+    R11G11B10,
 
     DEPTH32F,
     DEPTH24STENCIL8
@@ -48,7 +49,8 @@ enum class ELoadImageType : uint8_t
 enum class ETextureWrap : uint8_t
 {
     NONE = 0,
-    CLAMP,
+    CLAMP_TO_BORDER,
+    CLAMP_TO_EDGE,
     REPEAT
 };
 

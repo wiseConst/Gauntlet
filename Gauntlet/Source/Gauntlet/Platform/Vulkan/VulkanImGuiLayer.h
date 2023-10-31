@@ -3,13 +3,12 @@
 #include "Gauntlet/ImGui/ImGuiLayer.h"
 
 #include "volk/volk.h"
-#include "VulkanCommandBuffer.h"
 
 namespace Gauntlet
 {
 
-class VulkanCommandPool;
 class VulkanContext;
+class VulkanCommandBuffer;
 
 class VulkanImGuiLayer final : public ImGuiLayer
 {
@@ -32,13 +31,10 @@ class VulkanImGuiLayer final : public ImGuiLayer
   private:
     VulkanContext& m_Context;
     VulkanCommandBuffer* m_CurrentCommandBuffer;
-    std::vector<VkFence> m_InFlightFences;
 
     VkDescriptorPool m_ImGuiDescriptorPool = VK_NULL_HANDLE;
-    Ref<VulkanCommandPool> m_ImGuiCommandPool;
     bool m_bBlockEvents{false};
 
-    void CreateSyncObjects();
     void SetCustomUIStyle();
 };
 }  // namespace Gauntlet

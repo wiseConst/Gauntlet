@@ -1,0 +1,28 @@
+{
+  "Scene": "Corvette",
+  "Entities": {
+    "2456598798696294777": {
+      "TagComponent": "corvette-c7",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Scale": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "MeshComponent": {
+        "Name": "chevrolet_corvette_c7_stingray_14/scene.gltf"
+      }
+    }
+  }
+}

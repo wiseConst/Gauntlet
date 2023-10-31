@@ -1,12 +1,13 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
+#include "CoreRendererStructs.h"
 
 namespace Gauntlet
 {
+
 class Texture2D;
 
-// No need to move it imho, but can be copied
 class Material : private Unmovable
 {
   public:
@@ -19,31 +20,25 @@ class Material : private Unmovable
     virtual FORCEINLINE const void* GetDescriptorSet() const = 0;
     virtual FORCEINLINE void* GetDescriptorSet()             = 0;
 
+    FORCEINLINE Ref<Texture2D> GetAlbedo() { return m_AlbedoTextures.empty() ? nullptr : m_AlbedoTextures[0]; }
+    FORCEINLINE Ref<Texture2D> GetNormalMap() { return m_NormalTextures.empty() ? nullptr : m_NormalTextures[0]; }
+    FORCEINLINE Ref<Texture2D> GetMetallic() { return m_MetallicTextures.empty() ? nullptr : m_MetallicTextures[0]; }
+    FORCEINLINE Ref<Texture2D> GetRoughness() { return m_RougnessTextures.empty() ? nullptr : m_RougnessTextures[0]; }
+    FORCEINLINE Ref<Texture2D> GetAO() { return m_AOTextures.empty() ? nullptr : m_AOTextures[0]; }
+    PBRMaterial& GetData() { return m_Data; }
+
     static Ref<Material> Create();
 
-    FORCEINLINE void SetDiffuseTextures(const std::vector<Ref<Texture2D>>& diffuseTextures) { m_DiffuseTextures = diffuseTextures; }
-    FORCEINLINE void SetNormalMapTextures(const std::vector<Ref<Texture2D>>& normalMapTextures) { m_NormalMapTextures = normalMapTextures; }
-    FORCEINLINE void SetEmissiveTextures(const std::vector<Ref<Texture2D>>& emissiveTextures) { m_EmissiveTextures = emissiveTextures; }
-
-    FORCEINLINE Ref<Texture2D> GetDiffuseTexture(const uint32_t textureIndex)
-    {
-        return m_DiffuseTextures.empty() ? nullptr : m_DiffuseTextures[textureIndex];
-    }
-
-    FORCEINLINE Ref<Texture2D> GetNormalMapTexture(const uint32_t textureIndex)
-    {
-        return m_NormalMapTextures.empty() ? nullptr : m_NormalMapTextures[textureIndex];
-    }
-
-    FORCEINLINE Ref<Texture2D> GetEmissiveTexture(const uint32_t textureIndex)
-    {
-        return m_EmissiveTextures.empty() ? nullptr : m_EmissiveTextures[textureIndex];
-    }
-
   protected:
-    std::vector<Ref<Texture2D>> m_DiffuseTextures;
-    std::vector<Ref<Texture2D>> m_NormalMapTextures;
-    std::vector<Ref<Texture2D>> m_EmissiveTextures;
+    std::vector<Ref<Texture2D>> m_AlbedoTextures;
+    std::vector<Ref<Texture2D>> m_NormalTextures;
+    std::vector<Ref<Texture2D>> m_MetallicTextures;
+    std::vector<Ref<Texture2D>> m_RougnessTextures;
+    std::vector<Ref<Texture2D>> m_AOTextures;
+
+    PBRMaterial m_Data;
+
+    friend class Mesh;
 };
 
 }  // namespace Gauntlet

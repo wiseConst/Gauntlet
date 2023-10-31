@@ -112,4 +112,15 @@ struct DirectionalLightComponent
     DirectionalLightComponent(const DirectionalLightComponent&) = default;
 };
 
+struct SpotLightComponent
+{
+    glm::vec3 Color{0.0f};
+    glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
+    float CutOff   = 0.0f;
+    bool bIsActive = true;
+
+    SpotLightComponent()                          = default;
+    SpotLightComponent(const SpotLightComponent&) = default;
+};
+
 }  // namespace Gauntlet

@@ -33,6 +33,7 @@ class VulkanAllocator final : private Uncopyable, private Unmovable
   private:
     VmaAllocator m_Allocator = VK_NULL_HANDLE;
     VkDeviceSize m_VRAMSize  = 0;
+    VkDeviceSize m_VRAMLimit = 0;
 };
 
 }  // namespace Gauntlet

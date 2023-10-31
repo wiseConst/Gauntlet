@@ -53,6 +53,7 @@ class PerspectiveCamera : public Camera
         else
             m_CameraTranslationSpeed = 2.0f;
 
+        m_DeltaTime = deltaTime;
         SetPosition(m_Position);
     }
 

@@ -32,7 +32,10 @@ class Camera : private Uncopyable, private Unmovable
 
     FORCEINLINE void SetPosition(const glm::vec3& position)
     {
-        m_Position = position;
+        m_Position.x = Math::Lerp(m_Position.x, position.x, m_DeltaTime);
+        m_Position.y = Math::Lerp(m_Position.y, position.y, m_DeltaTime);
+        m_Position.z = Math::Lerp(m_Position.z, position.z, m_DeltaTime);
+
         RecalculateViewMatrix();
     }
 
@@ -49,6 +52,7 @@ class Camera : private Uncopyable, private Unmovable
   protected:
     glm::mat4 m_ProjectionMatrix = glm::mat4(1.0f);
     glm::mat4 m_ViewMatrix       = glm::mat4(1.0f);
+    float m_DeltaTime            = 0.0f;
 
     glm::vec3 m_Position = {0.f, 0.f, 0.f};
     glm::vec3 m_Rotation = {0.f, 0.f, 0.f};

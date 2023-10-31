@@ -10,9 +10,8 @@
 #include "VulkanDescriptors.h"
 
 #include "Gauntlet/Core/Application.h"
-#include "Gauntlet/Core/JobSystem.h"
 #include "Gauntlet/Core/Window.h"
-#include "Gauntlet/Renderer/Renderer.h"
+#include "VulkanRenderer.h"
 
 namespace Gauntlet
 {
@@ -28,6 +27,8 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
 
     m_Device    = MakeScoped<VulkanDevice>(m_Instance, m_Surface);
     m_Allocator = MakeScoped<VulkanAllocator>(m_Instance, m_Device);
+
+    Renderer::GetStats().RenderingDevice = m_Device->GetGPUProperties().deviceName;
 
     m_Swapchain = MakeScoped<VulkanSwapchain>(m_Device, m_Surface);
 
@@ -317,6 +318,12 @@ void VulkanContext::EndRender()
              "Failed to submit command buffes to the queue.");
 
     Renderer::GetStats().GPUWaitTime = Application::GetTimeNow() - m_LastGPUWaitTime;
+
+    const uint32_t dataSize = static_cast<uint32_t>(Renderer::GetPipelineStats().size()) * sizeof(Renderer::GetPipelineStats()[0]);
+    // The stride between queries is the no. of unique value entries
+    const uint32_t stride = static_cast<uint32_t>(Renderer::GetPipelineStats().size()) * sizeof(Renderer::GetPipelineStats()[0]);
+    vkGetQueryPoolResults(m_Device->GetLogicalDevice(), VulkanRenderer::GetVulkanStorageData().QueryPool, 0, 1, dataSize,
+                          (void*)Renderer::GetPipelineStats().data(), stride, VK_QUERY_RESULT_64_BIT);
 }
 
 void VulkanContext::SwapBuffers()

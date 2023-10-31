@@ -29,17 +29,15 @@ class VulkanRenderer final : public Renderer
         VkDescriptorSetLayout GeometryDescriptorSetLayout = VK_NULL_HANDLE;
         VkDescriptorSetLayout MeshDescriptorSetLayout     = VK_NULL_HANDLE;
 
-        // Skybox
-        Ref<Skybox> DefaultSkybox          = nullptr;
-        Ref<VulkanPipeline> SkyboxPipeline = nullptr;
-        DescriptorSet SkyboxDescriptorSet;
-        MeshPushConstants SkyboxPushConstants;
-
         // UI
         VkDescriptorSetLayout ImageDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Misc
         VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
+        Weak<Pipeline> CurrentPipelineToBind;
+
+        // Query Statistics
+        VkQueryPool QueryPool = VK_NULL_HANDLE;
 
         // Sampler handling
         struct SamplerKeyHash
@@ -84,22 +82,23 @@ class VulkanRenderer final : public Renderer
     VulkanRenderer();
     ~VulkanRenderer();
 
-    void BeginSceneImpl(const Camera& camera) final override;
-    void EndSceneImpl() final override;
-
     void BeginImpl() final override;
-    void FlushImpl() final override;
 
     void BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f)) final override;
     void EndRenderPassImpl(const Ref<Framebuffer>& framebuffer) final override;
 
-    void RenderGeometryImpl(Ref<Pipeline>& pipeline, const GeometryData& geometry, bool bWithMaterial = true,
-                            void* pushConstants = nullptr) final override;
+    void SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer, Ref<Material>& material,
+                        void* pushConstants = nullptr) final override;
     void SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants = nullptr) final override;
+
+    void DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer, const uint32_t indicesCount,
+                      void* pushConstants = nullptr) final override;
 
     FORCEINLINE static VulkanRendererStorage& GetVulkanStorageData() { return s_Data; }
 
-    // Temporary
+    void BeginQuery() final override;
+    void EndQuery() final override;
+
     void PostInit() final override;
 
   private:
@@ -110,10 +109,6 @@ class VulkanRenderer final : public Renderer
     // TODO: In future this will be refactored since it assumes I'm not using offsets and multiple descriptor sets.
     void DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<IndexBuffer>& indexBuffer, const Ref<VertexBuffer>& vertexBuffer,
                              void* pushConstants = nullptr, VkDescriptorSet* descriptorSets = nullptr, const uint32_t descriptorCount = 0);
-
-    void SetupSkybox();
-    void DrawSkybox();
-    void DestroySkybox();
 };
 
 }  // namespace Gauntlet

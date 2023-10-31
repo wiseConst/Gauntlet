@@ -187,7 +187,6 @@ project "Forge"
         }
         
     filter "configurations:RelWithDebInfo"
-        defines "GNT_RELEASE"
         symbols "On"
         optimize "Debug"
 

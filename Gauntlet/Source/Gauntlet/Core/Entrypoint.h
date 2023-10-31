@@ -5,12 +5,11 @@
 
 namespace Gauntlet
 {
-// TODO: Handle command line args?
-extern Scoped<Application> CreateApplication();
+extern Scoped<Application> CreateApplication(const CommandLineArguments& args);
 
 int Main(int argc, char** argv)
 {
-    auto App = Gauntlet::CreateApplication();
+    auto App = Gauntlet::CreateApplication({argc, argv});
     App->Run();
 
     return 0;
