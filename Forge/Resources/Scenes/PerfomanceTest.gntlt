@@ -116,41 +116,6 @@
         "Name": "Default/Plane.gltf"
       }
     },
-    "1800455306711077922": {
-      "TagComponent": "lu4ik solnca",
-      "TransformComponent": {
-        "Translation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Rotation": [
-          2.049999952316284,
-          -2.950000047683716,
-          0.0
-        ],
-        "Scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "DirectionalLightComponent": {
-        "Color": [
-          0.1555529534816742,
-          0.026071712374687195,
-          0.7598038911819458
-        ],
-        "AmbientSpecularShininess": [
-          0.10000000149011612,
-          1.0499999523162842,
-          64.0
-        ],
-        "CastShadows": [
-          1
-        ]
-      }
-    },
     "15445115299175449651": {
       "TagComponent": "CyberPunkRevolver",
       "TransformComponent": {

@@ -27,6 +27,7 @@ class VulkanStagingBuffer final : public StagingBuffer
     void Destroy() final override;
     void SetData(const void* data, const uint64_t dataSize) final override;
     FORCEINLINE void* Get() const final override { return m_AllocatedBuffer.Buffer; }
+    FORCEINLINE size_t GetCapacity() const final override { return m_Capacity; }
 
   private:
     VulkanAllocatedBuffer m_AllocatedBuffer;

@@ -19,6 +19,7 @@ IncludeDir["entt"] =            "Gauntlet/vendor/entt/single_include"
 IncludeDir["json"] =            "Gauntlet/vendor/json/single_include"
 IncludeDir["spirv_reflect"] =   "Gauntlet/vendor/spirv-reflect"
 IncludeDir["FastNoiseLite"] =   "Gauntlet/vendor/FastNoiseLite/Cpp"
+IncludeDir["meshoptimizer"] =   "Gauntlet/vendor/meshoptimizer/src"
 
 Binaries = {}
 Binaries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.dll"
@@ -29,12 +30,16 @@ Libraries = {}
 Libraries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.lib"
 Libraries["Assimp_Release"] =        "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
 Libraries["Assimp_RelWithDebInfo"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
+Libraries["Shaderc_Release"] =       "%{VULKAN_PATH}/Lib/shaderc_combined.lib" 
+Libraries["Shaderc_RelWithDebInfo"] ="%{VULKAN_PATH}/Lib/shaderc_combined.lib" 
+Libraries["Shaderc_Debug"] =         "%{VULKAN_PATH}/Lib/shaderc_combinedd.lib" 
 
 group "Dependencies"
     include "Gauntlet/vendor/GLFW"
     include "Gauntlet/vendor/imgui"
     include "Gauntlet/vendor/vma"
     include "Gauntlet/vendor/spirv-reflect"
+    include "Gauntlet/vendor/meshoptimizer"
 group ""
 
 group "Engine"
@@ -74,7 +79,8 @@ project "Gauntlet"
         "%{IncludeDir.entt}",
         "%{IncludeDir.json}",
         "%{IncludeDir.spirv_reflect}",
-        "%{IncludeDir.FastNoiseLite}"
+        "%{IncludeDir.FastNoiseLite}",
+        "%{IncludeDir.meshoptimizer}"
     }
 
     links
@@ -82,7 +88,8 @@ project "Gauntlet"
         "GLFW",
         "ImGui",
         "VulkanMemoryAllocator",
-        "spirv-reflect"
+        "spirv-reflect",
+        "meshoptimizer"
     }
 
 	filter "system:windows"
@@ -101,15 +108,31 @@ project "Gauntlet"
         symbols "On"
         optimize "Off"
         
+        links
+        {
+            "%{Libraries.Shaderc_Debug}"
+        }
+
+        
     filter "configurations:Release"
         defines "GNT_RELEASE"
         symbols "Off"
         optimize "Full"
 
+        links
+        {
+            "%{Libraries.Shaderc_Release}"
+        }
+
     filter "configurations:RelWithDebInfo"
         defines "GNT_RELEASE"
         symbols "On"
         optimize "Debug"
+        
+        links
+        {
+            "%{Libraries.Shaderc_Release}"
+        }
 group ""
         
 group "Editor"      

@@ -2,23 +2,25 @@
 
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(location = 0) in vec4 InColor;
-layout(location = 1) in vec2 InTexCoord;
-layout(location = 2) in flat float InTextureId;
+layout(location = 0) in vec4 in_Color;
+layout(location = 1) in vec2 in_TexCoord;
+layout(location = 2) in flat float in_TextureId;
+layout(location = 3) in vec3 in_Normal;
 
-layout(location = 1) out vec4 OutNormal;
-layout(location = 2) out vec4 OutFragColor;
+layout(location = 1) out vec4 out_Normal;
+layout(location = 2) out vec4 out_FragColor;
 
 layout(set = 0, binding = 0) uniform sampler2D u_Sprites[32];
 
 void main()
 {
-	int TextureId = int(InTextureId);
-	if(TextureId >= 32) TextureId = 0;
+	int textureID = int(in_TextureId);
+	if(textureID >= 32) textureID = 0;
 
-	OutNormal = vec4(0.0);
+	// TODO: 2d normal mapping?
+	out_Normal = vec4(in_Normal, 0.0);
 
-	const vec4 spriteTex =  texture(u_Sprites[nonuniformEXT(TextureId)], InTexCoord);
-	if(spriteTex.a < 0.01) discard;
-	OutFragColor = spriteTex * InColor;
+	const vec4 spriteTex = texture(u_Sprites[nonuniformEXT(textureID)], in_TexCoord);
+	if(spriteTex.a < 0.00001) discard;
+	out_FragColor = spriteTex * in_Color;
 }

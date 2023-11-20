@@ -10,13 +10,12 @@ namespace Gauntlet
 class Random final : private Uncopyable, private Unmovable
 {
   public:
-    static float GetInRange(float begin, float end);
+    static float GetInRange0To1();
     static float GetNoise(float x, float y);
     FORCEINLINE static void SetNoiseSeed(int32_t seed) { s_Noise.SetSeed(seed); }
 
   private:
-    static inline std::random_device s_RandomDevice;  // Seeding random number generator
-    static std::mt19937_64 s_Engine;                  // Filling engine
+    static std::default_random_engine s_Engine;
     static inline FastNoiseLite s_Noise;
 };
 

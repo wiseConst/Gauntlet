@@ -12,6 +12,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <meshoptimizer.h>
+
 #include "Animation.h"
 
 namespace Gauntlet
@@ -73,8 +75,8 @@ Mesh::Mesh(const std::string& meshPath)
 
             BufferInfo vbInfo = {};
             vbInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
-            vbInfo.Layout =
-                m_bIsAnimated ? Renderer::GetStorageData().AnimatedVertexBufferLayout : Renderer::GetStorageData().MeshVertexBufferLayout;
+            vbInfo.Layout     = m_bIsAnimated ? Renderer::GetStorageData().AnimatedVertexBufferLayout
+                                              : Renderer::GetStorageData().StaticMeshVertexBufferLayout;
 
             BufferInfo ibInfo = {};
             ibInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER;
@@ -89,10 +91,16 @@ Mesh::Mesh(const std::string& meshPath)
                 Ref<Gauntlet::VertexBuffer> vertexBuffer = Gauntlet::VertexBuffer::Create(vbInfo);
 
                 if (m_bIsAnimated)
+                {
                     vertexBuffer->SetData(submesh.AnimatedVertices.data(),
                                           submesh.AnimatedVertices.size() * sizeof(submesh.AnimatedVertices[0]));
+                    submesh.AnimatedVertices.clear();
+                }
                 else
+                {
                     vertexBuffer->SetData(submesh.Vertices.data(), submesh.Vertices.size() * sizeof(submesh.Vertices[0]));
+                    submesh.Vertices.clear();
+                }
 
                 m_VertexBuffers.emplace_back(vertexBuffer);
 
@@ -101,6 +109,7 @@ Mesh::Mesh(const std::string& meshPath)
                 ibInfo.Size  = submesh.Indices.size() * sizeof(submesh.Indices[0]);
 
                 m_IndexBuffers.emplace_back(Gauntlet::IndexBuffer::Create(ibInfo));
+                submesh.Indices.clear();
             }
         });
 }
@@ -118,10 +127,9 @@ void Mesh::LoadAnimation(const aiScene* scene)
 void Mesh::LoadMesh(const std::string& meshPath)
 {
     Assimp::Importer importer;
-    const auto importFlags = aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
-                             aiProcess_RemoveRedundantMaterials | aiProcess_ImproveCacheLocality | aiProcess_JoinIdenticalVertices |
-                             aiProcess_GenUVCoords | aiProcess_SortByPType | aiProcess_FindInstances | aiProcess_ValidateDataStructure |
-                             aiProcess_FindDegenerates | aiProcess_FindInvalidData;
+    const auto importFlags = aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeGraph | aiProcess_RemoveRedundantMaterials |
+                             aiProcess_ImproveCacheLocality | aiProcess_GenUVCoords | aiProcess_SortByPType | aiProcess_FindInstances |
+                             aiProcess_ValidateDataStructure | aiProcess_FindDegenerates | aiProcess_FindInvalidData;
     const aiScene* scene = importer.ReadFile(meshPath.data(), importFlags);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
@@ -145,12 +153,115 @@ void Mesh::LoadMesh(const std::string& meshPath)
     ProcessNode(scene->mRootNode, scene);
 }
 
+template <> void Mesh::OptimizeMesh<AnimatedVertex>(Submesh& submesh)
+{
+    const size_t indexCount  = submesh.Indices.size();
+    const size_t vertexCount = submesh.AnimatedVertices.size();
+    const size_t vertexSize  = sizeof(AnimatedVertex);
+
+    // Remap table
+    std::vector<uint32_t> remap(indexCount);
+    const size_t optVertexCount = meshopt_generateVertexRemap(remap.data(), submesh.Indices.data(), indexCount,
+                                                              submesh.AnimatedVertices.data(), vertexCount, vertexSize);
+
+    constexpr float threshold = 0.5f;
+    std::vector<uint32_t> optIndices(indexCount);
+    std::vector<AnimatedVertex> optVertices(optVertexCount);
+
+    // #1: Remove duplicate vertices
+    meshopt_remapIndexBuffer(optIndices.data(), submesh.Indices.data(), indexCount, remap.data());
+    meshopt_remapVertexBuffer(optVertices.data(), submesh.AnimatedVertices.data(), optVertexCount, vertexSize, remap.data());
+
+    // #2: Improve vertex cache locality
+    meshopt_optimizeVertexCache(optIndices.data(), optIndices.data(), indexCount, optVertexCount);
+
+    // #3: Reduce pixel overdraw
+    meshopt_optimizeOverdraw(optIndices.data(), optIndices.data(), indexCount, &(optVertices[0].Position.x), optVertexCount, vertexSize,
+                             1.05f);
+
+    // #4: Vertex buffer access optimization
+    meshopt_optimizeVertexFetch(optVertices.data(), optIndices.data(), indexCount, optVertices.data(), optVertexCount, vertexSize);
+
+    // #5: Simplified version of the model
+    const size_t targetIndexCount = indexCount * threshold;
+    constexpr float targetError   = 0.25f;
+    std::vector<uint32_t> simplifiedIndices(indexCount);
+    const size_t optIndexCount = meshopt_simplify(simplifiedIndices.data(), optIndices.data(), indexCount, &optVertices[0].Position.x,
+                                                  optVertexCount, vertexSize, targetIndexCount, targetError);
+
+    simplifiedIndices.resize(optIndexCount);
+
+    submesh.Indices.clear();
+    submesh.Indices = {simplifiedIndices.begin(), simplifiedIndices.end()};
+
+    submesh.AnimatedVertices.clear();
+    submesh.AnimatedVertices = {optVertices.begin(), optVertices.end()};
+}
+
+template <> void Mesh::OptimizeMesh<MeshVertex>(Submesh& submesh)
+{
+    const size_t indexCount     = submesh.Indices.size();
+    const size_t vertexCount    = submesh.Vertices.size();
+    constexpr size_t vertexSize = sizeof(MeshVertex);
+
+    // Remap table
+    std::vector<uint32_t> remap(indexCount);
+    const size_t optVertexCount =
+        meshopt_generateVertexRemap(remap.data(), submesh.Indices.data(), indexCount, submesh.Vertices.data(), vertexCount, vertexSize);
+
+    std::vector<uint32_t> optIndices(indexCount);
+    std::vector<MeshVertex> optVertices(optVertexCount);
+
+    // #1: Remove duplicate vertices
+    meshopt_remapIndexBuffer(optIndices.data(), submesh.Indices.data(), indexCount, remap.data());
+    meshopt_remapVertexBuffer(optVertices.data(), submesh.Vertices.data(), optVertexCount, vertexSize, remap.data());
+
+    // #2: Improve vertex cache locality
+    meshopt_optimizeVertexCache(optIndices.data(), optIndices.data(), indexCount, optVertexCount);
+
+    // #3: Reduce pixel overdraw
+    meshopt_optimizeOverdraw(optIndices.data(), optIndices.data(), indexCount, &(optVertices[0].Position.x), optVertexCount, vertexSize,
+                             1.02f);
+
+    // #4: Vertex buffer access optimization
+    meshopt_optimizeVertexFetch(optVertices.data(), optIndices.data(), indexCount, optVertices.data(), optVertexCount, vertexSize);
+
+    // #5: Simplified version of the model
+    constexpr float threshold     = 0.4f;
+    const size_t targetIndexCount = indexCount * threshold;
+    constexpr float targetError   = 0.2f;
+    std::vector<uint32_t> simplifiedIndices(indexCount);
+    const size_t optIndexCount = meshopt_simplify(simplifiedIndices.data(), optIndices.data(), indexCount, &optVertices[0].Position.x,
+                                                  optVertexCount, vertexSize, targetIndexCount, targetError);
+
+    simplifiedIndices.resize(optIndexCount);
+
+    submesh.Indices.clear();
+    submesh.Indices = {simplifiedIndices.begin(), simplifiedIndices.end()};
+
+    submesh.Vertices.clear();
+    submesh.Vertices = {optVertices.begin(), optVertices.end()};
+}
+
 void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
 {
     for (unsigned int i = 0; i < node->mNumMeshes; ++i)
     {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        m_Submeshes.push_back(m_bIsAnimated ? ProcessAnimatedSubmesh(mesh, scene) : ProcessSubmesh(mesh, scene));
+
+        Submesh submesh = {};
+        if (m_bIsAnimated)
+        {
+            submesh = ProcessAnimatedSubmesh(mesh, scene);
+            OptimizeMesh<AnimatedVertex>(submesh);
+        }
+        else
+        {
+            submesh = ProcessSubmesh(mesh, scene);
+            OptimizeMesh<MeshVertex>(submesh);
+        }
+
+        m_Submeshes.push_back(submesh);
     }
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i)

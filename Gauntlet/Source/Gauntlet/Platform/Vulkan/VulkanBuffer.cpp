@@ -7,15 +7,6 @@
 #include "VulkanAllocator.h"
 #include "VulkanUtility.h"
 
-/*
- * Mapping and then unmapping the pointer lets the driver know that
- * the write is finished, and will be safer.
- *
- * The way I understand it:
- * Initially all data stored in system RAM, allocated staging buffer on CPU, copy data from RAM to cpu, next copy from CPU to GPU VRAM using
- * PCI-Express.
- */
-
 namespace Gauntlet
 {
 
@@ -105,15 +96,15 @@ void VulkanVertexBuffer::SetData(const void* data, const size_t size)
         BufferUtils::DestroyBuffer(m_AllocatedBuffer);
     }
 
-    VulkanAllocatedBuffer StagingBuffer = {};
-    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
-    BufferUtils::CopyDataToBuffer(StagingBuffer, size, data);
+    auto& stagingBuffer = Renderer::GetStorageData().UploadHeap;
+    stagingBuffer->SetData(data, size);
 
     BufferUtils::CreateBuffer(EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST, size, m_AllocatedBuffer,
                               VMA_MEMORY_USAGE_GPU_ONLY);
 
-    BufferUtils::CopyBuffer(StagingBuffer.Buffer, m_AllocatedBuffer.Buffer, size);
-    BufferUtils::DestroyBuffer(StagingBuffer);
+    VkBuffer stagingBufferRaw = (VkBuffer)stagingBuffer->Get();
+    GNT_ASSERT(stagingBufferRaw);
+    BufferUtils::CopyBuffer(stagingBufferRaw, m_AllocatedBuffer.Buffer, size);
 }
 
 void VulkanVertexBuffer::Destroy()
@@ -158,14 +149,17 @@ void VulkanVertexBuffer::SetStagedData(const Ref<StagingBuffer>& stagingBuffer, 
 
 VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& bufferInfo) : IndexBuffer(bufferInfo), m_IndicesCount(bufferInfo.Count)
 {
-    VulkanAllocatedBuffer StagingBuffer = {};
-    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, bufferInfo.Size, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
-    BufferUtils::CopyDataToBuffer(StagingBuffer, bufferInfo.Size, bufferInfo.Data);
+    GNT_ASSERT(bufferInfo.Data && bufferInfo.Size > 0);
+
+    auto& stagingBuffer = Renderer::GetStorageData().UploadHeap;
+    stagingBuffer->SetData(bufferInfo.Data, bufferInfo.Size);
 
     BufferUtils::CreateBuffer(bufferInfo.Usage | EBufferUsageFlags::TRANSFER_DST, bufferInfo.Size, m_AllocatedBuffer,
                               VMA_MEMORY_USAGE_GPU_ONLY);
-    BufferUtils::CopyBuffer(StagingBuffer.Buffer, m_AllocatedBuffer.Buffer, bufferInfo.Size);
-    BufferUtils::DestroyBuffer(StagingBuffer);
+
+    VkBuffer stagingBufferRaw = (VkBuffer)stagingBuffer->Get();
+    GNT_ASSERT(stagingBufferRaw);
+    BufferUtils::CopyBuffer(stagingBufferRaw, m_AllocatedBuffer.Buffer, bufferInfo.Size);
 }
 
 void VulkanIndexBuffer::Destroy()
@@ -205,27 +199,25 @@ void VulkanUniformBuffer::Destroy()
 void VulkanUniformBuffer::MapPersistent()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
-    for (auto& buffer : m_AllocatedBuffers)
+    for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
     {
-        if (m_bAreMapped[context.GetCurrentFrameIndex()]) continue;
+        if (m_bAreMapped[frame]) continue;
 
-        context.GetAllocator()->Map(buffer.Allocation);
-        m_bAreMapped[context.GetCurrentFrameIndex()] = true;
+        context.GetAllocator()->Map(m_AllocatedBuffers[frame].Allocation);
+        m_bAreMapped[frame] = true;
     }
 }
 
 void* VulkanUniformBuffer::RetrieveMapped()
 {
+    auto& context = (VulkanContext&)VulkanContext::Get();
     if (m_bAreMapped[GraphicsContext::Get().GetCurrentFrameIndex()])
     {
-        auto& context = (VulkanContext&)VulkanContext::Get();
-
         VmaAllocationInfo allocationInfo = {};
         context.GetAllocator()->QueryAllocationInfo(allocationInfo, m_AllocatedBuffers[context.GetCurrentFrameIndex()].Allocation);
         return allocationInfo.pMappedData;
     }
 
-    auto& context                                               = (VulkanContext&)VulkanContext::Get();
     m_bAreMapped[GraphicsContext::Get().GetCurrentFrameIndex()] = true;
     return context.GetAllocator()->Map(m_AllocatedBuffers[GraphicsContext::Get().GetCurrentFrameIndex()].Allocation);
 }
@@ -244,27 +236,11 @@ void VulkanUniformBuffer::Update(void* data, const uint64_t size)
     auto& context                    = (VulkanContext&)VulkanContext::Get();
     const uint32_t currentFrameIndex = context.GetCurrentFrameIndex();
 
-    void* mapped = nullptr;
-    if (!m_bAreMapped[currentFrameIndex])
-    {
-        m_bAreMapped[currentFrameIndex] = true;
-        mapped                          = context.GetAllocator()->Map(m_AllocatedBuffers[currentFrameIndex].Allocation);
-    }
-    else
-    {
-        VmaAllocationInfo allocationInfo = {};
-        context.GetAllocator()->QueryAllocationInfo(allocationInfo, m_AllocatedBuffers[currentFrameIndex].Allocation);
-        mapped = allocationInfo.pMappedData;
-    }
-
+    void* mapped = RetrieveMapped();
     GNT_ASSERT(mapped, "Failed to map uniform buffer!");
     memcpy(mapped, data, size);
 
-    if (m_bAreMapped[currentFrameIndex])
-    {
-        m_bAreMapped[currentFrameIndex] = false;
-        context.GetAllocator()->Unmap(m_AllocatedBuffers[currentFrameIndex].Allocation);
-    }
+    Unmap();
     mapped = nullptr;
 }
 
@@ -292,7 +268,6 @@ void VulkanStagingBuffer::SetData(const void* data, const uint64_t dataSize)
 
 void VulkanStagingBuffer::Resize(const uint64_t newBufferSize)
 {
-    GraphicsContext::Get().WaitDeviceOnFinish();  // Maybe no need to call it.
     m_Capacity = newBufferSize;
     BufferUtils::DestroyBuffer(m_AllocatedBuffer);
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, m_Capacity, m_AllocatedBuffer, VMA_MEMORY_USAGE_CPU_ONLY);

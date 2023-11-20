@@ -50,7 +50,7 @@ void Renderer2D::Init()
 
     // Default 2D graphics pipeline creation
     {
-        auto FlatColorShader                    = ShaderLibrary::Load("Resources/Cached/Shaders/FlatColor");
+        auto FlatColorShader                    = ShaderLibrary::Load("FlatColor");
         s_RendererStorage2D->VertexBufferLayout = FlatColorShader->GetVertexBufferLayout();
 
         PipelineSpecification quadPipelineSpec = {};

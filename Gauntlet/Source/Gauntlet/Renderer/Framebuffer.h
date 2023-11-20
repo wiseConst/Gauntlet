@@ -48,6 +48,9 @@ struct FramebufferSpecification
     std::vector<FramebufferAttachmentSpecification> Attachments;
     std::vector<FramebufferAttachment> ExistingAttachments;
 
+    ELoadOp LoadOp   = ELoadOp::CLEAR;   // These are in case you have existing attachments
+    EStoreOp StoreOp = EStoreOp::STORE;  //
+
     uint32_t Width   = 0;
     uint32_t Height  = 0;
     std::string Name = "None";

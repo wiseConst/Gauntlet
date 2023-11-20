@@ -34,68 +34,19 @@ VulkanRenderer::VulkanRenderer() : m_Context((VulkanContext&)VulkanContext::Get(
                                              &s_Data.ImageDescriptorSetLayout),
                  "Failed to create texture(UI) descriptor set layout!");
     }
-
-    s_PipelineStatNames = {"Input assembly vertex count        ", "Input assembly primitives count    ",
-                           "Vertex shader invocations          "};
-
-    auto& device                              = m_Context.GetDevice();
-    VkQueryPoolCreateInfo queryPoolCreateInfo = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
-    // This query pool will store pipeline statistics
-    queryPoolCreateInfo.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
-    // Pipeline counters to be returned for this pool
-    queryPoolCreateInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |      // Input assembly vertices
-                                             VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |    // Input assembly primitives
-                                             VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |    // Vertex shader invocations
-                                             VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |  // Fragment shader invocations
-                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |         // Clipping invocations
-                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |          // Clipped primitives
-                                             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;    // Compute shader invocations
-
-    if (device->GetGPUFeatures().geometryShader)
-    {
-        queryPoolCreateInfo.pipelineStatistics |=
-            VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT | VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT;
-
-        s_PipelineStatNames.emplace_back("Geometry Shader Invocations        ");
-        s_PipelineStatNames.emplace_back("Geometry Shader Primitives         ");
-    }
-
-    s_PipelineStatNames.emplace_back("Clipping stage primitives processed");
-    s_PipelineStatNames.emplace_back("Clipping stage primitives output   ");
-    s_PipelineStatNames.emplace_back("Fragment shader invocations        ");
-
-    if (device->GetGPUFeatures().tessellationShader)
-    {
-        queryPoolCreateInfo.pipelineStatistics |= VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
-                                                  VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT;
-
-        s_PipelineStatNames.push_back("Tess. control shader patches       ");
-        s_PipelineStatNames.push_back("Tess. eval. shader invocations     ");
-    }
-
-    s_PipelineStatNames.emplace_back("Compute shader invocations         ");
-
-    queryPoolCreateInfo.queryCount = 1;
-
-    VK_CHECK(vkCreateQueryPool(device->GetLogicalDevice(), &queryPoolCreateInfo, nullptr, &s_Data.QueryPool),
-             "Failed to create query pool!");
-    s_PipelineStats.resize(s_PipelineStatNames.size());
 }
 
 void VulkanRenderer::PostInit()
 {
     // TODO: Get rid of it?
-    s_Data.GeometryDescriptorSetLayout = /*
-         std::static_pointer_cast<VulkanShader>(s_RendererStorage->GeometryPipeline->GetSpecification().Shader)
-             ->GetDescriptorSetLayouts()[0];*/
-        std::static_pointer_cast<VulkanShader>(s_RendererStorage->PBRPipeline->GetSpecification().Shader)->GetDescriptorSetLayouts()[0];
+    s_Data.GeometryDescriptorSetLayout =
+        std::static_pointer_cast<VulkanShader>(s_RendererStorage->GeometryPipeline->GetSpecification().Shader)
+            ->GetDescriptorSetLayouts()[0];
 }
 
 VulkanRenderer::~VulkanRenderer()
 {
     m_Context.WaitDeviceOnFinish();
-
-    vkDestroyQueryPool(m_Context.GetDevice()->GetLogicalDevice(), s_Data.QueryPool, nullptr);
 
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);
 
@@ -111,17 +62,6 @@ void VulkanRenderer::BeginImpl()
     GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
 
     s_Data.CurrentPipelineToBind.reset();
-}
-
-void VulkanRenderer::BeginQuery()
-{
-    vkCmdResetQueryPool(s_Data.CurrentCommandBuffer->Get(), s_Data.QueryPool, 0, 1);
-
-    vkCmdBeginQuery(s_Data.CurrentCommandBuffer->Get(), s_Data.QueryPool, 0, 0);
-}
-void VulkanRenderer::EndQuery()
-{
-    vkCmdEndQuery(s_Data.CurrentCommandBuffer->Get(), s_Data.QueryPool, 0);
 }
 
 void VulkanRenderer::BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor)

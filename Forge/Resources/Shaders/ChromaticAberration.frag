@@ -8,9 +8,9 @@ layout(set = 0, binding = 0) uniform sampler2D u_FinalImage;
 
 void main()
 {
-    const vec2 r_displacement = vec2(3.0, 0.0);
+    const vec2 r_displacement = vec2(4.0, 0.0);
     const vec2 g_displacement = vec2(0.0, 0.0);
-    const vec2 b_displacement = vec2(-3.0, 0.0);
+    const vec2 b_displacement = vec2(-4.0, 0.0);
     const vec2 pixelSize = vec2(1.0) / textureSize(u_FinalImage, 0);
 
     const float r = texture(u_FinalImage, InTexCoord + pixelSize * r_displacement).r;

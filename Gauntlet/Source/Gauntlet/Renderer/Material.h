@@ -7,6 +7,7 @@ namespace Gauntlet
 {
 
 class Texture2D;
+class UniformBuffer;
 
 class Material : private Unmovable
 {
@@ -16,6 +17,8 @@ class Material : private Unmovable
 
     virtual void Invalidate() = 0;
     virtual void Destroy()    = 0;
+
+    virtual void Update() = 0;
 
     virtual FORCEINLINE const void* GetDescriptorSet() const = 0;
     virtual FORCEINLINE void* GetDescriptorSet()             = 0;
@@ -37,6 +40,7 @@ class Material : private Unmovable
     std::vector<Ref<Texture2D>> m_AOTextures;
 
     PBRMaterial m_Data;
+    Ref<UniformBuffer> m_UBMaterial = nullptr;
 
     friend class Mesh;
 };

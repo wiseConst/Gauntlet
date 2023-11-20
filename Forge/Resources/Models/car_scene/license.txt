@@ -1,0 +1,11 @@
+Model Information:
+* title:	Car Scene
+* source:	https://sketchfab.com/3d-models/car-scene-b7b32eaca80d460c9338197e2c9d1408
+* author:	toivo (https://sketchfab.com/toivo)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Car Scene" (https://sketchfab.com/3d-models/car-scene-b7b32eaca80d460c9338197e2c9d1408) by toivo (https://sketchfab.com/toivo) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

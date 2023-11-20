@@ -30,6 +30,9 @@ class GraphicsContext : private Uncopyable, private Unmovable
 
     virtual uint32_t GetCurrentFrameIndex() const = 0;
 
+    virtual const std::vector<uint64_t>& GetPipelineStats() const        = 0;
+    virtual const std::vector<std::string>& GetPipelineStatNames() const = 0;
+
   protected:
     Scoped<Window>& m_Window;
     static GraphicsContext* s_Context;

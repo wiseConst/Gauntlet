@@ -1,47 +1,12 @@
 {
   "Scene": "Armadillo",
   "Entities": {
-    "8156845505691964205": {
-      "TagComponent": "Empty Entity",
-      "TransformComponent": {
-        "Translation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Rotation": [
-          3.3499999046325684,
-          -18.149999618530273,
-          -36.900001525878906
-        ],
-        "Scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "DirectionalLightComponent": {
-        "Color": [
-          1.0,
-          0.0,
-          0.0
-        ],
-        "AmbientSpecularShininess": [
-          0.05000000074505806,
-          0.0,
-          1.0
-        ],
-        "CastShadows": [
-          0
-        ]
-      }
-    },
     "4398712195622006662": {
       "TagComponent": "Armadillo",
       "TransformComponent": {
         "Translation": [
           0.0,
-          0.699999988079071,
+          28.700000762939453,
           0.0
         ],
         "Rotation": [
@@ -50,9 +15,9 @@
           0.0
         ],
         "Scale": [
-          1.0,
-          1.0,
-          1.0
+          0.5,
+          0.5,
+          0.5
         ]
       },
       "MeshComponent": {
@@ -73,9 +38,9 @@
           0.0
         ],
         "Scale": [
+          100.0,
           1.0,
-          1.0,
-          1.0
+          100.0
         ]
       },
       "MeshComponent": {

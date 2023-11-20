@@ -268,16 +268,12 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                            ImGui::ColorPicker3("Color", (float*)&lc.Color);
 
                                            ImGui::Separator();
-                                           ImGui::Text("Phong Model Settings");
                                            ImGui::DragFloat("Ambient", &lc.AmbientSpecularShininess.x, 0.05f, 0.0f, 1.0f, "%.2f");
                                            ImGui::DragFloat("Specular", &lc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
                                            ImGui::DragFloat("Shininess", &lc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
 
                                            ImGui::Separator();
-                                           ImGui::Text("Attenuation");
-                                           ImGui::DragFloat("Constant", &lc.CLQ.x, 0.005f, 0.0f, 5.0f, "%.2f");
-                                           ImGui::DragFloat("Linear", &lc.CLQ.y, 0.0005f, 0.0f, 5.0f, "%.6f");
-                                           ImGui::DragFloat("Quadratic", &lc.CLQ.z, 0.0005f, 0.0f, 5.0f, "%.6f");
+                                           ImGui::Checkbox("Active", &lc.bIsActive);
                                        });
 
     DrawComponent<DirectionalLightComponent>("DirectionalLightComponent", entity,
@@ -288,14 +284,10 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                                  ImGui::ColorPicker3("Color", (float*)&dlc.Color);
 
                                                  ImGui::Separator();
-                                                 ImGui::Text("Phong Model Settings");
-                                                 ImGui::DragFloat("Ambient", &dlc.AmbientSpecularShininess.x, 0.05f, 0.0f, 1.0f, "%.2f");
-                                                 ImGui::DragFloat("Specular", &dlc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX,
-                                                                  "%.2f");
-                                                 ImGui::DragFloat("Shininess", &dlc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
+                                                 ImGui::Checkbox("Cast Shadows", &dlc.bCastShadows);
 
                                                  ImGui::Separator();
-                                                 ImGui::Checkbox("Cast Shadows", &dlc.bCastShadows);
+                                                 ImGui::SliderFloat("Intensity", &dlc.Intensity, 0.0f, 100.0f, "%.2f");
                                              });
 
     DrawComponent<SpotLightComponent>("SpotLightComponent", entity,
@@ -306,7 +298,6 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                           ImGui::ColorPicker3("Color", (float*)&slc.Color);
 
                                           ImGui::Separator();
-                                          ImGui::Text("Phong Model Settings");
                                           ImGui::DragFloat("Ambient", &slc.AmbientSpecularShininess.x, 0.05f, 0.0f, 1.0f, "%.2f");
                                           ImGui::DragFloat("Specular", &slc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
                                           ImGui::DragFloat("Shininess", &slc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
@@ -330,12 +321,14 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                          static constexpr ImVec2 ImageSize(256.0f, 256.0f);
 
                                          PBRMaterial& materialData = mat->GetData();
+                                         bool bIsAnythingAdjusted  = false;
 
                                          Ref<Texture2D> albedo = mat->GetAlbedo();
                                          if (albedo && albedo->GetTextureID())
                                          {
                                              ImGui::Text("Albedo");
-                                             ImGui::ColorEdit3("BaseColor", (float*)&materialData.BaseColor);
+                                             if (ImGui::ColorEdit3("BaseColor", (float*)&materialData.BaseColor))
+                                                 bIsAnythingAdjusted = true;
                                              ImGui::Image(albedo->GetTextureID(), ImageSize);
                                              ImGui::Separator();
                                          }
@@ -352,7 +345,8 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                          if (metallic && metallic->GetTextureID())
                                          {
                                              ImGui::Text("Metallic");
-                                             ImGui::SliderFloat("Metallic", &materialData.Metallic, 0.0f, 1.0f);
+                                             if (ImGui::SliderFloat("Metallic", &materialData.Metallic, 0.0f, 1.0f))
+                                                 bIsAnythingAdjusted = true;
                                              ImGui::Image(metallic->GetTextureID(), ImageSize);
                                              ImGui::Separator();
                                          }
@@ -361,7 +355,8 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                          if (roughness && roughness->GetTextureID())
                                          {
                                              ImGui::Text("Roughness");
-                                             ImGui::SliderFloat("Roughness", &materialData.Roughness, 0.0f, 1.0f);
+                                             if (ImGui::SliderFloat("Roughness", &materialData.Roughness, 0.0f, 1.0f))
+                                                 bIsAnythingAdjusted = true;
                                              ImGui::Image(roughness->GetTextureID(), ImageSize);
                                              ImGui::Separator();
                                          }
@@ -373,6 +368,8 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                              ImGui::Image(ao->GetTextureID(), ImageSize);
                                              ImGui::Separator();
                                          }
+
+                                         if (bIsAnythingAdjusted) mat->Update();
                                      }
                                  });
 }

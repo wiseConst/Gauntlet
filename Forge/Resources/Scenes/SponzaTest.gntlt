@@ -24,6 +24,71 @@
         "Name": "Default/Cube.gltf"
       }
     },
+    "758221899414552903": {
+      "TagComponent": "point light",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.25,
+          0.0
+        ],
+        "Rotation": [
+          0.0,
+          -0.05000000074505806,
+          0.0
+        ],
+        "Scale": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "PointLightComponent": {
+        "Color": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "AmbientSpecularShininess": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "Active": [
+          true
+        ]
+      }
+    },
+    "3668227154209871001": {
+      "TagComponent": "dir light",
+      "TransformComponent": {
+        "Translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "Rotation": [
+          8.149999618530273,
+          -0.4000000059604645,
+          0.0
+        ],
+        "Scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "DirectionalLightComponent": {
+        "Color": [
+          1.0,
+          0.6470587849617004,
+          0.0
+        ],
+        "CastShadows": [
+          false
+        ]
+      }
+    },
     "2822420803088927768": {
       "TagComponent": "Stormstrooper",
       "TransformComponent": {
@@ -70,77 +135,27 @@
         "Name": "Sponza/scene.gltf"
       }
     },
-    "15155286517227874371": {
-      "TagComponent": "spot lightik",
+    "12140370059680808944": {
+      "TagComponent": "teapot",
       "TransformComponent": {
         "Translation": [
-          0.0,
-          11.550000190734863,
-          0.0
-        ],
-        "Rotation": [
-          -112.3499984741211,
-          180.0,
-          -69.5
-        ],
-        "Scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "SpotLightComponent": {
-        "Color": [
-          0.8186274766921997,
-          0.20064400136470795,
-          0.20064400136470795
-        ],
-        "AmbientSpecularShininess": [
-          0.10000000149011612,
-          1.25,
-          256.0
-        ],
-        "CutOff": [
-          52.0
-        ],
-        "Active": [
-          true
-        ]
-      }
-    },
-    "11441545254791778429": {
-      "TagComponent": "Lu4ik solnca",
-      "TransformComponent": {
-        "Translation": [
-          0.0,
-          0.0,
-          0.0
+          -3.75,
+          4.150000095367432,
+          -1.5
         ],
         "Rotation": [
           0.0,
-          -0.550000011920929,
-          -0.019999999552965164
+          -40.75,
+          -4.699999809265137
         ],
         "Scale": [
-          0.0,
-          0.0,
-          0.0
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582
         ]
       },
-      "DirectionalLightComponent": {
-        "Color": [
-          0.7658730149269104,
-          0.5229175686836243,
-          0.30695706605911255
-        ],
-        "AmbientSpecularShininess": [
-          0.15000000596046448,
-          1.0499999523162842,
-          64.0
-        ],
-        "CastShadows": [
-          1
-        ]
+      "MeshComponent": {
+        "Name": "utah_teapot_pbr/scene.gltf"
       }
     }
   }

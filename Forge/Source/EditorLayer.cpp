@@ -121,6 +121,7 @@ void EditorLayer::OnImGuiRender()
         ImGui::Text("DrawCalls: %llu", Stats.DrawCalls.load());
         ImGui::Text("QuadCount: %llu", Stats.QuadCount.load());
         ImGui::Text("Rendering Device: %s", Stats.RenderingDevice.data());
+        ImGui::Text("Upload Heap Capacity: (%0.2f) MB", Stats.UploadHeapCapacity / 1024.0f / 1024.0f);
 
         static constexpr uint32_t uint32MAX = 300;
         ImGui::InputScalar("FPS Capping( 0 means no fps cap)", ImGuiDataType_U32, &Application::Get().GetSpecification().FPSLock);
@@ -133,34 +134,46 @@ void EditorLayer::OnImGuiRender()
     auto& rs = Renderer::GetSettings();
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("ChromaticAberration View", &rs.ChromaticAberrationView);
-    ImGui::Checkbox("Pixelated View", &rs.PixelatedView);
     ImGui::Checkbox("VSync", &rs.VSync);
     ImGui::SliderFloat("Gamma", &rs.Gamma, 1.0f, 2.6f, "%0.1f");
     //   ImGui::SliderFloat("Exposure", &rs.Exposure, 0.0f, 5.0f, "%0.1f");
     if (ImGui::TreeNodeEx("Shadows", ImGuiTreeNodeFlags_Framed))
     {
-        ImGui::Checkbox("Render Shadows", &rs.RenderShadows);
+        ImGui::Checkbox("Render Shadows", &rs.Shadows.RenderShadows);
+        ImGui::Checkbox("Soft Shadows", &rs.Shadows.SoftShadows);
+
+        ImGui::Text("Shadow Quality:");
+        ImGui::SameLine();
+        if (ImGui::BeginCombo("##ShadowQuality", rs.Shadows.ShadowPresets[rs.Shadows.CurrentShadowPreset].first.data()))
+        {
+            for (uint16_t i = 0; i < rs.Shadows.ShadowPresets.size(); ++i)
+            {
+                if (ImGui::Selectable(rs.Shadows.ShadowPresets[i].first.data())) rs.Shadows.CurrentShadowPreset = i;
+            }
+            ImGui::EndCombo();
+        }
 
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNodeEx("SSAO", ImGuiTreeNodeFlags_Framed))
     {
-        ImGui::Checkbox("Enable SSAO", &rs.EnableSSAO);
-        ImGui::Checkbox("Enable SSAO-Blur", &rs.BlurSSAO);
-        ImGui::SliderFloat("Sample Radius", &rs.Radius, 0.5f, 5.0f);
-        ImGui::SliderFloat("Sample Bias", &rs.Bias, 0.0f, 2.0f);
+        ImGui::Checkbox("Enable SSAO", &rs.AO.EnableSSAO);
+        ImGui::Checkbox("Enable SSAO-Blur", &rs.AO.BlurSSAO);
+        ImGui::SliderFloat("Sample Radius", &rs.AO.Radius, 0.5f, 5.0f);
+        ImGui::SliderFloat("Sample Bias", &rs.AO.Bias, 0.0f, 2.0f);
+        ImGui::SliderInt("Magnitude", &rs.AO.Magnitude, 0, 15);
 
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNodeEx("Pipeline Statistics", ImGuiTreeNodeFlags_Framed))
     {
-        const auto pipelineStatNames = Renderer::GetPipelineStatNames();
-        const auto pipelineStats     = Renderer::GetPipelineStats();
+        const auto& pipelineStatNames = Renderer::GetPipelineStatNames();
+        const auto& pipelineStats     = Renderer::GetPipelineStats();
         for (uint32_t i = 0; i < pipelineStats.size(); ++i)
         {
-            std::string str = pipelineStatNames[i] + " %u";
+            const std::string str = pipelineStatNames[i] + " %zu";
             ImGui::Text(str.data(), pipelineStats[i]);
         }
         ImGui::TreePop();
@@ -169,14 +182,13 @@ void EditorLayer::OnImGuiRender()
     ImGui::End();
 
     ImGui::Begin("Renderer Outputs");
-    for (auto& rendererOuput : Renderer::GetRendererOutput())
+    for (const auto& rendererOuput : Renderer::GetRendererOutput())
     {
         ImGui::Text(rendererOuput.Name.data());
         ImGui::Image(rendererOuput.Attachment->GetTextureID(),
                      {ImGui::GetContentRegionAvail().x * 0.75f, ImGui::GetContentRegionAvail().x * 0.75f});
         ImGui::Separator();
     }
-
     ImGui::End();
 
     m_SceneHierarchyPanel.OnImGuiRender();

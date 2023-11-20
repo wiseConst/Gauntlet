@@ -43,11 +43,9 @@ void VulkanPipeline::CreateLayout()
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
-    /*
-     * Pipeline layout contains the information about shader inputs of a given pipeline.
-     * It’s here where you would configure your push constants and descriptor sets.
-     */
+    const auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+    GNT_ASSERT(vulkanShader, "Invalid shader!");
+
     VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(vulkanShader->GetDescriptorSetLayouts().size());
     PipelineLayoutCreateInfo.pSetLayouts                = vulkanShader->GetDescriptorSetLayouts().data();
@@ -68,6 +66,8 @@ void VulkanPipeline::Create()
 
     // Creating and validating pipeline cache
     {
+        if (!std::filesystem::exists("Resources/Cached/Pipelines")) std::filesystem::create_directories("Resources/Cached/Pipelines");
+
         std::vector<uint8_t> CacheData = Utility::LoadDataFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
         VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
         if (!CacheData.empty())
@@ -102,7 +102,9 @@ void VulkanPipeline::Create()
             InputAssemblyState.primitiveRestartEnable                 = m_Specification.PrimitiveRestartEnable;
             InputAssemblyState.topology = Utility::GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
 
-            auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+            const auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+            GNT_ASSERT(vulkanShader, "Invalid shader!");
+
             std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(vulkanShader->GetStages().size());
             for (size_t i = 0; i < ShaderStages.size(); ++i)
             {
@@ -268,6 +270,8 @@ void VulkanPipeline::Create()
 
             VK_CHECK(vkCreateGraphicsPipelines(logicalDevice, m_Cache, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &m_Handle),
                      "Failed to create GRAPHICS pipeline!");
+
+            vulkanShader->DestroyModulesAndReflectionGarbage();
             break;
         }
         case Gauntlet::EPipelineType::PIPELINE_TYPE_COMPUTE:

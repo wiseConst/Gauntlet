@@ -15,6 +15,9 @@ enum class EImageFormat : uint8_t
     SRGB,
     RGBA16F,
     RGBA32F,
+    R8,
+    R16,
+    R16F,
     R32F,
 
     R11G11B10,

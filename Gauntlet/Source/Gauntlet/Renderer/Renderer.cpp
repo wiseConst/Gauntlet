@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "Camera/Camera.h"
 
+#include "Material.h"
 #include "Renderer2D.h"
 #include "GraphicsContext.h"
 
@@ -45,6 +46,8 @@ void Renderer::Init()
         }
     }
 
+    s_RendererStorage->UploadHeap = StagingBuffer::Create(10240);  // 10 KB
+
     s_RendererStorage->CameraUniformBuffer = UniformBuffer::Create(sizeof(UBCamera));
     s_RendererStorage->CameraUniformBuffer->MapPersistent();
     {
@@ -52,16 +55,16 @@ void Renderer::Init()
         s_RendererStorage->WhiteTexture = Texture2D::Create(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
     }
 
-    // Geometry pipeline
+    // GBuffer
     {
         FramebufferSpecification geometryFramebufferSpec = {};
 
         FramebufferAttachmentSpecification attachment = {};
+        geometryFramebufferSpec.Name                  = "GBuffer";
         attachment.LoadOp                             = ELoadOp::LOAD;
         attachment.StoreOp                            = EStoreOp::STORE;
-        attachment.ClearColor                         = glm::vec4(0.0f);
-        attachment.Filter                             = ETextureFilter::LINEAR;
-        //        attachment.Wrap                               = ETextureWrap::CLAMP;
+        attachment.ClearColor                         = glm::vec4(1.0f);
+        attachment.Filter                             = ETextureFilter::NEAREST;
 
         // Position
         attachment.Format = EImageFormat::RGBA16F;
@@ -71,26 +74,25 @@ void Renderer::Init()
         attachment.Format = EImageFormat::RGBA16F;
         geometryFramebufferSpec.Attachments.push_back(attachment);
 
-        // attachment.Wrap = ETextureWrap::REPEAT;
-
         // Albedo
         attachment.Format = EImageFormat::RGBA;
         geometryFramebufferSpec.Attachments.push_back(attachment);
 
-        // Depth
-        attachment.ClearColor = glm::vec4(1.0f, glm::vec3(0.0f));
-        attachment.Format     = EImageFormat::DEPTH32F;
+        // Metallic Roughness AO
+        attachment.Format = EImageFormat::RGBA;
         geometryFramebufferSpec.Attachments.push_back(attachment);
 
-        geometryFramebufferSpec.Name = "GeometryDeferred";
+        // Depth
+        attachment.Format = EImageFormat::DEPTH32F;
+        geometryFramebufferSpec.Attachments.push_back(attachment);
 
         s_RendererStorage->GeometryFramebuffer = Framebuffer::Create(geometryFramebufferSpec);
 
-        auto GeometryShader                       = ShaderLibrary::Load("Resources/Cached/Shaders/Geometry");
-        s_RendererStorage->MeshVertexBufferLayout = GeometryShader->GetVertexBufferLayout();
+        auto GeometryShader                             = ShaderLibrary::Load("Geometry");
+        s_RendererStorage->StaticMeshVertexBufferLayout = GeometryShader->GetVertexBufferLayout();
 
         PipelineSpecification geometryPipelineSpec = {};
-        geometryPipelineSpec.Name                  = "Geometry";
+        geometryPipelineSpec.Name                  = "GeometryDeferred";
         geometryPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         geometryPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         geometryPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
@@ -114,12 +116,12 @@ void Renderer::Init()
         shadowMapAttachment.LoadOp                             = ELoadOp::CLEAR;
         shadowMapAttachment.StoreOp                            = EStoreOp::STORE;
         shadowMapAttachment.Filter                             = ETextureFilter::LINEAR;
-        shadowMapAttachment.Wrap                               = ETextureWrap::CLAMP_TO_BORDER;
+        shadowMapAttachment.Wrap                               = ETextureWrap::CLAMP_TO_EDGE;
 
         shadowMapFramebufferSpec.Attachments = {shadowMapAttachment};
         shadowMapFramebufferSpec.Name        = "ShadowMap";
-        shadowMapFramebufferSpec.Width       = 2048;
-        shadowMapFramebufferSpec.Height      = 2048;
+        shadowMapFramebufferSpec.Width       = shadowMapFramebufferSpec.Height =
+            s_RendererSettings.Shadows.ShadowPresets[s_RendererSettings.Shadows.CurrentShadowPreset].second;
 
         s_RendererStorage->ShadowMapFramebuffer = Framebuffer::Create(shadowMapFramebufferSpec);
 
@@ -132,30 +134,12 @@ void Renderer::Init()
         shadowmapPipelineSpec.bDepthTest            = true;
         shadowmapPipelineSpec.DepthCompareOp        = ECompareOp::COMPARE_OP_LESS;
         shadowmapPipelineSpec.TargetFramebuffer     = s_RendererStorage->ShadowMapFramebuffer;
-        shadowmapPipelineSpec.Layout                = s_RendererStorage->MeshVertexBufferLayout;
-        shadowmapPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/Depth");
+        shadowmapPipelineSpec.Layout                = s_RendererStorage->StaticMeshVertexBufferLayout;
+        shadowmapPipelineSpec.Shader                = ShaderLibrary::Load("DirShadowMap");
 
         s_RendererStorage->ShadowMapPipeline    = Pipeline::Create(shadowmapPipelineSpec);
         s_RendererStorage->ShadowsUniformBuffer = UniformBuffer::Create(sizeof(UBShadows));
         s_RendererStorage->ShadowsUniformBuffer->MapPersistent();
-    }
-
-    // Forward
-    {
-        PipelineSpecification forwardPipelineSpec = {};
-        forwardPipelineSpec.Name                  = "ForwardPass";
-        forwardPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        forwardPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        forwardPipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        forwardPipelineSpec.CullMode              = ECullMode::CULL_MODE_NONE;
-        forwardPipelineSpec.bDepthTest            = true;
-        forwardPipelineSpec.bDepthWrite           = true;
-        forwardPipelineSpec.DepthCompareOp        = ECompareOp::COMPARE_OP_LESS;
-        forwardPipelineSpec.bDynamicPolygonMode   = true;
-        forwardPipelineSpec.TargetFramebuffer     = s_RendererStorage->GeometryFramebuffer;
-        forwardPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/Forward");
-
-        s_RendererStorage->ForwardPassPipeline = Pipeline::Create(forwardPipelineSpec);
     }
 
     // SSAO
@@ -164,22 +148,33 @@ void Renderer::Init()
         ssaoFramebufferSpec.Name                     = "SSAO";
 
         FramebufferAttachmentSpecification ssaoFramebufferAttachmentSpec = {};
-        ssaoFramebufferAttachmentSpec.Format                             = EImageFormat::R32F;
-        ssaoFramebufferAttachmentSpec.Filter                             = ETextureFilter::LINEAR;
+        ssaoFramebufferAttachmentSpec.Format                             = EImageFormat::R8;
+        ssaoFramebufferAttachmentSpec.Filter                             = ETextureFilter::NEAREST;
         ssaoFramebufferSpec.Attachments                                  = {ssaoFramebufferAttachmentSpec};
-
-        s_RendererStorage->SSAOFramebuffer = Framebuffer::Create(ssaoFramebufferSpec);
+        s_RendererStorage->SSAOFramebuffer                               = Framebuffer::Create(ssaoFramebufferSpec);
 
         PipelineSpecification ssaoPipelineSpec = {};
         ssaoPipelineSpec.Name                  = "SSAO";
-        ssaoPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/SSAO");
-        ssaoPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
+        ssaoPipelineSpec.Shader                = ShaderLibrary::Load("SSAO");
         ssaoPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         ssaoPipelineSpec.TargetFramebuffer     = s_RendererStorage->SSAOFramebuffer;
 
         s_RendererStorage->SSAOPipeline      = Pipeline::Create(ssaoPipelineSpec);
         s_RendererStorage->SSAOUniformBuffer = UniformBuffer::Create(sizeof(UBSSAO));
         s_RendererStorage->SSAOUniformBuffer->MapPersistent();
+
+        // Generating the hemisphere kernel to use them in shader for sampling depth
+        for (uint32_t i = 0; i < s_RendererSettings.AO.KernelSize; ++i)
+        {
+            glm::vec3 sample(Random::GetInRange0To1() * 2.0f - 1.0f, Random::GetInRange0To1() * 2.0f - 1.0f, Random::GetInRange0To1());
+            sample = glm::normalize(sample);
+            sample *= Random::GetInRange0To1();
+
+            // Scale sample because we want them to be dense to the origin
+            float scale                                  = (float)i / (float)s_RendererSettings.AO.KernelSize;
+            scale                                        = Math::Lerp(0.1f, 1.0f, scale * scale);
+            s_RendererStorage->SSAODataBuffer.Samples[i] = glm::vec4(sample * scale, 0.0f);
+        }
     }
 
     // SSAO-Blur
@@ -188,7 +183,7 @@ void Renderer::Init()
         ssaoBlurFramebufferSpec.Name                     = "SSAO-Blur";
 
         FramebufferAttachmentSpecification ssaoBlurFramebufferAttachmentSpec = {};
-        ssaoBlurFramebufferAttachmentSpec.Format                             = EImageFormat::R32F;
+        ssaoBlurFramebufferAttachmentSpec.Format                             = EImageFormat::R8;
         ssaoBlurFramebufferAttachmentSpec.Filter                             = ETextureFilter::NEAREST;
         ssaoBlurFramebufferSpec.Attachments                                  = {ssaoBlurFramebufferAttachmentSpec};
 
@@ -196,49 +191,27 @@ void Renderer::Init()
 
         PipelineSpecification ssaoBlurPipelineSpec = {};
         ssaoBlurPipelineSpec.Name                  = "SSAO-Blur";
-        ssaoBlurPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/SSAO-Blur");
-        ssaoBlurPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
+        ssaoBlurPipelineSpec.Shader                = ShaderLibrary::Load("SSAO-Blur");
         ssaoBlurPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         ssaoBlurPipelineSpec.TargetFramebuffer     = s_RendererStorage->SSAOBlurFramebuffer;
 
         s_RendererStorage->SSAOBlurPipeline = Pipeline::Create(ssaoBlurPipelineSpec);
 
-        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
-        {
-            s_RendererStorage->SSAOBlurPipeline->GetSpecification().Shader->Set(
-                "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
-        }
-
-        // Generating the kernel(random points in hemisphere: z [0, 1]) we use them in shader for sampling depth
-        for (uint32_t i = 0; i < 16; ++i)
-        {
-            glm::vec3 sample(Random::GetInRange(0.0f, 1.0f) * 2.0 - 1.0, Random::GetInRange(0.0f, 1.0f) * 2.0 - 1.0,
-                             Random::GetInRange(0.0f, 1.0f));
-            sample *= Random::GetInRange(0.0f, 1.0f);
-            sample = glm::normalize(sample);
-
-            // Scale sample because we want them to be dense to the origin
-            float scale = (float)i / 16.0f;
-            scale       = Math::Lerp(0.1f, 1.0f, scale * scale);
-            sample *= scale;
-            s_RendererStorage->SSAODataBuffer.Samples[i] = glm::vec4(sample, 0.0f);
-        }
-
         // Next we need to generate a set of random values used to rotate the sample kernel, which will effectively increase the sample
         // count and minimize the 'banding' artifacts mentioned previously.
-        std::vector<glm::vec3> ssaoNoise;
-        for (uint32_t i = 0; i < 16; ++i)  // 4*4
+        std::vector<glm::vec4> ssaoNoise(SSAO_KERNEL_SIZE);
+        for (uint32_t i = 0; i < SSAO_KERNEL_SIZE; ++i)  // 4*4
         {
-            glm::vec3 noise(Random::GetInRange(0.0f, 1.0f) * 2.0f - 1.0f, Random::GetInRange(0.0f, 1.0f) * 2.0 - 1.0, 0.0f);
-            ssaoNoise.push_back(noise);
+            ssaoNoise[i] = glm::vec4(Random::GetInRange0To1() * 2.0f - 1.0f, Random::GetInRange0To1() * 2.0f - 1.0f, 0.0f, 1.0f);
         }
 
         TextureSpecification ssaoNoiseTextureSpec = {};
         ssaoNoiseTextureSpec.CreateTextureID      = true;
-        ssaoNoiseTextureSpec.Format               = EImageFormat::RGBA16F;
+        ssaoNoiseTextureSpec.Format               = EImageFormat::RGBA32F;
         ssaoNoiseTextureSpec.Filter               = ETextureFilter::NEAREST;
         ssaoNoiseTextureSpec.Wrap                 = ETextureWrap::REPEAT;
-        s_RendererStorage->SSAONoiseTexture       = Texture2D::Create(ssaoNoise.data(), ssaoNoise.size() * sizeof(ssaoNoise[0]), 4, 4);
+        s_RendererStorage->SSAONoiseTexture =
+            Texture2D::Create(ssaoNoise.data(), ssaoNoise.size() * sizeof(ssaoNoise[0]), 4, 4, ssaoNoiseTextureSpec);
     }
 
     // Lighting
@@ -247,7 +220,7 @@ void Renderer::Init()
 
         FramebufferAttachmentSpecification attachment = {};
         attachment.ClearColor                         = glm::vec4(glm::vec3(0.1f), 1.0f);
-        attachment.Format                             = EImageFormat::R11G11B10;
+        attachment.Format                             = EImageFormat::RGBA16F;  // EImageFormat::R11G11B10;
         attachment.LoadOp                             = ELoadOp::CLEAR;
         attachment.StoreOp                            = EStoreOp::STORE;
         lightingFramebufferSpec.Attachments.push_back(attachment);
@@ -260,11 +233,11 @@ void Renderer::Init()
         lightingPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         lightingPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         lightingPipelineSpec.TargetFramebuffer     = s_RendererStorage->LightingFramebuffer;
-        lightingPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/Lighting");
+        lightingPipelineSpec.Shader                = ShaderLibrary::Load("Lighting");
 
         s_RendererStorage->LightingPipeline = Pipeline::Create(lightingPipelineSpec);
 
-        s_RendererStorage->LightingUniformBuffer = UniformBuffer::Create(sizeof(UBBlinnPhong));
+        s_RendererStorage->LightingUniformBuffer = UniformBuffer::Create(sizeof(UBLighting));
         s_RendererStorage->LightingUniformBuffer->MapPersistent();
     }
 
@@ -283,35 +256,11 @@ void Renderer::Init()
 
         PipelineSpecification caPipelineSpec = {};
         caPipelineSpec.Name                  = "ChromaticAbberation";
-        caPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
         caPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         caPipelineSpec.TargetFramebuffer     = s_RendererStorage->ChromaticAberrationFramebuffer;
-        caPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/ChromaticAberration");
+        caPipelineSpec.Shader                = ShaderLibrary::Load("ChromaticAberration");
 
         s_RendererStorage->ChromaticAberrationPipeline = Pipeline::Create(caPipelineSpec);
-    }
-
-    // Chromatic Aberration
-    {
-        FramebufferSpecification pixelFramebufferSpec = {};
-        FramebufferAttachmentSpecification attachment = {};
-        attachment.ClearColor                         = glm::vec4(0.0f);
-        attachment.Format                             = EImageFormat::R11G11B10;
-        attachment.LoadOp                             = ELoadOp::CLEAR;
-        attachment.StoreOp                            = EStoreOp::STORE;
-        pixelFramebufferSpec.Attachments.push_back(attachment);
-        pixelFramebufferSpec.Name = "Pixelization";
-
-        s_RendererStorage->PixelizationFramebuffer = Framebuffer::Create(pixelFramebufferSpec);
-
-        PipelineSpecification pixelPipelineSpec = {};
-        pixelPipelineSpec.Name                  = "Pixelization";
-        pixelPipelineSpec.PolygonMode           = EPolygonMode::POLYGON_MODE_FILL;
-        pixelPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
-        pixelPipelineSpec.TargetFramebuffer     = s_RendererStorage->PixelizationFramebuffer;
-        pixelPipelineSpec.Shader                = ShaderLibrary::Load("Resources/Cached/Shaders/Pixelization");
-
-        s_RendererStorage->PixelizationPipeline = Pipeline::Create(pixelPipelineSpec);
     }
 
     // Clear-Pass
@@ -319,16 +268,14 @@ void Renderer::Init()
         FramebufferSpecification setupFramebufferSpec = {};
         setupFramebufferSpec.ExistingAttachments      = s_RendererStorage->GeometryFramebuffer->GetAttachments();
         setupFramebufferSpec.Name                     = "Setup";
+        setupFramebufferSpec.LoadOp                   = ELoadOp::CLEAR;
+        setupFramebufferSpec.StoreOp                  = EStoreOp::STORE;
 
         s_RendererStorage->SetupFramebuffer = Framebuffer::Create(setupFramebufferSpec);
     }
 
     for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
     {
-        // Pixelization
-        s_RendererStorage->PixelizationPipeline->GetSpecification().Shader->Set(
-            "u_FinalImage", s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[frame]);
-
         // Chromatic Aberration
         s_RendererStorage->ChromaticAberrationPipeline->GetSpecification().Shader->Set(
             "u_FinalImage", s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[frame]);
@@ -344,6 +291,10 @@ void Renderer::Init()
 
         s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer, 0);
 
+        // SSAO-Blur
+        s_RendererStorage->SSAOBlurPipeline->GetSpecification().Shader->Set(
+            "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
+
         // Lighting
         s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
             "u_PositionMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[0].Attachments[frame]);
@@ -355,12 +306,12 @@ void Renderer::Init()
             "u_AlbedoMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[2].Attachments[frame]);
 
         s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-            "u_ShadowMap", s_RendererStorage->ShadowMapFramebuffer->GetAttachments()[0].Attachments[frame]);
-        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-            "u_SSAOMap", s_RendererStorage->SSAOBlurFramebuffer->GetAttachments()[0].Attachments[frame]);
+            "u_MRAO", s_RendererStorage->GeometryFramebuffer->GetAttachments()[3].Attachments[frame]);
 
-        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingModelBuffer",
-                                                                            s_RendererStorage->LightingUniformBuffer, 0);
+        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+            "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
+
+        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingData", s_RendererStorage->LightingUniformBuffer);
     }
 
     // PBR
@@ -384,7 +335,7 @@ void Renderer::Init()
 
         s_RendererStorage->PBRFramebuffer = Framebuffer::Create(pbrForwardFramebufferSpec);
 
-        auto PBRShader = ShaderLibrary::Load("Resources/Cached/Shaders/PBR");
+        auto PBRShader = ShaderLibrary::Load("PBR");
 
         PipelineSpecification pbrPipelineSpec = {};
         pbrPipelineSpec.Name                  = "GBuffer";
@@ -403,7 +354,6 @@ void Renderer::Init()
 
     s_Renderer->PostInit();
 
-    s_RendererStorage->UploadHeap = StagingBuffer::Create(10240);  // 10 KB
     // Animation
     /*  {
           PipelineSpecification animationPipelineSpec = {};
@@ -439,10 +389,8 @@ void Renderer::Shutdown()
 
     s_RendererStorage->SetupFramebuffer->Destroy();
 
-    s_RendererStorage->ForwardPassPipeline->Destroy();
     //  s_RendererStorage->AnimationPipeline->Destroy();
 
-    // testing
     s_RendererStorage->PBRFramebuffer->Destroy();
     s_RendererStorage->PBRPipeline->Destroy();
 
@@ -465,9 +413,6 @@ void Renderer::Shutdown()
     s_RendererStorage->ChromaticAberrationFramebuffer->Destroy();
     s_RendererStorage->ChromaticAberrationPipeline->Destroy();
 
-    s_RendererStorage->PixelizationFramebuffer->Destroy();
-    s_RendererStorage->PixelizationPipeline->Destroy();
-
     s_RendererStorage->CameraUniformBuffer->Destroy();
 
     s_RendererStorage->WhiteTexture->Destroy();
@@ -480,24 +425,26 @@ void Renderer::Shutdown()
 
 const Ref<Image>& Renderer::GetFinalImage()
 {
-    return s_RendererStorage->PBRFramebuffer->GetAttachments()[0].Attachments[GraphicsContext::Get().GetCurrentFrameIndex()];
-    /* if (s_RendererSettings.ChromaticAberrationView)
-         return s_RendererStorage->ChromaticAberrationFramebuffer->GetAttachments()[0]
-             .Attachments[GraphicsContext::Get().GetCurrentFrameIndex()];
-     if (s_RendererSettings.PixelatedView)
-         return s_RendererStorage->PixelizationFramebuffer->GetAttachments()[0].Attachments[GraphicsContext::Get().GetCurrentFrameIndex()];
+    if (s_RendererSettings.ChromaticAberrationView)
+        return s_RendererStorage->ChromaticAberrationFramebuffer->GetAttachments()[0]
+            .Attachments[GraphicsContext::Get().GetCurrentFrameIndex()];
 
-     return s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[GraphicsContext::Get().GetCurrentFrameIndex()];*/
+    return s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[GraphicsContext::Get().GetCurrentFrameIndex()];
 }
 
 void Renderer::Begin()
 {
     s_Renderer->BeginImpl();
-    Renderer::GetStats().DrawCalls = 0;
+    s_RendererStats.DrawCalls          = 0;
+    s_RendererStats.UploadHeapCapacity = s_RendererStorage->UploadHeap->GetCapacity();
 
-    // Empty pipeline stats
-    for (auto& pipelineStat : s_PipelineStats)
-        pipelineStat = 0;
+    if (s_RendererSettings.Shadows.ShadowPresets[s_RendererSettings.Shadows.CurrentShadowPreset].second !=
+        s_RendererStorage->ShadowMapFramebuffer->GetWidth())
+    {
+        s_RendererStorage->ShadowMapFramebuffer->Resize(
+            s_RendererSettings.Shadows.ShadowPresets[s_RendererSettings.Shadows.CurrentShadowPreset].second,
+            s_RendererSettings.Shadows.ShadowPresets[s_RendererSettings.Shadows.CurrentShadowPreset].second);
+    }
 
     if (s_RendererStorage->bFramebuffersNeedResize)
     {
@@ -508,8 +455,6 @@ void Renderer::Begin()
         s_RendererStorage->LightingFramebuffer->Resize(s_RendererStorage->NewFramebufferSize.x, s_RendererStorage->NewFramebufferSize.y);
         s_RendererStorage->ChromaticAberrationFramebuffer->Resize(s_RendererStorage->NewFramebufferSize.x,
                                                                   s_RendererStorage->NewFramebufferSize.y);
-        s_RendererStorage->PixelizationFramebuffer->Resize(s_RendererStorage->NewFramebufferSize.x,
-                                                           s_RendererStorage->NewFramebufferSize.y);
 
         s_RendererStorage->PBRFramebuffer->Resize(s_RendererStorage->NewFramebufferSize.x, s_RendererStorage->NewFramebufferSize.y);
 
@@ -518,68 +463,61 @@ void Renderer::Begin()
             geometry.Material->Invalidate();
         }*/
 
-        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
-        {
-            // Updating LightingSet
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-                "u_PositionMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[0].Attachments[frame]);
-
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-                "u_NormalMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[1].Attachments[frame]);
-
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-                "u_AlbedoMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[2].Attachments[frame]);
-
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-                "u_ShadowMap", s_RendererStorage->ShadowMapFramebuffer->GetAttachments()[0].Attachments[frame]);
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-                "u_SSAOMap", Renderer::GetSettings().BlurSSAO
-                                 ? s_RendererStorage->SSAOBlurFramebuffer->GetAttachments()[0].Attachments[frame]
-                                 : s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
-
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingModelBuffer",
-                                                                                s_RendererStorage->LightingUniformBuffer, 0);
-
-            // Updating SSAO Set
-            s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set(
-                "u_PositionMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[0].Attachments[frame]);
-
-            s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set(
-                "u_NormalMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[1].Attachments[frame]);
-
-            s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_TexNoiseMap", s_RendererStorage->SSAONoiseTexture);
-
-            s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer, 0);
-
-            // Updating SSAO-Blur Set
-            s_RendererStorage->SSAOBlurPipeline->GetSpecification().Shader->Set(
-                "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
-
-            // Chromatic Aberration
-            s_RendererStorage->ChromaticAberrationPipeline->GetSpecification().Shader->Set(
-                "u_FinalImage", s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[frame]);
-
-            // Pixelization
-            s_RendererStorage->PixelizationPipeline->GetSpecification().Shader->Set(
-                "u_FinalImage", s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[frame]);
-        }
-
         s_RendererStorage->bFramebuffersNeedResize = false;
     }
 
-    // SSAO Enable
-    for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
-    {
-        if (Renderer::GetSettings().EnableSSAO)
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
-                "u_SSAOMap", Renderer::GetSettings().BlurSSAO
-                                 ? s_RendererStorage->SSAOBlurFramebuffer->GetAttachments()[0].Attachments[frame]
-                                 : s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
-        else
-            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_SSAOMap", s_RendererStorage->WhiteTexture);
-    }
+    const uint32_t currentFrame = GraphicsContext::Get().GetCurrentFrameIndex();
+    // Updating Lighting
+    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+        "u_PositionMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[0].Attachments[currentFrame]);
 
-    s_Renderer->BeginQuery();
+    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+        "u_NormalMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[1].Attachments[currentFrame]);
+
+    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+        "u_AlbedoMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[2].Attachments[currentFrame]);
+    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+        "u_MRAO", s_RendererStorage->GeometryFramebuffer->GetAttachments()[3].Attachments[currentFrame]);
+
+    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingData", s_RendererStorage->LightingUniformBuffer);
+
+    // Updating SSAO
+    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set(
+        "u_PositionMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[0].Attachments[currentFrame]);
+
+    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set(
+        "u_NormalMap", s_RendererStorage->GeometryFramebuffer->GetAttachments()[1].Attachments[currentFrame]);
+
+    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_TexNoiseMap", s_RendererStorage->SSAONoiseTexture);
+
+    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer, 0);
+
+    // Updating SSAO-Blur
+    s_RendererStorage->SSAOBlurPipeline->GetSpecification().Shader->Set(
+        "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[currentFrame]);
+
+    // Chromatic Aberration
+    s_RendererStorage->ChromaticAberrationPipeline->GetSpecification().Shader->Set(
+        "u_FinalImage", s_RendererStorage->LightingFramebuffer->GetAttachments()[0].Attachments[currentFrame]);
+
+    // SSAO Enable
+    if (Renderer::GetSettings().AO.EnableSSAO && !s_RendererStorage->SortedGeometry.empty())
+    {
+        if (Renderer::GetSettings().AO.BlurSSAO)
+        {
+            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+                "u_SSAOMap", s_RendererStorage->SSAOBlurFramebuffer->GetAttachments()[0].Attachments[currentFrame]);
+        }
+        else
+        {
+            s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
+                "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[currentFrame]);
+        }
+    }
+    else
+    {
+        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_SSAOMap", s_RendererStorage->WhiteTexture);
+    }
 
     // Clear geometry buffer contents
     BeginRenderPass(s_RendererStorage->SetupFramebuffer, glm::vec4(0.3f, 0.56f, 0.841f, 1.0f));
@@ -587,6 +525,9 @@ void Renderer::Begin()
 
     {
         s_RendererStorage->UBGlobalLighting.Gamma = s_RendererSettings.Gamma;
+        for (uint32_t i = 0; i < s_RendererStorage->CurrentSpotLightIndex; ++i)
+            s_RendererStorage->UBGlobalLighting.SpotLights[i] = SpotLight();
+
         for (uint32_t i = 0; i < s_RendererStorage->CurrentDirLightIndex; ++i)
             s_RendererStorage->UBGlobalLighting.DirLights[i] = DirectionalLight();
 
@@ -603,12 +544,13 @@ void Renderer::Begin()
 void Renderer::Flush()
 {
     // SSAO-Pass
-    if (!s_RendererStorage->SortedGeometry.empty() && Renderer::GetSettings().EnableSSAO)
+    if (!s_RendererStorage->SortedGeometry.empty() && Renderer::GetSettings().AO.EnableSSAO)
     {
-        static constexpr auto noiseFactor                         = 4.0f;
-        s_RendererStorage->SSAODataBuffer.ViewportSizeNoiseFactor = glm::vec4(s_RendererStorage->NewFramebufferSize, noiseFactor, 0.0f);
-        s_RendererStorage->SSAODataBuffer.CameraProjection        = s_RendererStorage->UBGlobalCamera.Projection;
-        s_RendererStorage->SSAODataBuffer.RadiusBias = glm::vec4(s_RendererSettings.Radius, s_RendererSettings.Bias, 0.0f, 0.0f);
+        s_RendererStorage->SSAODataBuffer.CameraProjection = s_RendererStorage->UBGlobalCamera.Projection;
+        s_RendererStorage->SSAODataBuffer.ViewProjection   = s_RendererStorage->UBGlobalCamera.View;
+        s_RendererStorage->SSAODataBuffer.Radius           = s_RendererSettings.AO.Radius;
+        s_RendererStorage->SSAODataBuffer.Bias             = s_RendererSettings.AO.Bias;
+        s_RendererStorage->SSAODataBuffer.Magnitude        = s_RendererSettings.AO.Magnitude;
 
         s_RendererStorage->SSAOUniformBuffer->Update(&s_RendererStorage->SSAODataBuffer, sizeof(UBSSAO));
 
@@ -618,7 +560,7 @@ void Renderer::Flush()
 
         EndRenderPass(s_RendererStorage->SSAOFramebuffer);
 
-        if (Renderer::GetSettings().BlurSSAO)
+        if (Renderer::GetSettings().AO.BlurSSAO)
         {
             BeginRenderPass(s_RendererStorage->SSAOBlurFramebuffer, glm::vec4(glm::vec3(0.8f), 1.0f));
 
@@ -632,9 +574,10 @@ void Renderer::Flush()
     {
         BeginRenderPass(s_RendererStorage->LightingFramebuffer, glm::vec4(0.7f, 0.7f, 0.0f, 1.0f));
 
+        s_RendererStorage->LightingUniformBuffer->Update(&s_RendererStorage->UBGlobalLighting, sizeof(s_RendererStorage->UBGlobalLighting));
+
         MeshPushConstants pushConstants = {};
         pushConstants.Data              = glm::vec4(s_RendererStorage->UBGlobalCamera.Position, 0.0f);
-        pushConstants.TransformMatrix   = s_RendererStorage->MeshShadowsBuffer.LightSpaceMatrix;
 
         SubmitFullscreenQuad(s_RendererStorage->LightingPipeline, &pushConstants);
 
@@ -649,17 +592,6 @@ void Renderer::Flush()
 
         EndRenderPass(s_RendererStorage->ChromaticAberrationFramebuffer);
     }
-
-    // Pixelization
-    {
-        BeginRenderPass(s_RendererStorage->PixelizationFramebuffer, glm::vec4(0.23f, 0.32f, 0.0f, 1.0f));
-
-        SubmitFullscreenQuad(s_RendererStorage->PixelizationPipeline);
-
-        EndRenderPass(s_RendererStorage->PixelizationFramebuffer);
-    }
-
-    s_Renderer->EndQuery();
 }
 
 void Renderer::BeginScene(const Camera& camera)
@@ -687,18 +619,18 @@ void Renderer::EndScene()
                   return lhsLength > rhsLength;  // Descending order
               });
 
-    // TODO: Culling-Pass
+    // TODO: Compute Culling-Pass
 
     // ShadowMap-Pass
     {
-        s_RendererStorage->ShadowMapFramebuffer->SetDepthStencilClearColor(GetSettings().RenderShadows ? 1.0f : 0.0f, 0);
+        s_RendererStorage->ShadowMapFramebuffer->SetDepthStencilClearColor(GetSettings().Shadows.RenderShadows ? 1.0f : 0.0f, 0);
         BeginRenderPass(s_RendererStorage->ShadowMapFramebuffer, glm::vec4(0.2f, 0.2f, 0.2f, 1.0f));
 
-        if (Renderer::GetSettings().RenderShadows)
+        if (Renderer::GetSettings().Shadows.RenderShadows)
         {
-            constexpr float cameraWidth     = 24.0f;
+            constexpr float cameraWidth     = 12.0f;
             constexpr float zNear           = 0.0000001f;
-            constexpr float zFar            = 512.0f;
+            constexpr float zFar            = 1024.0f;
             const glm::mat4 lightProjection = glm::ortho(-cameraWidth, cameraWidth, -cameraWidth, cameraWidth, zNear, zFar);
 
             const glm::mat4 lightView = glm::lookAt(glm::vec3(s_RendererStorage->UBGlobalLighting.DirLights[0].Direction), glm::vec3(0.0f),
@@ -706,78 +638,76 @@ void Renderer::EndScene()
 
             s_RendererStorage->MeshShadowsBuffer.LightSpaceMatrix = lightProjection * lightView;
 
-            LightPushConstants pushConstants   = {};
-            pushConstants.LightSpaceProjection = s_RendererStorage->MeshShadowsBuffer.LightSpaceMatrix;
-
+            MatrixPushConstants mpc = {};
+            mpc.mat2                = s_RendererStorage->MeshShadowsBuffer.LightSpaceMatrix;
             for (auto& geometry : s_RendererStorage->SortedGeometry)
             {
-                pushConstants.Model = geometry.Transform;
-                SubmitMesh(s_RendererStorage->ShadowMapPipeline, geometry.VertexBuffer, geometry.IndexBuffer, nullptr, &pushConstants);
+                mpc.mat1 = geometry.Transform;
+                SubmitMesh(s_RendererStorage->ShadowMapPipeline, geometry.VertexBuffer, geometry.IndexBuffer, nullptr, &mpc);
             }
         }
 
         EndRenderPass(s_RendererStorage->ShadowMapFramebuffer);
     }
 
-    // Actual Geometry-Pass
-    //{
-    //    BeginRenderPass(s_RendererStorage->GeometryFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+    // GPass
+    {
+        BeginRenderPass(s_RendererStorage->GeometryFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
 
-    //    s_RendererStorage->LightingUniformBuffer->Update(&s_RendererStorage->UBGlobalLighting, sizeof(UBBlinnPhong));
+        for (auto& geometry : s_RendererStorage->SortedGeometry)
+        {
+            MatrixPushConstants mpc = {};
+            mpc.mat1                = geometry.Transform;
+            mpc.mat2                = glm::mat4(glm::transpose(glm::inverse(glm::mat3(geometry.Transform))));
+            geometry.Material->Update();  // Is it useless?
+
+            SubmitMesh(s_RendererStorage->GeometryPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &mpc);
+        }
+
+        EndRenderPass(s_RendererStorage->GeometryFramebuffer);
+    }
+
+    // PBR-ForwardPass
+    //{
+    //    BeginRenderPass(s_RendererStorage->PBRFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
 
     //    for (auto& geometry : s_RendererStorage->SortedGeometry)
     //    {
     //        MeshPushConstants pushConstants = {};
     //        pushConstants.TransformMatrix   = geometry.Transform;
 
-    //        SubmitMesh(s_RendererStorage->GeometryPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material,
-    //        &pushConstants);
+    //        SubmitMesh(s_RendererStorage->PBRPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &pushConstants);
     //    }
 
-    //    EndRenderPass(s_RendererStorage->GeometryFramebuffer);
+    //    EndRenderPass(s_RendererStorage->PBRFramebuffer);
     //}
-
-    // PBR-Forward
-    {
-        BeginRenderPass(s_RendererStorage->PBRFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-
-        for (auto& geometry : s_RendererStorage->SortedGeometry)
-        {
-            MeshPushConstants pushConstants = {};
-            pushConstants.TransformMatrix   = geometry.Transform;
-
-            SubmitMesh(s_RendererStorage->PBRPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &pushConstants);
-        }
-
-        EndRenderPass(s_RendererStorage->PBRFramebuffer);
-    }
 }
 
-void Renderer::AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
-                             const glm::vec3& CLQ)
+void Renderer::AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess, int32_t active)
 {
     if (s_RendererStorage->CurrentPointLightIndex >= s_MAX_POINT_LIGHTS) return;
 
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Position = glm::vec4(position, 0.0f);
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Color    = glm::vec4(color, 0.0f);
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].AmbientSpecularShininessCastShadows =
-        glm::vec4(AmbientSpecularShininess, 0.0f);
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Position  = glm::vec4(position, 0.0f);
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Color     = glm::vec4(color, 0.0f);
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Ambient   = AmbientSpecularShininess.x;
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Specular  = AmbientSpecularShininess.y;
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Shininess = AmbientSpecularShininess.z;
 
     const bool bIsActive = color.x > 0.0f || color.y > 0.0f || color.z > 0.0f;
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].CLQActive = glm::vec4(CLQ, bIsActive);
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].IsActive = active;
     ++s_RendererStorage->CurrentPointLightIndex;
 }
 
-void Renderer::AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction, const glm::vec4& AmbientSpecularShininessCastShadows)
+void Renderer::AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction, int32_t castShadows, float intensity)
 {
     s_RendererStorage->UBGlobalLighting.Gamma = s_RendererSettings.Gamma;
 
     if (s_RendererStorage->CurrentDirLightIndex >= s_MAX_DIR_LIGHTS) return;
 
-    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].Color     = glm::vec4(color, 0.0f);
-    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].Direction = glm::vec4(direction, 0.0f);
-    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].AmbientSpecularShininessCastShadows =
-        AmbientSpecularShininessCastShadows;
+    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].Color       = glm::vec4(color, 0.0f);
+    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].Direction   = glm::vec4(direction, 0.0f);
+    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].CastShadows = castShadows;
+    s_RendererStorage->UBGlobalLighting.DirLights[s_RendererStorage->CurrentDirLightIndex].Intensity   = intensity;
     ++s_RendererStorage->CurrentDirLightIndex;
 }
 
@@ -818,9 +748,9 @@ std::vector<RendererOutput> Renderer::GetRendererOutput()
     rendererOutput.emplace_back(s_RendererStorage->GeometryFramebuffer->GetAttachments()[3].Attachments[currentFrame], "Depth");
     rendererOutput.emplace_back(s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[currentFrame], "SSAO");
     rendererOutput.emplace_back(s_RendererStorage->SSAOBlurFramebuffer->GetAttachments()[0].Attachments[currentFrame], "SSAO-Blur");
+    rendererOutput.emplace_back(s_RendererStorage->SSAONoiseTexture->GetImage(), "SSAO-Noise");
     rendererOutput.emplace_back(s_RendererStorage->ChromaticAberrationFramebuffer->GetAttachments()[0].Attachments[currentFrame],
                                 "ChromaticAberration");
-    rendererOutput.emplace_back(s_RendererStorage->PixelizationFramebuffer->GetAttachments()[0].Attachments[currentFrame], "Pixelization");
 
     return rendererOutput;
 }

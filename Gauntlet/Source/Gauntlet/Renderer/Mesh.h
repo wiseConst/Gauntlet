@@ -167,6 +167,8 @@ class Submesh final
     {
     }
 
+    Submesh() = default;
+
     //   private:
     std::vector<MeshVertex> Vertices;
     std::vector<AnimatedVertex> AnimatedVertices;
@@ -226,6 +228,8 @@ class Mesh final
 
     void ProcessNode(aiNode* node, const aiScene* scene);
     Submesh ProcessSubmesh(aiMesh* mesh, const aiScene* scene);
+
+    template <typename VertexType> void OptimizeMesh(Submesh& submesh);
 
     Submesh ProcessAnimatedSubmesh(aiMesh* mesh, const aiScene* scene);
     std::vector<Ref<Texture2D>> LoadMaterialTextures(aiMaterial* mat, aiTextureType type);

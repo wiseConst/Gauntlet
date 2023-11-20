@@ -8,7 +8,6 @@
 #include "VulkanTextureCube.h"
 #include "VulkanDevice.h"
 #include "VulkanUtility.h"
-#include "Gauntlet/Renderer/Skybox.h"
 
 #pragma warning(disable : 4100)
 
@@ -21,11 +20,18 @@ VulkanMaterial::VulkanMaterial()
     // Invalidate();
 }
 
+void VulkanMaterial::Update()
+{
+    m_UBMaterial->Update(&m_Data, sizeof(PBRMaterial));
+}
+
 void VulkanMaterial::Invalidate()
 {
     auto& Context                         = (VulkanContext&)VulkanContext::Get();
     const auto& VulkanRendererStorageData = VulkanRenderer::GetVulkanStorageData();
     const auto& RendererStorageData       = Renderer::GetStorageData();
+
+    if (!m_UBMaterial) m_UBMaterial = UniformBuffer::Create(sizeof(PBRMaterial));
 
     if (!m_DescriptorSet.Handle)
     {
@@ -108,7 +114,8 @@ void VulkanMaterial::Invalidate()
         Writes.push_back(WhiteTextureWriteSet);
     }
 
-    auto vulkanCameraUB = std::static_pointer_cast<VulkanUniformBuffer>(RendererStorageData.CameraUniformBuffer);
+    auto vulkanCameraUB   = std::static_pointer_cast<VulkanUniformBuffer>(RendererStorageData.CameraUniformBuffer);
+    auto vulkanMaterialUB = std::static_pointer_cast<VulkanUniformBuffer>(m_UBMaterial);
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
         VkDescriptorBufferInfo CameraDataBufferInfo = {};
@@ -121,19 +128,32 @@ void VulkanMaterial::Invalidate()
             Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, m_DescriptorSet.Handle, 1, &CameraDataBufferInfo);
 
         Writes.push_back(CameraDataBufferWriteSet);
+
+        VkDescriptorBufferInfo MaterialDataBufferInfo = {};
+        MaterialDataBufferInfo.buffer                 = vulkanMaterialUB->GetHandles()[i].Buffer;
+        MaterialDataBufferInfo.range                  = sizeof(PBRMaterial);
+        MaterialDataBufferInfo.offset                 = 0;
+
+        // MaterialWrite
+        auto MaterialDataBufferWriteSet =
+            Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6, m_DescriptorSet.Handle, 1, &MaterialDataBufferInfo);
+
+        Writes.push_back(MaterialDataBufferWriteSet);
+
         vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), static_cast<uint32_t>(Writes.size()), Writes.data(), 0,
                                VK_NULL_HANDLE);
 
+        Writes.pop_back();
         Writes.pop_back();
     }
 }
 
 void VulkanMaterial::Destroy()
 {
-    // TODO: Refactor all of this
-
     auto& context = (VulkanContext&)VulkanContext::Get();
     context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
+
+    m_UBMaterial->Destroy();
 }
 
 }  // namespace Gauntlet

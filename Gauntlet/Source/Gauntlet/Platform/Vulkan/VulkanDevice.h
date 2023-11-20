@@ -187,16 +187,11 @@ class VulkanDevice final : private Uncopyable, private Unmovable
     FORCEINLINE const auto& GetGPUFeatures() const { return m_GPUInfo.GPUFeatures; }
     FORCEINLINE auto& GetGPUFeatures() { return m_GPUInfo.GPUFeatures; }
 
-    // Calculate required alignment based on minimum device offset alignment
-    FORCEINLINE const size_t GetUniformBufferAlignedSize(const size_t originalSize)
+    FORCEINLINE VkDeviceAddress GetBufferDeviceAddress(const VkBuffer& buffer)
     {
-        size_t alignedSize = originalSize;
-        if (m_GPUInfo.GPUProperties.limits.minUniformBufferOffsetAlignment > 0)
-        {
-            alignedSize = (alignedSize + m_GPUInfo.GPUProperties.limits.minUniformBufferOffsetAlignment - 1) &
-                          ~(m_GPUInfo.GPUProperties.limits.minUniformBufferOffsetAlignment - 1);
-        }
-        return alignedSize;
+        VkBufferDeviceAddressInfo bdaInfo = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+        bdaInfo.buffer                    = buffer;
+        return vkGetBufferDeviceAddress(m_GPUInfo.LogicalDevice, &bdaInfo);
     }
 
   private:

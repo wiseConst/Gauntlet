@@ -96,7 +96,7 @@ struct PointLightComponent
 {
     glm::vec3 Color{0.0f};
     glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
-    glm::vec3 CLQ{1.0f, 0.0f, 0.0f};  // Constant Linear Quadratic
+    bool bIsActive = true;
 
     PointLightComponent()                           = default;
     PointLightComponent(const PointLightComponent&) = default;
@@ -105,8 +105,8 @@ struct PointLightComponent
 struct DirectionalLightComponent
 {
     glm::vec3 Color{0.0f};
-    glm::vec3 AmbientSpecularShininess{glm::vec2(0.0f), 1.0f};
     bool bCastShadows = false;
+    float Intensity   = 1.0f;
 
     DirectionalLightComponent()                                 = default;
     DirectionalLightComponent(const DirectionalLightComponent&) = default;

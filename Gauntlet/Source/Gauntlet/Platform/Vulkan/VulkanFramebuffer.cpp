@@ -91,6 +91,8 @@ void VulkanFramebuffer::Create()
         FramebufferAttachment framebufferAttachment = {};
         for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
         {
+            framebufferAttachment.Specification.LoadOp  = m_Specification.LoadOp;
+            framebufferAttachment.Specification.StoreOp = m_Specification.StoreOp;
             framebufferAttachment.Specification.Format =
                 m_Specification.ExistingAttachments[i].Attachments[frame]->GetSpecification().Format;
             framebufferAttachment.Specification.ClearColor = m_Specification.ExistingAttachments[i].Specification.ClearColor;
@@ -196,8 +198,7 @@ void VulkanFramebuffer::Create()
         dependencies.push_back(depthDependency);
     }
 
-    VkRenderPassCreateInfo renderPassCreateInfo = {};
-    renderPassCreateInfo.sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    VkRenderPassCreateInfo renderPassCreateInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
     renderPassCreateInfo.attachmentCount        = static_cast<uint32_t>(attachments.size());
     renderPassCreateInfo.pAttachments           = attachments.data();
     renderPassCreateInfo.dependencyCount        = static_cast<uint32_t>(dependencies.size());

@@ -228,7 +228,8 @@ class StagingBuffer : private Uncopyable, private Unmovable
 
     virtual void Destroy()                                          = 0;
     virtual void SetData(const void* data, const uint64_t dataSize) = 0;
-    virtual void* Get() const                                     = 0;
+    virtual void* Get() const                                       = 0;
+    virtual size_t GetCapacity() const                              = 0;
 
     static Ref<StagingBuffer> Create(const uint64_t bufferSize);
 

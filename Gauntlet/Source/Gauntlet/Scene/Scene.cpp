@@ -96,15 +96,14 @@ void Scene::OnUpdate(const float deltaTime)
                 auto& plc = entity.GetComponent<PointLightComponent>();
 
                 const glm::vec4 Position = glm::vec4(Transform.Translation, 1.0f);
-                Renderer::AddPointLight(Position, plc.Color, plc.AmbientSpecularShininess, plc.CLQ);
+                Renderer::AddPointLight(Position, plc.Color, plc.AmbientSpecularShininess, plc.bIsActive);
             }
 
             if (entity.HasComponent<DirectionalLightComponent>())
             {
                 auto& dlc = entity.GetComponent<DirectionalLightComponent>();
 
-                Renderer::AddDirectionalLight(dlc.Color, glm::radians(Transform.Rotation),
-                                              glm::vec4(dlc.AmbientSpecularShininess, (float)dlc.bCastShadows));
+                Renderer::AddDirectionalLight(dlc.Color, glm::radians(Transform.Rotation), dlc.bCastShadows, dlc.Intensity);
             }
 
             if (entity.HasComponent<SpotLightComponent>())

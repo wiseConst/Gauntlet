@@ -102,6 +102,9 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
         case EImageFormat::RGBA32F: return VK_FORMAT_R32G32B32A32_SFLOAT;
         case EImageFormat::RGB32F: return VK_FORMAT_R32G32B32_SFLOAT;
         case EImageFormat::RGB16F: return VK_FORMAT_R16G16B16_SFLOAT;
+        case EImageFormat::R8: return VK_FORMAT_R8_UNORM;
+        case EImageFormat::R16: return VK_FORMAT_R16_UNORM;
+        case EImageFormat::R16F: return VK_FORMAT_R16_SFLOAT;
         case EImageFormat::R32F: return VK_FORMAT_R32_SFLOAT;
         case EImageFormat::R11G11B10: return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
         case EImageFormat::DEPTH32F: return VK_FORMAT_D32_SFLOAT;

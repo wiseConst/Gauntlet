@@ -1,7 +1,7 @@
 {
   "Scene": "Default",
   "Entities": {
-    "4645663312486382780": {
+    "709989520505410263": {
       "TagComponent": "New Entity",
       "TransformComponent": {
         "Translation": [
@@ -21,30 +21,7 @@
         ]
       },
       "MeshComponent": {
-        "Name": "DancingStormStrooper/scene.gltf"
-      }
-    },
-    "18139554734301901481": {
-      "TagComponent": "New Entity",
-      "TransformComponent": {
-        "Translation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Rotation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "Scale": [
-          -17.100000381469727,
-          0.25,
-          0.25
-        ]
-      },
-      "MeshComponent": {
-        "Name": "Sponza/scene.gltf"
+        "Name": "utah_teapot/scene.gltf"
       }
     }
   }

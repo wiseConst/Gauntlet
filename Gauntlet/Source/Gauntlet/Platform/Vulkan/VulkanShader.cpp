@@ -10,6 +10,12 @@
 #include "VulkanBuffer.h"
 #include "Gauntlet/Renderer/CoreRendererStructs.h"
 
+#include "Gauntlet/Core/Application.h"
+
+// For compiling
+#include <shaderc/shaderc.hpp>
+
+// For refleciton
 #include "common/output_stream.h"
 
 namespace Gauntlet
@@ -127,20 +133,85 @@ void PrintDescriptorSet(const SpvReflectDescriptorSet& obj)
 
 }  // namespace ReflectionUtils
 
+// TODO: Add Working Dir to application class
+
+std::vector<uint8_t> VulkanShader::CompileOrGetSpvBinaries(const std::string& shaderExt, const std::string& filePath,
+                                                           const std::string& shaderSourcePath, const std::string& shaderCachePathStr)
+{
+    std::vector<uint8_t> spvData;
+    std::filesystem::path shaderCachePath(shaderCachePathStr + '.' + shaderExt + '.' + "spv");
+
+    // Firstly check && try to load shader cache
+    if (std::filesystem::exists(shaderCachePath)) spvData = Utility::LoadDataFromDisk(shaderCachePath.string().data());
+    if (!spvData.empty()) return spvData;
+
+    // If shader cache doesn't exist we compile.
+    shaderc_shader_kind shaderType = {};
+    if (shaderExt == "vert")
+        shaderType = shaderc_glsl_vertex_shader;
+    else if (shaderExt == "frag")
+        shaderType = shaderc_glsl_fragment_shader;
+    else if (shaderExt == "geom")
+        shaderType = shaderc_glsl_geometry_shader;
+    else if (shaderExt == "comp")
+        shaderType = shaderc_glsl_compute_shader;
+    else if (shaderExt == "miss")
+        shaderType = shaderc_glsl_miss_shader;
+    else if (shaderExt == "raygen")
+        shaderType = shaderc_glsl_raygen_shader;
+    else
+        GNT_ASSERT(false);
+
+    const auto compileBegin = Application::GetTimeNow();
+
+    // Parse GLSL
+    auto glslSource = Utility::LoadDataFromDisk(shaderSourcePath.data());
+    const std::string glslSourceString(glslSource.begin(), glslSource.end());
+
+    // Shaderc compiler
+    shaderc::Compiler compiler      = {};
+    shaderc::CompileOptions options = {};
+    options.SetOptimizationLevel(shaderc_optimization_level_zero);
+
+    // Compile GLSL into SPV binaries
+    const auto compiledShader = compiler.CompileGlslToSpv(glslSourceString, shaderType, shaderSourcePath.data(), options);
+    if (compiledShader.GetCompilationStatus() != shaderc_compilation_status_success)
+    {
+        LOG_ERROR("SHADERC ERROR:%s", compiledShader.GetErrorMessage().data());
+        GNT_ASSERT(false);
+    }
+
+    // Retrieve spv binaries and store it to  disk
+    spvData = std::vector<uint8_t>((const uint8_t*)compiledShader.cbegin(), (const uint8_t*)compiledShader.cend());
+    GNT_ASSERT(Utility::SaveDataToDisk(spvData.data(), spvData.size() * sizeof(spvData[0]), shaderCachePath.string()) == true);
+
+    const auto compileEnd = Application::GetTimeNow();
+    LOG_TRACE("Time took to compile %s, (%0.3f)ms", (std::string(filePath) + "." + shaderExt).data(),
+              (compileEnd - compileBegin) * 1000.0f);
+
+    return spvData;
+}
+
 VulkanShader::VulkanShader(const std::string_view& filePath)
 {
+    const std::string shaderCachePathStr  = "Resources/Cached/Shaders/" + std::string(filePath);
+    const std::string shaderSourcePathStr = "Resources/Shaders/" + std::string(filePath);
+
+    GNT_ASSERT(std::filesystem::is_directory("Resources/Shaders"), "Can't find shader source directory!");
+    if (!std::filesystem::is_directory("Resources/Cached/Shaders")) std::filesystem::create_directories("Resources/Cached/Shaders");
+
     std::vector<const char*> shaderExtensions = {"vert", "frag", "geom", "comp", "miss", "raygen"};
     for (auto& ext : shaderExtensions)
     {
-        std::filesystem::path shaderPath(std::string(filePath) + '.' + ext + '.' + "spv");
-        if (!std::filesystem::exists(shaderPath)) continue;
+        std::filesystem::path shaderSourcePath(shaderSourcePathStr + '.' + ext);
+        if (!std::filesystem::exists(shaderSourcePath)) continue;
 
-        const auto shaderCode = Utility::LoadDataFromDisk(shaderPath.string());
-        auto& shaderStage     = m_ShaderStages.emplace_back();
-        shaderStage.Module    = LoadShaderModule(shaderCode);
+        auto spvData       = CompileOrGetSpvBinaries(ext, std::string(filePath), shaderSourcePath.string(), shaderCachePathStr);
+        auto& shaderStage  = m_ShaderStages.emplace_back();
+        shaderStage.Module = LoadShaderModule(spvData);
 
-        LOG_DEBUG("Spirv-Reflect: %s", shaderPath.string().data());
-        Reflect(shaderCode);
+        LOG_DEBUG("Spirv-Reflect: %s", shaderSourcePath.string().data());
+        Reflect(spvData);
     }
 
     std::unordered_map<std::string, VkPushConstantRange> linkedPushConstants;
@@ -207,14 +278,6 @@ VulkanShader::VulkanShader(const std::string_view& filePath)
                  "Failed to create descriptor set layout!");
     }
 
-    // Now we don't need anything. Maybe I shouldn't clear them??
-    // for (auto& shaderStage : m_ShaderStages)
-    //{
-    //    shaderStage.DescriptorSetBindings.clear();
-    //    shaderStage.PushConstants.clear();
-    //}
-
-    //
     for (uint32_t i = 0; i < m_DescriptorSetLayouts.size(); ++i)
     {
         DescriptorSet ds = {};
@@ -568,17 +631,31 @@ void VulkanShader::UpdateDescriptorSets(const std::string& name, VkWriteDescript
         LOG_WARN("Failed to find: %s in shader!", name.data());
 }
 
+void VulkanShader::DestroyModulesAndReflectionGarbage()
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    // Once I've gathered all the needed info I can get rid of garbage left.
+    for (auto& shaderStage : m_ShaderStages)
+    {
+        if (shaderStage.ReflectModule._internal) spvReflectDestroyShaderModule(&shaderStage.ReflectModule);
+
+        if (shaderStage.Module)
+        {
+            vkDestroyShaderModule(context.GetDevice()->GetLogicalDevice(), shaderStage.Module, nullptr);
+            shaderStage.Module = nullptr;
+        }
+    }
+}
+
 void VulkanShader::Destroy()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    for (auto& shaderStage : m_ShaderStages)
-    {
-        // TODO: Destroy it earlier, once you've gathered the info.
-        spvReflectDestroyShaderModule(&shaderStage.ReflectModule);
-        vkDestroyShaderModule(context.GetDevice()->GetLogicalDevice(), shaderStage.Module, nullptr);
-    }
+    // In case we forgot to delete garbage.
+    DestroyModulesAndReflectionGarbage();
 
     for (auto& descriptorSetLayout : m_DescriptorSetLayouts)
         vkDestroyDescriptorSetLayout(context.GetDevice()->GetLogicalDevice(), descriptorSetLayout, nullptr);

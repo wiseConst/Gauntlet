@@ -6,6 +6,7 @@
 
 #include "Buffer.h"
 #include "CoreRendererStructs.h"
+#include "GraphicsContext.h"
 
 namespace Gauntlet
 {
@@ -32,8 +33,6 @@ struct RendererOutput
 class Renderer : private Uncopyable, private Unmovable
 {
   public:
-    virtual void PostInit() = 0;
-
     static void Init();
     static void Shutdown();
 
@@ -67,11 +66,9 @@ class Renderer : private Uncopyable, private Unmovable
     }
 
     static void SubmitMesh(const Ref<Mesh>& mesh, const glm::mat4& transform = glm::mat4(1.0f));
-    static void AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess,
-                              const glm::vec3& CLQ);
+    static void AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess, int32_t active);
 
-    static void AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction,
-                                    const glm::vec4& AmbientSpecularShininessCastShadows);
+    static void AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction, int32_t castShadows, float intensity);
 
     static void AddSpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color,
                              const glm::vec3& ambientSpecularShininess, const int32_t active, const float cutOff);
@@ -91,8 +88,8 @@ class Renderer : private Uncopyable, private Unmovable
     static std::vector<RendererOutput> GetRendererOutput();
     FORCEINLINE static const auto& GetStorageData() { return *s_RendererStorage; }
 
-    FORCEINLINE static const auto& GetPipelineStatNames() { return s_PipelineStatNames; }
-    FORCEINLINE static const auto& GetPipelineStats() { return s_PipelineStats; }
+    FORCEINLINE static const auto& GetPipelineStatNames() { return GraphicsContext::Get().GetPipelineStatNames(); }
+    FORCEINLINE static const auto& GetPipelineStats() { return GraphicsContext::Get().GetPipelineStats(); }
 
   private:
     static Renderer* s_Renderer;
@@ -107,24 +104,36 @@ class Renderer : private Uncopyable, private Unmovable
     };
 
   protected:
-    static inline std::vector<uint64_t> s_PipelineStats;
-    static inline std::vector<std::string> s_PipelineStatNames;
-
     struct RendererSettings
     {
-        float Gamma                  = 1.1f;
+        float Gamma                  = 2.2f;
         float Exposure               = 1.0f;
         bool ShowWireframes          = false;
         bool VSync                   = false;
-        bool RenderShadows           = true;
         bool ChromaticAberrationView = false;
-        bool PixelatedView           = false;
 
-        // SSAO
-        bool EnableSSAO = true;
-        bool BlurSSAO   = true;
-        float Radius    = 0.5f;
-        float Bias      = 0.025f;
+        struct
+        {
+            bool RenderShadows           = true;
+            bool SoftShadows             = false;
+            uint16_t CurrentShadowPreset = 0;
+            // "Low" - "Resolution", since shadow images can have OxO resolution.
+            const std::vector<std::pair<std::string, uint16_t>> ShadowPresets = {
+                {"Low", 1024},  //
+                {"Medium", 2048},
+                {"High", 4096},
+            };
+        } Shadows;
+
+        struct
+        {
+            const uint16_t KernelSize = 16;  // TODO: Pass into shaders correctly?
+            bool EnableSSAO           = true;
+            bool BlurSSAO             = true;
+            float Radius              = 0.5f;
+            float Bias                = 0.025f;
+            int32_t Magnitude         = 1;
+        } AO;
     } static s_RendererSettings;
 
     struct RendererStats
@@ -148,6 +157,7 @@ class Renderer : private Uncopyable, private Unmovable
         float FrameTime   = 0.0f;
 
         std::string RenderingDevice = "None";
+        size_t UploadHeapCapacity   = 0;
     } static s_RendererStats;
 
     struct RendererStorage
@@ -157,16 +167,20 @@ class Renderer : private Uncopyable, private Unmovable
         glm::uvec2 NewFramebufferSize = {1280, 720};
 
         // Defaults
-        BufferLayout MeshVertexBufferLayout;
+        BufferLayout StaticMeshVertexBufferLayout;
         BufferLayout AnimatedVertexBufferLayout;
         Ref<Texture2D> WhiteTexture = nullptr;
+
+        // Clear-Pass
+        Ref<Framebuffer> SetupFramebuffer = nullptr;
 
         // GBuffer (Deferred rendering)
         Ref<Framebuffer> GeometryFramebuffer = nullptr;
         Ref<Pipeline> GeometryPipeline       = nullptr;
 
-        // Clear-Pass
-        Ref<Framebuffer> SetupFramebuffer = nullptr;
+        // PBR-Forward
+        Ref<Framebuffer> PBRFramebuffer = nullptr;
+        Ref<Pipeline> PBRPipeline       = nullptr;
 
         // ShadowMapping
         Ref<Framebuffer> ShadowMapFramebuffer = nullptr;
@@ -180,10 +194,6 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Framebuffer> SSAOFramebuffer = nullptr;
         Ref<Pipeline> SSAOPipeline       = nullptr;
 
-        // PBR-Forward
-        Ref<Framebuffer> PBRFramebuffer = nullptr;
-        Ref<Pipeline> PBRPipeline       = nullptr;
-
         // SSAO UB
         Ref<UniformBuffer> SSAOUniformBuffer = nullptr;
         UBSSAO SSAODataBuffer;
@@ -196,9 +206,6 @@ class Renderer : private Uncopyable, private Unmovable
         // Animation
         Ref<Pipeline> AnimationPipeline = nullptr;
 
-        // Forward Rendering
-        Ref<Pipeline> ForwardPassPipeline = nullptr;
-
         // Final Lighting
         Ref<Framebuffer> LightingFramebuffer = nullptr;
         Ref<Pipeline> LightingPipeline       = nullptr;
@@ -207,18 +214,13 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Framebuffer> ChromaticAberrationFramebuffer = nullptr;
         Ref<Pipeline> ChromaticAberrationPipeline       = nullptr;
 
-        // Pixelization
-        Ref<Framebuffer> PixelizationFramebuffer = nullptr;
-        Ref<Pipeline> PixelizationPipeline       = nullptr;
-
         // Camera UB
         Ref<UniformBuffer> CameraUniformBuffer = nullptr;
         UBCamera UBGlobalCamera;
 
-        // TODO: Add multiple directional lights
-        // Global blinn-phong lighting UB
+        // Global lighting UB
         Ref<UniformBuffer> LightingUniformBuffer = nullptr;
-        UBBlinnPhong UBGlobalLighting;
+        UBLighting UBGlobalLighting;
         uint32_t CurrentPointLightIndex = 0;
         uint32_t CurrentDirLightIndex   = 0;
         uint32_t CurrentSpotLightIndex  = 0;
@@ -232,6 +234,7 @@ class Renderer : private Uncopyable, private Unmovable
     Renderer()          = default;
     virtual ~Renderer() = default;
 
+    virtual void PostInit()  = 0;
     virtual void BeginImpl() = 0;
 
     virtual void BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f)) = 0;
@@ -243,9 +246,6 @@ class Renderer : private Uncopyable, private Unmovable
 
     virtual void DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                               const uint32_t indicesCount, void* pushConstants = nullptr) = 0;
-
-    virtual void BeginQuery() = 0;
-    virtual void EndQuery()   = 0;
 };
 
 }  // namespace Gauntlet

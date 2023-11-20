@@ -20,7 +20,9 @@ namespace Gauntlet
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
 
-const std::vector<const char*> VulkanLayers     = {"VK_LAYER_KHRONOS_validation"};
+const std::vector<const char*> InstanceLayers = {"VK_LAYER_KHRONOS_validation"};
+
+// Now I assume these are supported
 const std::vector<const char*> DeviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,          // Swapchain creation (array of images that we render into, and present to screen)
     VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,  // For advanced GPU info
@@ -30,7 +32,7 @@ const std::vector<const char*> DeviceExtensions = {
 #if VK_RTX
     VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,    // To build acceleration structures
     VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,      // To use vkCmdTraceRaysKHR
-    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,  // Required by ray tracing pipeline
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,  // Required by acceleration structures
 #endif
 };
 
@@ -404,6 +406,21 @@ NODISCARD static VkPushConstantRange GetPushConstantRange(const VkShaderStageFla
     PushConstants.stageFlags          = shaderStages;
 
     return PushConstants;
+}
+
+static bool SaveDataToDisk(const void* data, const size_t dataSize, const std::string& filePath)
+{
+    std::ofstream out(filePath.data(), std::ios::out | std::ios::binary);
+    if (!out.is_open())
+    {
+        LOG_WARN("Failed to load %s!", filePath.data());
+        return false;
+    }
+
+    out.write((char*)data, dataSize);
+
+    out.close();
+    return true;
 }
 
 static std::vector<uint8_t> LoadDataFromDisk(const std::string& filePath)

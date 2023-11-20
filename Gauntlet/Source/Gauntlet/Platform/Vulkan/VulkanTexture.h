@@ -32,8 +32,7 @@ class VulkanTexture2D final : public Texture2D
 
     FORCEINLINE TextureSpecification& GetSpecification() final override { return m_Specification; }
 
-    FORCEINLINE const auto& GetImage() const { return m_Image; }
-    FORCEINLINE const auto& GetImage() { return m_Image; }
+    FORCEINLINE const Ref<Image> GetImage() const final override { return m_Image; }
 
     FORCEINLINE const auto& GetImageDescriptorInfo() const { return m_Image->GetDescriptorInfo(); }
     FORCEINLINE auto& GetImageDescriptorInfo() { return m_Image->GetDescriptorInfo(); }

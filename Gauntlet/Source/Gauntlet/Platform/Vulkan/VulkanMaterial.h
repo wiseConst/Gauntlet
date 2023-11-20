@@ -16,6 +16,8 @@ class VulkanMaterial final : public Material
     void Invalidate() final override;
     void Destroy() final override;
 
+    void Update() final override;
+
     FORCEINLINE const void* GetDescriptorSet() const final override { return m_DescriptorSet.Handle; }
     FORCEINLINE void* GetDescriptorSet() final override { return m_DescriptorSet.Handle; }
 

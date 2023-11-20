@@ -62,6 +62,10 @@ class VulkanContext final : public GraphicsContext
 
     void AddSwapchainResizeCallback(const std::function<void()>& resizeCallback);
 
+    // TODO: Work with queries
+    FORCEINLINE const std::vector<uint64_t>& GetPipelineStats() const final override { return s_PipelineStats; }
+    FORCEINLINE const std::vector<std::string>& GetPipelineStatNames() const final override { return s_PipelineStatNames; }
+
   private:
     VkInstance m_Instance                     = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
@@ -86,6 +90,13 @@ class VulkanContext final : public GraphicsContext
 
     // For single-time commands
     VkFence m_UploadFence = VK_NULL_HANDLE;
+
+    // TODO: Move them to Renderer && abstract
+    // Query Statistics
+    VkQueryPool m_QueryPool = VK_NULL_HANDLE;
+
+    static inline std::vector<uint64_t> s_PipelineStats;
+    static inline std::vector<std::string> s_PipelineStatNames;
 
     void CreateInstance();
     void CreateDebugMessenger();

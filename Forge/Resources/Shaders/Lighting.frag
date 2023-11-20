@@ -1,54 +1,59 @@
 #version 460
 
-layout(location = 0) in vec2 InTexCoord;
+layout(location = 0) in vec2 in_TexCoord;
 
-layout(location = 0) out vec4 OutFragColor;
+layout(location = 0) out vec4 out_FragColor;
 
 layout(set = 0, binding = 0) uniform sampler2D u_PositionMap;
 layout(set = 0, binding = 1) uniform sampler2D u_NormalMap;
 layout(set = 0, binding = 2) uniform sampler2D u_AlbedoMap;
-layout(set = 0, binding = 3) uniform sampler2D u_ShadowMap;
+layout(set = 0, binding = 3) uniform sampler2D u_MRAO; // Metallic Roughness AO
 layout(set = 0, binding = 4) uniform sampler2D u_SSAOMap;
 
 layout( push_constant ) uniform PushConstants
 {	
-	mat4 TransformMatrix; // And here I store LightSpaceMatrix
+	mat4 TransformMatrix;
 	vec4 Data; // Here I store cameraViewPosition
 } u_MeshPushConstants;
 
+//#include "Common.glsl"
+
 struct DirectionalLight
 {
-    vec4 Color;
-    vec4 Direction;
-    vec4 AmbientSpecularShininessCastShadows;
+    vec3 Color;
+    float Intensity;
+    vec3 Direction;
+    int CastShadows;
 };
 
 struct PointLight
 {
-	vec4 Position;
-	vec4 Color;
-	vec4 AmbientSpecularShininess;
-	vec4 CLQActive; // Constant Linear Quadratic IsActive
+    vec4 Position;
+    vec4 Color;
+    float Ambient;    // useless
+    float Specular;   // useless
+    float Shininess;  // useless
+    int IsActive;
 };
 
 struct SpotLight
 {
-   vec4 Position;
-   vec4 Color;
-   vec3 Direction;
-   float CutOff;
+    vec4 Position;
+    vec4 Color;
+    vec3 Direction;
+    float CutOff;
 
-   float Ambient;
-   float Specular;
-   float Shininess;
-   int Active;
+    float Ambient;  // useless
+    float Specular;
+    float Shininess;  // useless
+    int Active;
 };
 
 #define MAX_POINT_LIGHTS 16
 #define MAX_SPOT_LIGHTS 8
 #define MAX_DIR_LIGHTS 4
 
-layout(set = 0, binding = 5) uniform UBBlinnPhong
+layout(set = 0, binding = 5) uniform UBLightingData
 {
 	DirectionalLight DirLights[MAX_DIR_LIGHTS];
 	SpotLight SpotLights[MAX_SPOT_LIGHTS];
@@ -56,154 +61,152 @@ layout(set = 0, binding = 5) uniform UBBlinnPhong
 
 	float Gamma;
 	float Exposure;
-} u_LightingModelBuffer;
+} u_LightingData;
 
-float CalculateShadows(const vec4 LightSpaceFragPos, const vec3 UnitNormal, const vec3 LightDirection)
+const float PI = 3.14159265359;
+
+float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
-	// Transforming into NDC [-1, 1]
-	vec3 projCoords = LightSpaceFragPos.xyz / LightSpaceFragPos.w; 
+    const float a = roughness;
+    const float a2 = a*a;
 
-	// DepthMap's range is [0, 1] => transform from NDC to screen space [0, 1]
-	projCoords = projCoords * 0.5 + 0.5;
-	if(projCoords.z > 1.0) return  0.0f;
-
-	const float currentDepth = projCoords.z;
-	const float closestDepth = texture(u_ShadowMap, projCoords.xy).r;
-
-	const vec3 normalizedLightDirection = normalize(-LightDirection);
-	const float bias = max(0.05 * (1.0 - dot(UnitNormal, normalizedLightDirection)), 0.005);
-
-	const vec2 texelSize = 1.0 / textureSize(u_ShadowMap, 0);
-	float shadow = 0.0f;
-	for(int x = -1; x <= 1; ++x)
-	{
-		for(int y= -1; y<=1;++y)
-		{
-			const float pcfDepth = texture(u_ShadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
-            shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;    
-		}
-	}
-	shadow /= 9.0;
-
-	return shadow;
+    const float NdotH = max(dot(N, H), 0.0);
+    const float NdotH2 = NdotH*NdotH;
+    const float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    
+    return a2 / (PI * denom * denom);
 }
 
-vec3 CalculateDirectionalLight(const DirectionalLight DirLight, const vec3 ViewVector, const vec3 UnitNormal, const float shadow)
+float GeometrySchlickGGX(float NdotV, float roughness)
 {
-	vec3 AmbientColor = DirLight.AmbientSpecularShininessCastShadows.x * vec3(DirLight.Color);
-	
-	const vec3 NormalizedLightDirection = normalize(-DirLight.Direction.xyz);
+    const float r = (roughness + 1.0);
+    const float k = (r*r) / 8.0;
 
-	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
-	const vec3 DiffuseColor = DiffuseFactor * vec3(DirLight.Color);	
+    const float nom   = NdotV;
+    const float denom = NdotV * (1.0 - k) + k;
 
-	const vec3 HalfwayDir = normalize(-ViewVector + NormalizedLightDirection);
-	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), DirLight.AmbientSpecularShininessCastShadows.z);
-	const vec3 SpecularColor = DirLight.AmbientSpecularShininessCastShadows.y * SpecularFactor * vec3(DirLight.Color);  
-
-	return AmbientColor + (1.0f - shadow) * (DiffuseColor + SpecularColor);
+    return nom / denom;
 }
 
-vec3 CalculateSpotLight(const SpotLight spotlight, const vec3 fragPos, const vec3 unitNormal, const vec3 viewVector)
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
-	const vec3 ambient = spotlight.Ambient * spotlight.Color.xyz;
-	const vec3 lightDir = normalize(spotlight.Position.xyz - fragPos);
-	
-	const float diff = max(dot(unitNormal, lightDir), 0.0);
-	const vec3 diffuse = diff * spotlight.Color.xyz;
-	
-	const vec3 HalfwayDir = normalize(-viewVector + lightDir);
-	const float spec = pow(max(dot(HalfwayDir, unitNormal), 0.0), spotlight.Shininess);
-	const vec3 specular = spotlight.Specular * spec * spotlight.Color.xyz;  
+    const float NdotV = max(dot(N, V), 0.0);
+    const float NdotL = max(dot(N, L), 0.0);
+    const float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    const float ggx1 = GeometrySchlickGGX(NdotL, roughness);
 
-	const float angle = dot(spotlight.Direction, -lightDir);
-	const float intensity = clamp(angle - spotlight.CutOff, 0.0, 1.0);
-
-	return ambient + intensity * (diffuse + specular);
-
-//	const vec3 lightDir = normalize(spotlight.Position.xyz - fragPos);
-//	const float theta = dot(lightDir, normalize(-spotlight.Direction));
-//	if(theta > spotlight.CutOff) 
-//	{       
-//	    const vec3 ambient = spotlight.Ambient * spotlight.Color.xyz;
-//    
-//		const float diff = max(dot(unitNormal, lightDir), 0.0);
-//		const vec3 diffuse = diff * spotlight.Color.xyz;
-//
-//		const vec3 halfwayDir = normalize(-viewVector + lightDir);
-//		const float spec = pow(max(dot(halfwayDir, unitNormal), 0.0), spotlight.Shininess);
-//		const vec3 specular = spotlight.Specular * spec * spotlight.Color.xyz;
-//
-//        // TODO: Attenuation
-//        return /* attenuation * */ (ambient + diffuse + specular);
-//	}
-//	
-//	return spotlight.Ambient * spotlight.Color.xyz;
+    return ggx1 * ggx2;
 }
 
-vec3 CalculatePointLight(PointLight InPointLight, const vec3 FragPos, const vec3 ViewVector, const vec3 UnitNormal) {
-	const vec3 AmbientColor = vec3(InPointLight.AmbientSpecularShininess.x * vec3(InPointLight.Color));
-	const vec3 NormalizedLightDirection = normalize(vec3(InPointLight.Position) - FragPos);
-	
-	const float DiffuseFactor = max(dot(UnitNormal, NormalizedLightDirection), 0.0);
-	const vec3 DiffuseColor = DiffuseFactor * vec3(InPointLight.Color);
-	
-	const vec3 HalfwayDir = normalize(-ViewVector + NormalizedLightDirection);
-	const float SpecularFactor = pow(max(dot(HalfwayDir, UnitNormal), 0.0), InPointLight.AmbientSpecularShininess.z);
-	const vec3 SpecularColor = InPointLight.AmbientSpecularShininess.y * SpecularFactor * vec3(InPointLight.Color);  
-	
-	const float dist = length(vec3(InPointLight.Position) - FragPos);
-	const float Attenutaion = 1.0 / (InPointLight.CLQActive.x + InPointLight.CLQActive.y * dist + InPointLight.CLQActive.z * (dist * dist));
-
-	return Attenutaion * (AmbientColor + DiffuseColor + SpecularColor);
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
 void main()
 {
-    const vec4 Albedo =  texture(u_AlbedoMap,   InTexCoord);
-    if(Albedo.a == 0.0) discard;
+    const vec3 albedo     = pow(texture(u_AlbedoMap, in_TexCoord).rgb, vec3(2.2));
+    const float metallic  = texture(u_MRAO, in_TexCoord).r;
+    const float roughness = texture(u_MRAO, in_TexCoord).y;
+    const vec3 fragPos = texture(u_PositionMap, in_TexCoord).rgb;
+    const float ao        = texture(u_MRAO, in_TexCoord).z;         // this one is from material
+    const float calcAO    = texture(u_SSAOMap, in_TexCoord).r; // this one is calculated from scene
 
-    const vec3 Normal =  texture(u_NormalMap,   InTexCoord).rgb;
-	if(Normal == vec3(0.0)) { 
-		OutFragColor = Albedo;
-		return;
-	}
+    const vec3 N = texture(u_NormalMap, in_TexCoord).rgb;
+    const vec3 V = normalize(u_MeshPushConstants.Data.xyz - fragPos);
 
-    const vec3 FragPos = texture(u_PositionMap, InTexCoord).rgb;
-    const float ssao =   texture(u_SSAOMap,     InTexCoord).r;
+    // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+    // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
+    vec3 F0 = vec3(0.04); 
+    F0 = mix(F0, albedo, metallic);
+    vec3 color = vec3(0.0);
 
-	vec4 FinalColor = vec4(Albedo.rgb  * ssao  * 0.45, 1.0);
-	const vec3 ViewVector = normalize(FragPos - u_MeshPushConstants.Data.xyz);
-	
-	const vec4 LightSpaceFragPos = u_MeshPushConstants.TransformMatrix * vec4(FragPos, 1.0);
-	for(int i = 0; i < MAX_DIR_LIGHTS; ++i)
-	{
-		float dirShadow = 0.0f;
-		
-		if(u_LightingModelBuffer.DirLights[i].AmbientSpecularShininessCastShadows.w == 1.0f)
-		{
-			dirShadow = CalculateShadows(LightSpaceFragPos, Normal, u_LightingModelBuffer.DirLights[i].Direction.xyz);
-		}
-	
-		if(u_LightingModelBuffer.DirLights[i].Color.xyz != vec3(0.0)) 
-			FinalColor.rgb += CalculateDirectionalLight(u_LightingModelBuffer.DirLights[i], ViewVector, Normal, dirShadow);
-	}
+    // constant ambient light
+    vec3 ambient = vec3(0.03) * albedo * ao * calcAO;
+    for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
+    {
+        if(u_LightingData.PointLights[i].IsActive == 0) continue;
+        vec3 Lo = vec3(0.0);
 
-	for(int i = 0; i < MAX_SPOT_LIGHTS; ++i)
-	{
-		if(u_LightingModelBuffer.SpotLights[i].Active == 1) FinalColor.rgb += CalculateSpotLight(u_LightingModelBuffer.SpotLights[i], FragPos, Normal, ViewVector);
-	}
+        // calculate per-light radiance
+        vec3 L = normalize(u_LightingData.PointLights[i].Position.xyz - fragPos);
+        vec3 H = normalize(V + L);
+        float distance = length(u_LightingData.PointLights[i].Position.xyz - fragPos);
+        float attenuation = 1.0 / (distance * distance) + 0.0001;
+        vec3 radiance = u_LightingData.PointLights[i].Color.xyz * attenuation;
 
-	for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
-	{
-		if(u_LightingModelBuffer.PointLights[i].CLQActive.w == 0.0) continue;
-		
-		FinalColor.rgb += CalculatePointLight(u_LightingModelBuffer.PointLights[i], FragPos, ViewVector, Normal);
-	}
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, roughness);
+        float G   = GeometrySmith(N, V, L, roughness);
+        vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
+           
+        vec3 numerator    = NDF * G * F; 
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;
+        
+        vec3 kS = F; // coefficient Specular equal fresnel
+        // Energy conservation: the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - metallic;	  
 
-	// reinhard tone mapping
-	FinalColor.rgb = FinalColor.rgb / (FinalColor.rgb + vec3(1.0));
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);        
 
-	FinalColor.rgb = pow(FinalColor.rgb, vec3(1.0 / u_LightingModelBuffer.Gamma));
-	OutFragColor = vec4(FinalColor.rgb, 1.0);
+        // add to outgoing radiance Lo
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+
+        color += ambient + Lo;
+    }
+
+    //ambient*=calcAO;
+    for(int i = 0; i < MAX_DIR_LIGHTS; ++i)
+    {
+        // reflectance equation
+        vec3 Lo = vec3(0.0);
+        // calculate per-light radiance
+        vec3 L = normalize(-u_LightingData.DirLights[i].Direction);
+        vec3 H = normalize(V + L);
+        vec3 radiance = u_LightingData.DirLights[i].Color.xyz;
+
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, roughness);   
+        float G   = GeometrySmith(N, V, L, roughness);       
+        vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
+           
+        vec3 numerator    = NDF * G * F; 
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;
+        
+        // kS is equal to Fresnel
+        vec3 kS = F;
+        // for energy conservation, the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - metallic;	  
+
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);
+        const float I = NdotL *  u_LightingData.DirLights[i].Intensity;
+
+        // add to outgoing radiance Lo
+        Lo += (kD * albedo / PI + specular) * radiance * I;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+        
+        color += ambient + Lo;
+    }
+
+    // HDR tonemapping
+    color = color / (color + vec3(1.0));
+    // gamma correct
+    color = pow(color, vec3(1.0 / u_LightingData.Gamma)); 
+
+    out_FragColor = vec4(color, 1.0);
 }

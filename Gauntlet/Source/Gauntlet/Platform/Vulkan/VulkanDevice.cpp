@@ -121,7 +121,7 @@ void VulkanDevice::CreateLogicalDevice()
     extendedDynamicState3FeaturesEXT.extendedDynamicState3PolygonMode = VK_TRUE;
 #endif
 
-    // Useful vulkan 1.2 features
+    // Useful vulkan 1.2 features (bindless)
     VkPhysicalDeviceVulkan12Features vulkan12Features              = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     vulkan12Features.shaderSampledImageArrayNonUniformIndexing     = VK_TRUE;
     vulkan12Features.descriptorBindingPartiallyBound               = VK_TRUE;
@@ -133,7 +133,7 @@ void VulkanDevice::CreateLogicalDevice()
 #if !RENDERDOC_DEBUG
     vulkan12Features.pNext = &extendedDynamicState3FeaturesEXT;
 #endif
-    deviceCI.pNext = &vulkan12Features;
+    deviceCI.pNext = &vulkan12Features;  // vk1.2
 
 #if VK_RTX
     vulkan12Features.bufferDeviceAddress = VK_TRUE;
@@ -141,7 +141,7 @@ void VulkanDevice::CreateLogicalDevice()
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR enabledRayTracingPipelineFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
     enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-    enabledRayTracingPipelineFeatures.pNext              = &vulkan12Features;
+    enabledRayTracingPipelineFeatures.pNext              = &vulkan12Features;  // vk1.2
 
     VkPhysicalDeviceAccelerationStructureFeaturesKHR enabledAccelerationStructureFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};

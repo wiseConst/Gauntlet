@@ -47,14 +47,8 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     GNT_ASSERT(textureCreateInfo.Data && textureCreateInfo.DataSize > 0, "Not valid texture create info data!");
     auto& Context = (VulkanContext&)VulkanContext::Get();
 
-    // Create staging buffer for image data
-    VulkanAllocatedBuffer StagingBuffer = {};
-    BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, textureCreateInfo.DataSize, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
-
-    // Copy image data to staging buffer
-    void* Mapped = Context.GetAllocator()->Map(StagingBuffer.Allocation);
-    memcpy(Mapped, textureCreateInfo.Data, textureCreateInfo.DataSize);
-    Context.GetAllocator()->Unmap(StagingBuffer.Allocation);
+    auto& stagingBuffer = Renderer::GetStorageData().UploadHeap;
+    stagingBuffer->SetData(textureCreateInfo.Data, textureCreateInfo.DataSize);
 
     // Simple image creation
     ImageSpecification ImageSpec = {};
@@ -83,7 +77,10 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
      * transitioning
      */
     ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ImageSpec.Mips);
-    ImageUtils::CopyBufferDataToImage(StagingBuffer.Buffer, m_Image->Get(), {m_Image->GetWidth(), m_Image->GetHeight(), 1});
+
+    VkBuffer stagingBufferRaw = (VkBuffer)stagingBuffer->Get();
+    GNT_ASSERT(stagingBufferRaw);
+    ImageUtils::CopyBufferDataToImage(stagingBufferRaw, m_Image->Get(), {m_Image->GetWidth(), m_Image->GetHeight(), 1});
 
     if (ImageSpec.Mips > 1)
     {
@@ -96,9 +93,6 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     else
         ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                           ImageSpec.Mips);
-
-    // All data sent from staging buffer, we can delete it.
-    BufferUtils::DestroyBuffer(StagingBuffer);
 }
 
 }  // namespace Gauntlet

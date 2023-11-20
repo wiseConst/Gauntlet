@@ -11,7 +11,6 @@
 
 namespace Gauntlet
 {
-// TODO: Make shader->Set("u_Albedo", albedo);
 
 struct ShaderStage
 {
@@ -29,7 +28,7 @@ struct ShaderStage
     // they should have the same name.
     std::unordered_map<std::string, VkPushConstantRange> PushConstants;
 
-    // TODO: I think here I can simply store vector<map> cuz setIndex is the vector element index.
+    // TODO: I think here I can simply store vector<unordored_map> cuz setIndex is the vector element index.
     std::vector<DescriptorSetLayoutData> DescriptorSetBindings;
 };
 
@@ -50,11 +49,11 @@ class VulkanShader final : public Shader
     void Set(const std::string& name, const Ref<TextureCube>& texture) final override;
     void Set(const std::string& name, const Ref<Image>& image) final override;
     void Set(const std::string& name, const std::vector<Ref<Texture2D>>& textures) final override;
-
-    // TODO: Add bufferSize var in AllocatedBuffer struct to prevent these.
     void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) final override;
 
-    FORCEINLINE auto& GetDescriptorSets() { return m_DescriptorSets; }
+    FORCEINLINE const auto& GetDescriptorSets() const { return m_DescriptorSets; }
+
+    void DestroyModulesAndReflectionGarbage();
 
   private:
     std::vector<ShaderStage> m_ShaderStages;
@@ -65,6 +64,8 @@ class VulkanShader final : public Shader
 
     VkShaderModule LoadShaderModule(const std::vector<uint8_t>& shaderCode);
     void Reflect(const std::vector<uint8_t>& shaderCode);
+    std::vector<uint8_t> CompileOrGetSpvBinaries(const std::string& shaderExt, const std::string& filePath,
+                                                 const std::string& shaderSourcePath, const std::string& shaderCachePathStr);
 
     void UpdateDescriptorSets(const std::string& name, VkWriteDescriptorSet& writeDescriptorSet);
 };

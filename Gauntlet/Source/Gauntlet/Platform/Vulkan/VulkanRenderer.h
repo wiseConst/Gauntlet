@@ -18,7 +18,6 @@ class Pipeline;
 class VulkanShader;
 class VulkanTexture2D;
 class VulkanCommandBuffer;
-class Skybox;
 
 class VulkanRenderer final : public Renderer
 {
@@ -27,7 +26,6 @@ class VulkanRenderer final : public Renderer
     {
         // Material
         VkDescriptorSetLayout GeometryDescriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorSetLayout MeshDescriptorSetLayout     = VK_NULL_HANDLE;
 
         // UI
         VkDescriptorSetLayout ImageDescriptorSetLayout = VK_NULL_HANDLE;
@@ -35,9 +33,6 @@ class VulkanRenderer final : public Renderer
         // Misc
         VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         Weak<Pipeline> CurrentPipelineToBind;
-
-        // Query Statistics
-        VkQueryPool QueryPool = VK_NULL_HANDLE;
 
         // Sampler handling
         struct SamplerKeyHash
@@ -95,9 +90,6 @@ class VulkanRenderer final : public Renderer
                       void* pushConstants = nullptr) final override;
 
     FORCEINLINE static VulkanRendererStorage& GetVulkanStorageData() { return s_Data; }
-
-    void BeginQuery() final override;
-    void EndQuery() final override;
 
     void PostInit() final override;
 

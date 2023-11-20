@@ -28,3 +28,6 @@
 [submodule "Gauntlet/vendor/FastNoiseLite"]
 	path = Gauntlet/vendor/FastNoiseLite
 	url = https://github.com/Auburn/FastNoiseLite.git
+[submodule "Gauntlet/vendor/meshoptimizer"]
+	path = Gauntlet/vendor/meshoptimizer
+	url = https://github.com/wiseConst/meshoptimizer.git

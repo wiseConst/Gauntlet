@@ -12,6 +12,7 @@ int Main(int argc, char** argv)
     auto App = Gauntlet::CreateApplication({argc, argv});
     App->Run();
 
+    std::quick_exit(0);
     return 0;
 }
 

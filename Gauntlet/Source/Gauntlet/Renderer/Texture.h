@@ -27,6 +27,7 @@ class Texture2D
     virtual void Destroy()                                       = 0;
     FORCEINLINE virtual void* GetTextureID() const               = 0;
     FORCEINLINE virtual TextureSpecification& GetSpecification() = 0;
+    FORCEINLINE virtual const Ref<Image> GetImage() const        = 0;
 
     static Ref<Texture2D> Create(const std::string_view& textureFilePath, const TextureSpecification& textureSpecification);
     static Ref<Texture2D> Create(const void* data, const size_t size, const uint32_t imageWidth, const uint32_t imageHeight,

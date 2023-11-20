@@ -11,7 +11,6 @@
 
 #include "Gauntlet/Core/Application.h"
 #include "Gauntlet/Core/Window.h"
-#include "VulkanRenderer.h"
 
 namespace Gauntlet
 {
@@ -51,10 +50,55 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
     CreateSyncObjects();
 
     m_DescriptorAllocator = MakeScoped<VulkanDescriptorAllocator>(m_Device);
+
+    s_PipelineStatNames = {"Input assembly vertex count        ", "Input assembly primitives count    ",
+                           "Vertex shader invocations          "};
+
+    VkQueryPoolCreateInfo queryPoolCreateInfo = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
+    // This query pool will store pipeline statistics
+    queryPoolCreateInfo.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
+    // Pipeline counters to be returned for this pool
+    queryPoolCreateInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |      // Input assembly vertices
+                                             VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |    // Input assembly primitives
+                                             VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |    // Vertex shader invocations
+                                             VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |  // Fragment shader invocations
+                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |         // Clipping invocations
+                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |          // Clipped primitives
+                                             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;    // Compute shader invocations
+
+    if (m_Device->GetGPUFeatures().geometryShader)
+    {
+        queryPoolCreateInfo.pipelineStatistics |=
+            VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT | VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT;
+
+        s_PipelineStatNames.emplace_back("Geometry Shader Invocations        ");
+        s_PipelineStatNames.emplace_back("Geometry Shader Primitives         ");
+    }
+
+    s_PipelineStatNames.emplace_back("Clipping stage primitives processed");
+    s_PipelineStatNames.emplace_back("Clipping stage primitives output   ");
+    s_PipelineStatNames.emplace_back("Fragment shader invocations        ");
+
+    if (m_Device->GetGPUFeatures().tessellationShader)
+    {
+        queryPoolCreateInfo.pipelineStatistics |= VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
+                                                  VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT;
+
+        s_PipelineStatNames.push_back("Tess. control shader patches       ");
+        s_PipelineStatNames.push_back("Tess. eval. shader invocations     ");
+    }
+
+    s_PipelineStatNames.emplace_back("Compute shader invocations         ");
+
+    queryPoolCreateInfo.queryCount = FRAMES_IN_FLIGHT;
+
+    VK_CHECK(vkCreateQueryPool(m_Device->GetLogicalDevice(), &queryPoolCreateInfo, nullptr, &m_QueryPool), "Failed to create query pool!");
+    s_PipelineStats.resize(s_PipelineStatNames.size());
 }
 
 void VulkanContext::CreateInstance()
 {
+    // volk loader
     {
         const auto result = volkInitialize();
         GNT_ASSERT(result == VK_SUCCESS, "Failed to initialize volk( meta-loader for Vulkan )!");
@@ -62,26 +106,25 @@ void VulkanContext::CreateInstance()
 
     GNT_ASSERT(CheckVulkanAPISupport() == true, "Vulkan is not supported!");
 
-    if (s_bEnableValidationLayers)
-    {
-        GNT_ASSERT(CheckValidationLayerSupport() == true, "Validation layers requested but not supported!");
-    }
+    if (s_bEnableValidationLayers) GNT_ASSERT(CheckValidationLayerSupport() == true, "Validation layers requested but not supported!");
 
-#if GNT_DEBUG && LOG_VULKAN_INFO
+    uint32_t supportedApiVersionFromDLL = 0;
     {
-        uint32_t SupportedApiVersionFromDLL;
-        const auto result = vkEnumerateInstanceVersion(&SupportedApiVersionFromDLL);
+        const auto result = vkEnumerateInstanceVersion(&supportedApiVersionFromDLL);
         GNT_ASSERT(result == VK_SUCCESS, "Failed to retrieve supported vulkan version!");
 
-        LOG_INFO("Your system supports vulkan version up to: %u.%u.%u.%u", VK_API_VERSION_VARIANT(SupportedApiVersionFromDLL),
-                 VK_API_VERSION_MAJOR(SupportedApiVersionFromDLL), VK_API_VERSION_MINOR(SupportedApiVersionFromDLL),
-                 VK_API_VERSION_PATCH(SupportedApiVersionFromDLL));
-    }
+#if GNT_DEBUG && LOG_VULKAN_INFO
+        LOG_INFO("Your system supports vulkan version up to: %u.%u.%u.%u", VK_API_VERSION_VARIANT(supportedApiVersionFromDLL),
+                 VK_API_VERSION_MAJOR(supportedApiVersionFromDLL), VK_API_VERSION_MINOR(supportedApiVersionFromDLL),
+                 VK_API_VERSION_PATCH(supportedApiVersionFromDLL));
 #endif
+    }
+    GNT_ASSERT(GNT_VK_API_VERSION <= supportedApiVersionFromDLL, "Desired VK version >= available VK version.");
+    supportedApiVersionFromDLL = GNT_VK_API_VERSION;
 
     const auto& app                    = Application::Get();
     VkApplicationInfo ApplicationInfo  = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    ApplicationInfo.apiVersion         = GNT_VK_API_VERSION;
+    ApplicationInfo.apiVersion         = supportedApiVersionFromDLL;
     ApplicationInfo.applicationVersion = ApplicationVersion;
     ApplicationInfo.engineVersion      = EngineVersion;
     ApplicationInfo.pApplicationName   = app.GetSpecification().AppName.data();
@@ -95,17 +138,25 @@ void VulkanContext::CreateInstance()
     InstanceCreateInfo.ppEnabledExtensionNames = RequiredExtensions.data();
 
 #if GNT_DEBUG
-    InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(VulkanLayers.size());
-    InstanceCreateInfo.ppEnabledLayerNames = VulkanLayers.data();
+    InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(InstanceLayers.size());
+    InstanceCreateInfo.ppEnabledLayerNames = InstanceLayers.data();
 #else
     InstanceCreateInfo.enabledLayerCount   = 0;
     InstanceCreateInfo.ppEnabledLayerNames = nullptr;
 #endif
 
-    const auto result = vkCreateInstance(&InstanceCreateInfo, nullptr, &m_Instance);
-    GNT_ASSERT(result == VK_SUCCESS, "Failed to create instance!");
+    {
+        const auto result = vkCreateInstance(&InstanceCreateInfo, nullptr, &m_Instance);
+        GNT_ASSERT(result == VK_SUCCESS, "Failed to create instance!");
+    }
 
     volkLoadInstanceOnly(m_Instance);
+
+#if GNT_DEBUG && LOG_VULKAN_INFO
+    LOG_INFO("Using vulkan version: %u.%u.%u.%u", VK_API_VERSION_VARIANT(supportedApiVersionFromDLL),
+             VK_API_VERSION_MAJOR(supportedApiVersionFromDLL), VK_API_VERSION_MINOR(supportedApiVersionFromDLL),
+             VK_API_VERSION_PATCH(supportedApiVersionFromDLL));
+#endif
 }
 
 void VulkanContext::CreateDebugMessenger()
@@ -186,7 +237,7 @@ bool VulkanContext::CheckVulkanAPISupport() const
         }
     }
 
-    return glfwVulkanSupported();
+    return glfwVulkanSupported() == GLFW_TRUE;
 }
 
 bool VulkanContext::CheckValidationLayerSupport()
@@ -212,7 +263,7 @@ bool VulkanContext::CheckValidationLayerSupport()
     }
 #endif
 
-    for (const char* ValidationLayerName : VulkanLayers)
+    for (const char* ValidationLayerName : InstanceLayers)
     {
         bool bIslayerFound = false;
 
@@ -275,6 +326,9 @@ void VulkanContext::CreateSyncObjects()
 
 void VulkanContext::BeginRender()
 {
+    m_CurrentCommandBuffer = &m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
+    GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve graphics command buffer!");
+
     const auto cpuWaitForGpuBegin = Application::GetTimeNow();
     // Firstly wait for GPU to finish drawing therefore set fence to signaled.
     VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
@@ -291,39 +345,45 @@ void VulkanContext::BeginRender()
     VK_CHECK(vkResetFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to reset fences!");
 
-    m_CurrentCommandBuffer = &m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
-    GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve graphics command buffer!");
-
     m_CurrentCommandBuffer->BeginRecording();
+
+    vkCmdResetQueryPool(m_CurrentCommandBuffer->Get(), m_QueryPool, m_Swapchain->GetCurrentFrameIndex(), 1);
+    vkCmdBeginQuery(m_CurrentCommandBuffer->Get(), m_QueryPool, m_Swapchain->GetCurrentFrameIndex(), 0);
 }
 
 void VulkanContext::EndRender()
 {
+    vkCmdEndQuery(m_CurrentCommandBuffer->Get(), m_QueryPool, m_Swapchain->GetCurrentFrameIndex());
     m_CurrentCommandBuffer->EndRecording();
 
+    // As far as I understand this stage doesn't block vertex shader, fragment shaders, but only blocks outputting color to the framebuffer
+    // Combining this stage with wait semaphore we make sure to not apply new color until we acquired swapchain image
     std::vector<VkPipelineStageFlags> WaitStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSubmitInfo SubmitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers    = &m_CurrentCommandBuffer->Get();
-    SubmitInfo.waitSemaphoreCount = 1;
-    SubmitInfo.pWaitSemaphores    = &m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Wait for semaphore signal until we
+    VkSubmitInfo submitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers    = &m_CurrentCommandBuffer->Get();
+
+    // To put it simply, we gonna wait on pWaitDstStageMask until pWaitSemaphores gonna be signaled.
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores    = &m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Wait for semaphore signal until we
                                                                                                       // acquired image from the swapchain
-    SubmitInfo.signalSemaphoreCount = 1;
-    SubmitInfo.pSignalSemaphores =
+    submitInfo.pWaitDstStageMask    = WaitStages.data();  // array of pipeline stages at which each corresponding semaphore wait will occur.
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores =
         &m_RenderFinishedSemaphores[m_Swapchain->GetCurrentFrameIndex()];  // Signal semaphore when render finished
-    SubmitInfo.pWaitDstStageMask = WaitStages.data();
 
     // InFlightFence will now block until the graphic commands finish execution
-    VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &SubmitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
+    VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to submit command buffes to the queue.");
 
     Renderer::GetStats().GPUWaitTime = Application::GetTimeNow() - m_LastGPUWaitTime;
 
-    const uint32_t dataSize = static_cast<uint32_t>(Renderer::GetPipelineStats().size()) * sizeof(Renderer::GetPipelineStats()[0]);
+    // TODO: Figure out how to move it to different place
+    const uint64_t dataSize = static_cast<uint32_t>(s_PipelineStats.size()) * sizeof(s_PipelineStats[0]);
     // The stride between queries is the no. of unique value entries
-    const uint32_t stride = static_cast<uint32_t>(Renderer::GetPipelineStats().size()) * sizeof(Renderer::GetPipelineStats()[0]);
-    vkGetQueryPoolResults(m_Device->GetLogicalDevice(), VulkanRenderer::GetVulkanStorageData().QueryPool, 0, 1, dataSize,
-                          (void*)Renderer::GetPipelineStats().data(), stride, VK_QUERY_RESULT_64_BIT);
+    const uint32_t stride = static_cast<uint32_t>(s_PipelineStats.size()) * sizeof(s_PipelineStats[0]);
+    vkGetQueryPoolResults(m_Device->GetLogicalDevice(), m_QueryPool, 0, 1, dataSize, s_PipelineStats.data(), stride,
+                          VK_QUERY_RESULT_64_BIT);
 }
 
 void VulkanContext::SwapBuffers()
@@ -345,6 +405,8 @@ void VulkanContext::SetVSync(bool bIsVSync)
 void VulkanContext::Destroy()
 {
     WaitDeviceOnFinish();
+
+    vkDestroyQueryPool(m_Device->GetLogicalDevice(), m_QueryPool, nullptr);
 
     m_CurrentCommandBuffer = nullptr;
     m_DescriptorAllocator->Destroy();

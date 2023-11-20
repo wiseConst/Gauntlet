@@ -3,12 +3,11 @@
 
 namespace Gauntlet
 {
-std::mt19937_64 Random::s_Engine(Random::s_RandomDevice());
+std::default_random_engine Random::s_Engine(0);
+static std::uniform_real_distribution<float> s_UniformDistribution(0.0f, 1.0f);
 
-float Random::GetInRange(float begin, float end)
+float Random::GetInRange0To1()
 {
-    std::uniform_real_distribution<float> s_UniformDistribution(begin, end);
-
     return s_UniformDistribution(s_Engine);
 }
 

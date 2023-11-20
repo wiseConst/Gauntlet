@@ -56,12 +56,9 @@ class ShaderLibrary final : private Uncopyable, private Unmovable
     }
 
     // TODO: Make it Load("FlatColor"), but not Load("Assets/Shaders/FlatColor")
-    static Ref<Shader> Load(const std::string& shaderFilePath)
+    static Ref<Shader> Load(const std::string& shaderName)
     {
-        const size_t pos             = shaderFilePath.find_last_of('/');
-        const std::string shaderName = shaderFilePath.substr(pos + 1, shaderFilePath.size() - pos);
-
-        s_LoadedShaders[shaderName] = Shader::Create(shaderFilePath);
+        s_LoadedShaders[shaderName] = Shader::Create(shaderName);
         return s_LoadedShaders[shaderName];
     }
 
