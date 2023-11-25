@@ -23,6 +23,7 @@ class VertexBuffer;
 class IndexBuffer;
 class Framebuffer;
 class Pipeline;
+class CommandBuffer;
 
 struct RendererOutput
 {
@@ -66,12 +67,12 @@ class Renderer : private Uncopyable, private Unmovable
     }
 
     static void SubmitMesh(const Ref<Mesh>& mesh, const glm::mat4& transform = glm::mat4(1.0f));
-    static void AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess, int32_t active);
+    static void AddPointLight(const glm::vec3& position, const glm::vec3& color, const float intensity, int32_t active);
 
     static void AddDirectionalLight(const glm::vec3& color, const glm::vec3& direction, int32_t castShadows, float intensity);
 
-    static void AddSpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color,
-                             const glm::vec3& ambientSpecularShininess, const int32_t active, const float cutOff);
+    static void AddSpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color, const float intensity,
+                             const int32_t active, const float cutOff, const float outerCutOff);
 
     FORCEINLINE static void ResizeFramebuffers(uint32_t width, uint32_t height)
     {
@@ -81,15 +82,14 @@ class Renderer : private Uncopyable, private Unmovable
 
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
     FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
+    static const std::vector<std::string> GetPassStatistics();
+    static const std::vector<std::string> GetPipelineStatistics();
 
     static const Ref<Image>& GetFinalImage();
     FORCEINLINE static std::mutex& GetResourceAccessMutex() { return s_ResourceAccessMutex; }
 
     static std::vector<RendererOutput> GetRendererOutput();
     FORCEINLINE static const auto& GetStorageData() { return *s_RendererStorage; }
-
-    FORCEINLINE static const auto& GetPipelineStatNames() { return GraphicsContext::Get().GetPipelineStatNames(); }
-    FORCEINLINE static const auto& GetPipelineStats() { return GraphicsContext::Get().GetPipelineStats(); }
 
   private:
     static Renderer* s_Renderer;
@@ -165,6 +165,7 @@ class Renderer : private Uncopyable, private Unmovable
         // Viewports
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {1280, 720};
+        std::vector<Ref<CommandBuffer>> RenderCommandBuffer;  // per-frame
 
         // Defaults
         BufferLayout StaticMeshVertexBufferLayout;
@@ -234,7 +235,6 @@ class Renderer : private Uncopyable, private Unmovable
     Renderer()          = default;
     virtual ~Renderer() = default;
 
-    virtual void PostInit()  = 0;
     virtual void BeginImpl() = 0;
 
     virtual void BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f)) = 0;

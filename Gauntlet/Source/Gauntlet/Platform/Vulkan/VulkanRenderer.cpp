@@ -36,21 +36,11 @@ VulkanRenderer::VulkanRenderer() : m_Context((VulkanContext&)VulkanContext::Get(
     }
 }
 
-void VulkanRenderer::PostInit()
-{
-    // TODO: Get rid of it?
-    s_Data.GeometryDescriptorSetLayout =
-        std::static_pointer_cast<VulkanShader>(s_RendererStorage->GeometryPipeline->GetSpecification().Shader)
-            ->GetDescriptorSetLayouts()[0];
-}
-
 VulkanRenderer::~VulkanRenderer()
 {
     m_Context.WaitDeviceOnFinish();
 
     vkDestroyDescriptorSetLayout(m_Context.GetDevice()->GetLogicalDevice(), s_Data.ImageDescriptorSetLayout, nullptr);
-
-    s_Data.CurrentCommandBuffer = nullptr;
 
     for (auto& sampler : s_Data.Samplers)
         vkDestroySampler(m_Context.GetDevice()->GetLogicalDevice(), sampler.second, nullptr);
@@ -58,29 +48,30 @@ VulkanRenderer::~VulkanRenderer()
 
 void VulkanRenderer::BeginImpl()
 {
-    s_Data.CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
-    GNT_ASSERT(s_Data.CurrentCommandBuffer, "Failed to retrieve command buffer!");
-
     s_Data.CurrentPipelineToBind.reset();
 }
 
 void VulkanRenderer::BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor)
 {
-    GNT_ASSERT(s_Data.CurrentCommandBuffer);
+    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
 
-    s_Data.CurrentCommandBuffer->BeginDebugLabel(framebuffer->GetSpecification().Name.data(), debugLabelColor);
+    cmdBuffer->BeginDebugLabel(framebuffer->GetSpecification().Name.data(), debugLabelColor);
     auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(framebuffer);
-    vulkanFramebuffer->BeginRenderPass(s_Data.CurrentCommandBuffer->Get());
+    vulkanFramebuffer->BeginRenderPass(cmdBuffer->Get());
 }
 
 void VulkanRenderer::EndRenderPassImpl(const Ref<Framebuffer>& framebuffer)
 {
-    GNT_ASSERT(s_Data.CurrentCommandBuffer);
+    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
 
     auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(framebuffer);
-    vulkanFramebuffer->EndRenderPass(s_Data.CurrentCommandBuffer->Get());
+    vulkanFramebuffer->EndRenderPass(cmdBuffer->Get());
 
-    s_Data.CurrentCommandBuffer->EndDebugLabel();
+    cmdBuffer->EndDebugLabel();
 }
 
 void VulkanRenderer::SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
@@ -99,22 +90,24 @@ void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<Inde
                                          const Ref<VertexBuffer>& vertexBuffer, void* pushConstants, VkDescriptorSet* descriptorSets,
                                          const uint32_t descriptorCount)
 {
-    GNT_ASSERT(s_Data.CurrentCommandBuffer);
+    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
 
     // Prevent same pipeline binding
     auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
     if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
     {
-        s_Data.CurrentCommandBuffer->SetPipelinePolygonMode(vulkanPipeline, GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE
-                                                                                                         : EPolygonMode::POLYGON_MODE_FILL);
-        s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+        cmdBuffer->SetPipelinePolygonMode(vulkanPipeline,
+                                          GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
+        cmdBuffer->BindPipeline(vulkanPipeline);
 
         s_Data.CurrentPipelineToBind = pipeline;
     }
 
     if (pushConstants)
-        s_Data.CurrentCommandBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                       vulkanPipeline->GetPushConstantsSize(), pushConstants);
+        cmdBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                     vulkanPipeline->GetPushConstantsSize(), pushConstants);
 
     if (!descriptorSets)
     {
@@ -124,39 +117,43 @@ void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<Inde
             shaderDescriptorSets.push_back(descriptorSet.Handle);
 
         if (!shaderDescriptorSets.empty())
-            s_Data.CurrentCommandBuffer->BindDescriptorSets(
-                vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(shaderDescriptorSets.size()), shaderDescriptorSets.data());
+            cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(shaderDescriptorSets.size()),
+                                          shaderDescriptorSets.data());
     }
     else
     {
-        s_Data.CurrentCommandBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, descriptorCount, descriptorSets);
+        cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, descriptorCount, descriptorSets);
     }
 
     VkDeviceSize offset = 0;
     VkBuffer vb         = (VkBuffer)vertexBuffer->Get();
-    s_Data.CurrentCommandBuffer->BindVertexBuffers(0, 1, &vb, &offset);
+    cmdBuffer->BindVertexBuffers(0, 1, &vb, &offset);
 
     VkBuffer ib = (VkBuffer)indexBuffer->Get();
-    s_Data.CurrentCommandBuffer->BindIndexBuffer(ib);
-    s_Data.CurrentCommandBuffer->DrawIndexed(static_cast<uint32_t>(indexBuffer->GetCount()));
+    cmdBuffer->BindIndexBuffer(ib);
+    cmdBuffer->DrawIndexed(static_cast<uint32_t>(indexBuffer->GetCount()));
     ++Renderer::GetStats().DrawCalls;
 }
 
+// TODO: RenderCommandBuffer->Submit etc..
+
 void VulkanRenderer::SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants)
 {
-    GNT_ASSERT(s_Data.CurrentCommandBuffer);
+    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
 
     auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
     if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
     {
-        s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+        cmdBuffer->BindPipeline(vulkanPipeline);
 
         s_Data.CurrentPipelineToBind = pipeline;
     }
 
     if (pushConstants)
-        s_Data.CurrentCommandBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                       vulkanPipeline->GetPushConstantsSize(), pushConstants);
+        cmdBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                     vulkanPipeline->GetPushConstantsSize(), pushConstants);
 
     auto vulkanShader = std::static_pointer_cast<VulkanShader>(pipeline->GetSpecification().Shader);
     std::vector<VkDescriptorSet> descriptorSets;
@@ -164,34 +161,35 @@ void VulkanRenderer::SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pus
         descriptorSets.push_back(descriptorSet.Handle);
 
     if (!descriptorSets.empty())
-        s_Data.CurrentCommandBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()),
-                                                        descriptorSets.data());
+        cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
 
-    s_Data.CurrentCommandBuffer->Draw(3);
+    cmdBuffer->Draw(3);
 }
 
 void VulkanRenderer::DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                                   const uint32_t indicesCount, void* pushConstants)
 {
-    GNT_ASSERT(s_Data.CurrentCommandBuffer);
+    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
 
     auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
     if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
     {
 
-        s_Data.CurrentCommandBuffer->SetPipelinePolygonMode(
-            vulkanPipeline, Renderer::GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
-        s_Data.CurrentCommandBuffer->BindPipeline(vulkanPipeline);
+        cmdBuffer->SetPipelinePolygonMode(vulkanPipeline, Renderer::GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE
+                                                                                                 : EPolygonMode::POLYGON_MODE_FILL);
+        cmdBuffer->BindPipeline(vulkanPipeline);
 
         s_Data.CurrentPipelineToBind = pipeline;
     }
 
     VkDeviceSize Offset = 0;
     VkBuffer vb         = (VkBuffer)vertexBuffer->Get();
-    s_Data.CurrentCommandBuffer->BindVertexBuffers(0, 1, &vb, &Offset);
+    cmdBuffer->BindVertexBuffers(0, 1, &vb, &Offset);
 
     VkBuffer ib = (VkBuffer)indexBuffer->Get();
-    s_Data.CurrentCommandBuffer->BindIndexBuffer(ib);
+    cmdBuffer->BindIndexBuffer(ib);
 
     auto vulkanShader = std::static_pointer_cast<VulkanShader>(pipeline->GetSpecification().Shader);
     std::vector<VkDescriptorSet> descriptorSets;
@@ -199,13 +197,12 @@ void VulkanRenderer::DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& ve
         descriptorSets.push_back(descriptorSet.Handle);
 
     if (!descriptorSets.empty())
-        s_Data.CurrentCommandBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()),
-                                                        descriptorSets.data());
+        cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
 
     if (pushConstants)
-        s_Data.CurrentCommandBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
-                                                       vulkanPipeline->GetPushConstantsSize(), pushConstants);
+        cmdBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                     vulkanPipeline->GetPushConstantsSize(), pushConstants);
 
-    s_Data.CurrentCommandBuffer->DrawIndexed(indicesCount);
+    cmdBuffer->DrawIndexed(indicesCount);
 }
 }  // namespace Gauntlet

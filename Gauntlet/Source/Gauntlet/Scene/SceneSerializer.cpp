@@ -1,7 +1,7 @@
 #include "GauntletPCH.h"
 #include "SceneSerializer.h"
 
-#include "Gauntlet/Core/Application.h"
+#include "Gauntlet/Core/Timer.h"
 #include "Gauntlet/Core/JobSystem.h"
 
 #include "Scene.h"
@@ -22,7 +22,6 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
     out.emplace(UUIDstring, out.object());
     auto& node = out[UUIDstring];
 
-    // Each entity has it whatever happens.
     if (entity.HasComponent<TagComponent>())
     {
         auto& tc = entity.GetComponent<TagComponent>();
@@ -48,7 +47,7 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
     if (entity.HasComponent<CameraComponent>())
     {
         auto& cc = entity.GetComponent<CameraComponent>();
-        node["CameraComponent"].emplace("Active", cc.bIsActive ? "true" : "false");
+        node["CameraComponent"].emplace("Active", cc.bIsActive);
     }
 
     if (entity.HasComponent<MeshComponent>())
@@ -61,28 +60,26 @@ static void SerializeEntity(nlohmann::ordered_json& out, Entity entity)
     {
         auto& plc = entity.GetComponent<PointLightComponent>();
         node["PointLightComponent"].emplace("Color", std::initializer_list<float>({plc.Color.x, plc.Color.y, plc.Color.z}));
-        node["PointLightComponent"].emplace(
-            "AmbientSpecularShininess",
-            std::initializer_list<float>({plc.AmbientSpecularShininess.x, plc.AmbientSpecularShininess.y, plc.AmbientSpecularShininess.z}));
-        node["PointLightComponent"].emplace("Active", std::initializer_list<bool>({plc.bIsActive}));
+        node["PointLightComponent"].emplace("Intensity", plc.Intensity);
+        node["PointLightComponent"].emplace("Active", plc.bIsActive);
     }
 
     if (entity.HasComponent<DirectionalLightComponent>())
     {
         auto& dlc = entity.GetComponent<DirectionalLightComponent>();
         node["DirectionalLightComponent"].emplace("Color", std::initializer_list<float>({dlc.Color.x, dlc.Color.y, dlc.Color.z}));
-        node["DirectionalLightComponent"].emplace("CastShadows", std::initializer_list<bool>({dlc.bCastShadows}));
+        node["DirectionalLightComponent"].emplace("Intensity", dlc.Intensity);
+        node["DirectionalLightComponent"].emplace("CastShadows", dlc.bCastShadows);
     }
 
     if (entity.HasComponent<SpotLightComponent>())
     {
         auto& slc = entity.GetComponent<SpotLightComponent>();
         node["SpotLightComponent"].emplace("Color", std::initializer_list<float>({slc.Color.x, slc.Color.y, slc.Color.z}));
-        node["SpotLightComponent"].emplace(
-            "AmbientSpecularShininess",
-            std::initializer_list<float>({slc.AmbientSpecularShininess.x, slc.AmbientSpecularShininess.y, slc.AmbientSpecularShininess.z}));
-        node["SpotLightComponent"].emplace("CutOff", std::initializer_list<float>({slc.CutOff}));
-        node["SpotLightComponent"].emplace("Active", std::initializer_list<bool>({slc.bIsActive}));
+        node["SpotLightComponent"].emplace("Intensity", slc.Intensity);
+        node["SpotLightComponent"].emplace("CutOff", slc.CutOff);
+        node["SpotLightComponent"].emplace("OuterCutOff", slc.OuterCutOff);
+        node["SpotLightComponent"].emplace("Active", slc.bIsActive);
     }
 }
 
@@ -90,7 +87,7 @@ SceneSerializer::SceneSerializer(Ref<Scene>& scene) : m_Scene(scene) {}
 
 void SceneSerializer::Serialize(const std::string& filePath)
 {
-    const auto serializeBegin = Application::Get().GetTimeNow();
+    const auto serializeBegin = Timer::Now();
 
     nlohmann::ordered_json json;
     json["Scene"] = m_Scene->GetName();
@@ -114,7 +111,7 @@ void SceneSerializer::Serialize(const std::string& filePath)
     out << std::setw(2) << json << std::endl;
     out.close();
 
-    const auto serializeEnd = Application::Get().GetTimeNow();
+    const auto serializeEnd = Timer::Now();
     LOG_WARN("Time took to serialize \"%s\", (%0.2f) ms.", filePath.data(), (serializeEnd - serializeBegin) * 1000.0f);
 }
 
@@ -125,7 +122,7 @@ void SceneSerializer::SerializeRuntime(const std::string& filePath)
 
 bool SceneSerializer::Deserialize(const std::string& filePath)
 {
-    const auto deserializeBegin = Application::Get().GetTimeNow();
+    const auto deserializeBegin = Timer::Now();
 
     std::ifstream in(filePath.data());
     if (!in.is_open())
@@ -146,8 +143,6 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
 
     m_Scene = MakeRef<Scene>(sceneName);
 
-    // nlohmann::json::iterator
-    // TODO: Move to static void DeserializeEntity()
     nlohmann::json entities = json["Entities"];
     for (auto& item : entities.items())
     {
@@ -177,6 +172,7 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
         }
 
         // TODO: Add camera component
+        // if (node.contains("CameraComponent"))
 
         if (node.contains("MeshComponent"))
         {
@@ -189,49 +185,73 @@ bool SceneSerializer::Deserialize(const std::string& filePath)
         {
             auto& plc = entity.AddComponent<PointLightComponent>();
 
-            std::array<float, 3> color = node["PointLightComponent"]["Color"].get<std::array<float, 3>>();
-            plc.Color                  = glm::vec3(color[0], color[1], color[2]);
+            if (node["PointLightComponent"].contains("Color"))
+            {
+                std::array<float, 3> color = node["PointLightComponent"]["Color"].get<std::array<float, 3>>();
+                plc.Color                  = glm::vec3(color[0], color[1], color[2]);
+            }
 
-            std::array<float, 3> ambientSpecularShininess =
-                node["PointLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
-            plc.AmbientSpecularShininess = glm::vec3(ambientSpecularShininess[0], ambientSpecularShininess[1], ambientSpecularShininess[2]);
+            if (node["PointLightComponent"].contains("Intensity"))
+            {
+                plc.Intensity = node["PointLightComponent"]["Intensity"].get<float>();
+            }
 
-            std::array<bool, 1> active = node["PointLightComponent"]["Active"].get<std::array<bool, 1>>();
-            plc.bIsActive              = active[0];
+            if (node["PointLightComponent"].contains("Active"))
+            {
+                plc.bIsActive = node["PointLightComponent"]["Active"].get<bool>();
+            }
         }
 
         if (node.contains("DirectionalLightComponent"))
         {
             auto& dlc = entity.AddComponent<DirectionalLightComponent>();
 
-            std::array<float, 3> color = node["DirectionalLightComponent"]["Color"].get<std::array<float, 3>>();
-            dlc.Color                  = glm::vec3(color[0], color[1], color[2]);
+            if (node["DirectionalLightComponent"].contains("Color"))
+            {
+                std::array<float, 3> color = node["DirectionalLightComponent"]["Color"].get<std::array<float, 3>>();
+                dlc.Color                  = glm::vec3(color[0], color[1], color[2]);
+            }
 
-            std::array<bool, 1> castShadows = node["DirectionalLightComponent"]["CastShadows"].get<std::array<bool, 1>>();
-            dlc.bCastShadows                = castShadows[0];
+            if (node["DirectionalLightComponent"].contains("CastShadows"))
+            {
+                dlc.bCastShadows = node["DirectionalLightComponent"]["CastShadows"].get<bool>();
+            }
         }
 
         if (node.contains("SpotLightComponent"))
         {
             auto& slc = entity.AddComponent<SpotLightComponent>();
 
-            std::array<float, 3> color = node["SpotLightComponent"]["Color"].get<std::array<float, 3>>();
-            slc.Color                  = glm::vec3(color[0], color[1], color[2]);
+            if (node["SpotLightComponent"].contains("Color"))
+            {
+                std::array<float, 3> color = node["SpotLightComponent"]["Color"].get<std::array<float, 3>>();
+                slc.Color                  = glm::vec3(color[0], color[1], color[2]);
+            }
 
-            std::array<float, 3> ambientSpecularShininess =
-                node["SpotLightComponent"]["AmbientSpecularShininess"].get<std::array<float, 3>>();
-            slc.AmbientSpecularShininess = glm::vec3(ambientSpecularShininess[0], ambientSpecularShininess[1], ambientSpecularShininess[2]);
+            if (node["SpotLightComponent"].contains("Intensity"))
+            {
+                slc.Intensity = node["SpotLightComponent"]["Intensity"].get<float>();
+            }
 
-            std::array<float, 1> cutOff = node["SpotLightComponent"]["CutOff"].get<std::array<float, 1>>();
-            slc.CutOff                  = cutOff[0];
+            if (node["SpotLightComponent"].contains("CutOff"))
+            {
+                slc.CutOff = node["SpotLightComponent"]["CutOff"].get<float>();
+            }
 
-            std::array<bool, 1> active = node["SpotLightComponent"]["Active"].get<std::array<bool, 1>>();
-            slc.bIsActive              = active[0];
+            if (node["SpotLightComponent"].contains("OuterCutOff"))
+            {
+                slc.OuterCutOff = node["SpotLightComponent"]["OuterCutOff"].get<float>();
+            }
+
+            if (node["SpotLightComponent"].contains("Active"))
+            {
+                slc.bIsActive = node["SpotLightComponent"]["Active"].get<bool>();
+            }
         }
     }
 
     JobSystem::Wait();
-    const auto deserializeEnd = Application::Get().GetTimeNow();
+    const auto deserializeEnd = Timer::Now();
     LOG_WARN("Time took to deserialize \"%s\", (%0.2f) ms.", filePath.data(), (deserializeEnd - deserializeBegin) * 1000.0f);
     return true;
 }

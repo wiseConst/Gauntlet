@@ -29,22 +29,45 @@ void VulkanCommandPool::CreateCommandPool()
              "Failed to create command pool!");
 }
 
-void VulkanCommandPool::FreeCommandBuffers(std::vector<VulkanCommandBuffer>& commandBuffers)
+void VulkanCommandPool::FreeCommandBuffers(std::vector<Ref<VulkanCommandBuffer>>& commandBuffers)
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     std::vector<VkCommandBuffer> cmdBuffers(commandBuffers.size());
     for (uint32_t i = 0; i < cmdBuffers.size(); ++i)
-        cmdBuffers[i] = commandBuffers[i].Get();
+        cmdBuffers[i] = commandBuffers[i]->Get();
 
     commandBuffers.clear();
     vkFreeCommandBuffers(context.GetDevice()->GetLogicalDevice(), m_CommandPool, static_cast<uint32_t>(cmdBuffers.size()),
                          cmdBuffers.data());
 }
 
-void VulkanCommandPool::AllocateCommandBuffers(std::vector<VulkanCommandBuffer>& secondaryCommandBuffers, const uint32_t size,
+void VulkanCommandPool::AllocateCommandBuffers(std::vector<Ref<VulkanCommandBuffer>>& outCommandBuffers, const uint32_t size,
                                                VkCommandBufferLevel commandBufferLevel)
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    ECommandBufferType type;
+    switch (m_CommandPoolSpecification.CommandPoolUsage)
+    {
+        case ECommandPoolUsage::COMMAND_POOL_USAGE_COMPUTE: type = ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE; break;
+        case ECommandPoolUsage::COMMAND_POOL_USAGE_GRAPHICS: type = ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS; break;
+        case ECommandPoolUsage::COMMAND_POOL_USAGE_TRANSFER: type = ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER; break;
+    }
+
+    outCommandBuffers.resize(size);
+    for (auto& commandBuffer : outCommandBuffers)
+    {
+        commandBuffer = MakeRef<VulkanCommandBuffer>(type);
+
+        commandBuffer->m_Level = commandBufferLevel;
+        AllocateSingleCommandBuffer(commandBuffer->Get(), commandBufferLevel);
+    }
+}
+
+void VulkanCommandPool::AllocateSingleCommandBuffer(VkCommandBuffer& commandBuffer, VkCommandBufferLevel commandBufferLevel)
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
@@ -54,19 +77,25 @@ void VulkanCommandPool::AllocateCommandBuffers(std::vector<VulkanCommandBuffer>&
     commandBufferAllocateInfo.level                       = commandBufferLevel;
     commandBufferAllocateInfo.commandBufferCount          = 1;
 
-    secondaryCommandBuffers.resize(size);
-    for (auto& commandBuffer : secondaryCommandBuffers)
-    {
-        commandBuffer.m_Level = commandBufferLevel;
-        VK_CHECK(vkAllocateCommandBuffers(context.GetDevice()->GetLogicalDevice(), &commandBufferAllocateInfo, &commandBuffer.Get()),
-                 "Failed to allocate command buffer!");
-    }
+    VK_CHECK(vkAllocateCommandBuffers(context.GetDevice()->GetLogicalDevice(), &commandBufferAllocateInfo, &commandBuffer),
+             "Failed to allocate command buffer!");
+}
+
+void VulkanCommandPool::FreeSingleCommandBuffer(VkCommandBuffer& commandBuffer)
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    vkFreeCommandBuffers(context.GetDevice()->GetLogicalDevice(), m_CommandPool, 1, &commandBuffer);
 }
 
 void VulkanCommandPool::Destroy()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+
+    for (auto& commandBuffer : m_CommandBuffers)
+        commandBuffer->Destroy();
 
     vkDestroyCommandPool(context.GetDevice()->GetLogicalDevice(), m_CommandPool, nullptr);
 }

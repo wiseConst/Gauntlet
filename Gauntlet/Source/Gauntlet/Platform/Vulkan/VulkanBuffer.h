@@ -104,7 +104,8 @@ class VulkanUniformBuffer final : public UniformBuffer
   private:
     std::vector<VulkanAllocatedBuffer> m_AllocatedBuffers;  // Per-frame
     std::vector<bool> m_bAreMapped;                         // Per-frame for buffers
-    VkDeviceSize m_Size = 0;
+    VkDeviceSize m_Size  = 0;
+    bool m_bIsPersistent = false;
 };
 
 namespace BufferUtils

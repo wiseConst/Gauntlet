@@ -133,6 +133,7 @@ enum EBufferUsageFlags
     UNIFORM_BUFFER = BIT(4),
     INDEX_BUFFER   = BIT(6),
     VERTEX_BUFFER  = BIT(7),
+    STORAGE_BUFFER = BIT(8),
 };
 
 typedef uint32_t EBufferUsage;
@@ -164,8 +165,7 @@ class StagingBuffer;
 class VertexBuffer : private Uncopyable, private Unmovable
 {
   public:
-    VertexBuffer() = delete;
-    VertexBuffer(BufferInfo& InBufferInfo);
+    VertexBuffer() = default;
 
     virtual ~VertexBuffer() = default;
 
@@ -188,8 +188,7 @@ class VertexBuffer : private Uncopyable, private Unmovable
 class IndexBuffer : private Uncopyable, private Unmovable
 {
   public:
-    IndexBuffer() = delete;
-    IndexBuffer(BufferInfo& InBufferInfo);
+    IndexBuffer() = default;
 
     virtual ~IndexBuffer() = default;
 

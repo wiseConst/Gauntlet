@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gauntlet/Core/Core.h"
+#include "Gauntlet/Renderer/CommandBuffer.h"
 #include "VulkanUtility.h"
 
 #include <volk/volk.h>
@@ -12,19 +12,27 @@ namespace Gauntlet
 
 class VulkanPipeline;
 
-class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
+class VulkanCommandBuffer final : public CommandBuffer
 {
   public:
-    VulkanCommandBuffer()  = default;
+    VulkanCommandBuffer(ECommandBufferType type, bool bIsSeparate = false);
+    VulkanCommandBuffer()  = delete;
     ~VulkanCommandBuffer() = default;
 
     FORCEINLINE const auto& Get() const { return m_CommandBuffer; }
     FORCEINLINE auto& Get() { return m_CommandBuffer; }
 
-    FORCEINLINE const auto GetLevel() const { return m_Level; }
+    FORCEINLINE const auto& GetLevel() const { return m_Level; }
+    FORCEINLINE auto& GetLevel() { return m_Level; }
 
-    // Unused
+    FORCEINLINE const std::vector<size_t>& GetTimestampResults() final override { return m_TimestampResults; }
+    FORCEINLINE const std::vector<size_t>& GetStatisticsResults() final override { return m_StatsResults; }
+
     FORCEINLINE void Reset() const { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
+    void Destroy() final override;
+
+    void BeginTimestamp(bool bStatisticsQuery = false) final override;
+    void EndTimestamp(bool bStatisticsQuery = false) final override;
 
     // Call before render pass begin
     void BeginDebugLabel(const char* commandBufferLabelName = "NONAME", const glm::vec4& labelColor = glm::vec4(1.0f)) const;
@@ -35,9 +43,13 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         if (s_bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
     }
 
-    void BeginRecording(const VkCommandBufferUsageFlags commandBufferUsageFlags = 0,
-                        const VkCommandBufferInheritanceInfo* inheritanceInfo   = VK_NULL_HANDLE) const;
-    FORCEINLINE void EndRecording() const { VK_CHECK(vkEndCommandBuffer(m_CommandBuffer), "Failed to end recording command buffer"); }
+    void BeginRecording(const void* inheritanceInfo = VK_NULL_HANDLE) final override;
+    FORCEINLINE void EndRecording() final override
+    {
+        VK_CHECK(vkEndCommandBuffer(m_CommandBuffer), "Failed to end recording command buffer");
+    }
+
+    void Submit() final override;
 
     FORCEINLINE void BindPushConstants(VkPipelineLayout pipelineLayout, const VkShaderStageFlags shaderStageFlags, const uint32_t offset,
                                        const uint32_t size, const void* values = VK_NULL_HANDLE) const
@@ -93,8 +105,6 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
         vkCmdBindIndexBuffer(m_CommandBuffer, buffer, offset, indexType);
     }
 
-    // RTX Part
-
     FORCEINLINE void TraceRays(const VkStridedDeviceAddressRegionKHR* raygenShaderBindingTable,
                                const VkStridedDeviceAddressRegionKHR* missShaderBindingTable,
                                const VkStridedDeviceAddressRegionKHR* hitShaderBindingTable,
@@ -114,8 +124,20 @@ class VulkanCommandBuffer final /*: private Uncopyable, private Unmovable*/
   private:
     VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
     VkCommandBufferLevel m_Level    = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    VkFence m_SubmitFence           = VK_NULL_HANDLE;
+    bool m_bAllocatedSeparate       = false;
+    ECommandBufferType m_Type       = ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS;
+
+    VkQueryPool m_TimestampQueryPool = VK_NULL_HANDLE;
+    std::vector<size_t> m_TimestampResults;
+    VkQueryPool m_StatisticsQueryPool = VK_NULL_HANDLE;
+    std::vector<size_t> m_StatsResults;
+
+    uint32_t m_TimestampIndex = 0;
 
     friend class VulkanCommandPool;
+
+    void CreateSyncResourcesAndQueries();
 };
 
 }  // namespace Gauntlet

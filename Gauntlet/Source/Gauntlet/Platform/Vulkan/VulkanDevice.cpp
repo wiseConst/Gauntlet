@@ -129,11 +129,15 @@ void VulkanDevice::CreateLogicalDevice()
     vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
     vulkan12Features.descriptorBindingStorageImageUpdateAfterBind  = VK_TRUE;
     vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+    vulkan12Features.scalarBlockLayout                             = VK_TRUE;
 
 #if !RENDERDOC_DEBUG
     vulkan12Features.pNext = &extendedDynamicState3FeaturesEXT;
 #endif
     deviceCI.pNext = &vulkan12Features;  // vk1.2
+
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
+    dynamicRenderingFeatures.dynamicRendering                            = VK_TRUE;
 
 #if VK_RTX
     vulkan12Features.bufferDeviceAddress = VK_TRUE;
@@ -148,8 +152,13 @@ void VulkanDevice::CreateLogicalDevice()
     enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
     enabledAccelerationStructureFeatures.pNext                 = &enabledRayTracingPipelineFeatures;
 
-    deviceCI.pNext = &enabledAccelerationStructureFeatures;
+    deviceCI.pNext                             = &enabledAccelerationStructureFeatures;
+    enabledAccelerationStructureFeatures.pNext = &dynamicRenderingFeatures;
+#else
+
+    vulkan12Features.pNext = &dynamicRenderingFeatures;
 #endif
+
 
     // Required gpu features
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};

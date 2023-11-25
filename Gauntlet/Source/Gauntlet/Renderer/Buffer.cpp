@@ -8,8 +8,6 @@ namespace Gauntlet
 {
 // VERTEX
 
-VertexBuffer::VertexBuffer(BufferInfo& InBufferInfo) {}
-
 Ref<VertexBuffer> VertexBuffer::Create(BufferInfo& InBufferInfo)
 {
     switch (RendererAPI::Get())
@@ -30,8 +28,6 @@ Ref<VertexBuffer> VertexBuffer::Create(BufferInfo& InBufferInfo)
 }
 
 // INDEX
-
-IndexBuffer::IndexBuffer(BufferInfo& InBufferInfo) {}
 
 Ref<IndexBuffer> IndexBuffer::Create(BufferInfo& InBufferInfo)
 {

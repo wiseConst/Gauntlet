@@ -36,8 +36,6 @@ struct ApplicationSpecification final
     uint32_t Width;
     uint32_t Height;
     RendererAPI::EAPI GraphicsAPI;
-    bool bUseCustomTitleBar = false;
-    uint32_t FPSLock        = 0;  // "0" means no lock at all
 };
 
 class Application : private Uncopyable, private Unmovable
@@ -49,6 +47,7 @@ class Application : private Uncopyable, private Unmovable
 
     void Run();
     void OnEvent(Event& e);
+    void Close();
 
     FORCEINLINE static Application& Get() { return *s_Instance; }
     FORCEINLINE auto& GetGUILayer() { return m_ImGuiLayer; }
@@ -60,9 +59,6 @@ class Application : private Uncopyable, private Unmovable
     FORCEINLINE auto& GetWindow() { return m_Window; }
 
     FORCEINLINE void PushLayer(Layer* InLayer) { m_LayerQueue.Enqueue(InLayer); }
-    static const float GetTimeNow();
-
-    void Close();
 
   private:
     static Application* s_Instance;
@@ -76,7 +72,7 @@ class Application : private Uncopyable, private Unmovable
     float m_MainThreadDelta = 0.0f;
     const std::thread::id m_MainThreadID;
 
-    void OnWindowClosed(WindowCloseEvent& InEvent);
+    void OnWindowClosed(WindowCloseEvent& InEvent) { Close(); }
 };
 
 Scoped<Application> CreateApplication(const CommandLineArguments& args);

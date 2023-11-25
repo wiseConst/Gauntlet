@@ -8,12 +8,13 @@
 #include "VulkanTextureCube.h"
 #include "VulkanDevice.h"
 #include "VulkanUtility.h"
+#include "VulkanShader.h"
+#include "VulkanBuffer.h"
 
 #pragma warning(disable : 4100)
 
 namespace Gauntlet
 {
-// TODO: Refactor
 
 VulkanMaterial::VulkanMaterial()
 {
@@ -27,15 +28,19 @@ void VulkanMaterial::Update()
 
 void VulkanMaterial::Invalidate()
 {
-    auto& Context                         = (VulkanContext&)VulkanContext::Get();
-    const auto& VulkanRendererStorageData = VulkanRenderer::GetVulkanStorageData();
-    const auto& RendererStorageData       = Renderer::GetStorageData();
+    auto& Context                   = (VulkanContext&)VulkanContext::Get();
+    const auto& RendererStorageData = Renderer::GetStorageData();
 
     if (!m_UBMaterial) m_UBMaterial = UniformBuffer::Create(sizeof(PBRMaterial));
 
     if (!m_DescriptorSet.Handle)
     {
-        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, VulkanRendererStorageData.GeometryDescriptorSetLayout),
+        // Material
+        VkDescriptorSetLayout geometryDescriptorSetLayout =
+            std::static_pointer_cast<VulkanShader>(RendererStorageData.GeometryPipeline->GetSpecification().Shader)
+                ->GetDescriptorSetLayouts()[0];
+
+        GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet, geometryDescriptorSetLayout),
                    "Failed to allocate descriptor sets!");
     }
 

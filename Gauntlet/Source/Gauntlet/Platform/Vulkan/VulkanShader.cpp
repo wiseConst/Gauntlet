@@ -10,7 +10,7 @@
 #include "VulkanBuffer.h"
 #include "Gauntlet/Renderer/CoreRendererStructs.h"
 
-#include "Gauntlet/Core/Application.h"
+#include "Gauntlet/Core/Timer.h"
 
 // For compiling
 #include <shaderc/shaderc.hpp>
@@ -162,7 +162,7 @@ std::vector<uint8_t> VulkanShader::CompileOrGetSpvBinaries(const std::string& sh
     else
         GNT_ASSERT(false);
 
-    const auto compileBegin = Application::GetTimeNow();
+    const auto compileBegin = Timer::Now();
 
     // Parse GLSL
     auto glslSource = Utility::LoadDataFromDisk(shaderSourcePath.data());
@@ -185,7 +185,7 @@ std::vector<uint8_t> VulkanShader::CompileOrGetSpvBinaries(const std::string& sh
     spvData = std::vector<uint8_t>((const uint8_t*)compiledShader.cbegin(), (const uint8_t*)compiledShader.cend());
     GNT_ASSERT(Utility::SaveDataToDisk(spvData.data(), spvData.size() * sizeof(spvData[0]), shaderCachePath.string()) == true);
 
-    const auto compileEnd = Application::GetTimeNow();
+    const auto compileEnd = Timer::Now();
     LOG_TRACE("Time took to compile %s, (%0.3f)ms", (std::string(filePath) + "." + shaderExt).data(),
               (compileEnd - compileBegin) * 1000.0f);
 

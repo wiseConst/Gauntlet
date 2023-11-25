@@ -103,8 +103,6 @@ void VulkanImGuiLayer::OnDetach()
     m_Context.WaitDeviceOnFinish();
     vkDestroyDescriptorPool(m_Context.GetDevice()->GetLogicalDevice(), m_ImGuiDescriptorPool, nullptr);
 
-    m_CurrentCommandBuffer = nullptr;
-
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -112,33 +110,47 @@ void VulkanImGuiLayer::OnDetach()
 
 void VulkanImGuiLayer::BeginRender()
 {
-    m_CurrentCommandBuffer = &m_Context.GetGraphicsCommandPool()->GetCommandBuffer(m_Context.GetSwapchain()->GetCurrentFrameIndex());
-    GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve imgui command buffer!");
+    m_CurrentCommandBuffer = m_Context.GetGraphicsCommandPool()->GetCommandBuffers()[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
+    GNT_ASSERT(m_CurrentCommandBuffer.lock(), "Failed to retrieve imgui command buffer!");
 
-    m_CurrentCommandBuffer->BeginDebugLabel("Swapchain + UI Pass", glm::vec4(0.0f, 0.0f, 0.8f, 1.0f));
-    m_Context.GetSwapchain()->BeginRenderPass(m_CurrentCommandBuffer->Get());
+    if (auto commandBuffer = m_CurrentCommandBuffer.lock())
+    {
+        commandBuffer->BeginRecording();
 
-    // Start the Dear ImGui frame
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+        commandBuffer->BeginDebugLabel("Swapchain + UI Pass", glm::vec4(0.0f, 0.0f, 0.8f, 1.0f));
+        m_Context.GetSwapchain()->BeginRenderPass(commandBuffer->Get());
+
+        // Start the Dear ImGui frame
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+    }
+    else
+        GNT_ASSERT(false, "Failed to retrieve imgui general graphics command buffer!");
 }
 
 void VulkanImGuiLayer::EndRender()
 {
-    ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CurrentCommandBuffer->Get());
-
-    // Update and Render additional Platform Windows
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    if (auto commandBuffer = m_CurrentCommandBuffer.lock())
     {
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-    }
+        ImGui::Render();
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer->Get());
 
-    m_Context.GetSwapchain()->EndRenderPass(m_CurrentCommandBuffer->Get());
-    m_CurrentCommandBuffer->EndDebugLabel();
+        // Update and Render additional Platform Windows
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
+
+        m_Context.GetSwapchain()->EndRenderPass(commandBuffer->Get());
+        commandBuffer->EndDebugLabel();
+
+        commandBuffer->EndRecording();
+    }
+    else
+        GNT_ASSERT(false, "Failed to retrieve imgui general graphics command buffer!");
 }
 
 void VulkanImGuiLayer::OnEvent(Event& event)

@@ -5,14 +5,12 @@
 #include "Window.h"
 #include "Input.h"
 #include "JobSystem.h"
+#include "Timer.h"
 
 #include "Gauntlet/ImGui/ImGuiLayer.h"
 #include "Gauntlet/Renderer/GraphicsContext.h"
 #include "Gauntlet/Renderer/Renderer2D.h"
 #include "Gauntlet/Renderer/Renderer.h"
-
-#include "Timestep.h"
-#include <GLFW/glfw3.h>
 
 namespace Gauntlet
 {
@@ -60,20 +58,17 @@ void Application::Run()
     m_LayerQueue.Init();
 
     {
-        const float AppPrepareStartTime = GetTimeNow();
+        const float prepareStartTime = static_cast<float>(Timer::Now());
         JobSystem::Wait();
-        const float AppPrepareEndTime = GetTimeNow();
-        LOG_INFO("Time took to prepare application: (%f)ms", AppPrepareEndTime - AppPrepareStartTime);
+        const float prepareEndTime = static_cast<float>(Timer::Now());
+        LOG_INFO("Time took to prepare application: (%f)ms", prepareEndTime - prepareStartTime);
     }
 
-    uint32_t FrameCount = 0;
-    float LastTime      = 0.0f;
-
-    float LastFrameTime = 0.0F;
+    uint32_t frameCount = 0;
+    float lastTime      = 0.0f;
+    float lastFrameTime = 0.0F;
     while (m_Window->IsRunning())
     {
-        const std::chrono::duration<float> frameTimeLimit(1.0f / m_Specification.FPSLock);
-
         if (!m_Window->IsMinimized())
         {
             m_Context->BeginRender();
@@ -100,27 +95,19 @@ void Application::Run()
         JobSystem::Update();
 
         // MainThread delta
-        const float CurrentTime        = GetTimeNow();
-        m_MainThreadDelta              = CurrentTime - LastFrameTime;
-        LastFrameTime                  = CurrentTime;
+        const float currentTime        = static_cast<float>(Timer::Now());
+        m_MainThreadDelta              = currentTime - lastFrameTime;
+        lastFrameTime                  = currentTime;
         Renderer::GetStats().FrameTime = m_MainThreadDelta;
 
         // FPS
-        const float DeltaTime = CurrentTime - LastTime;
-        ++FrameCount;
-        if (DeltaTime >= 1.0f)
+        const float dt = currentTime - lastTime;
+        ++frameCount;
+        if (dt >= 1.0f)
         {
-            Renderer::GetStats().FPS = static_cast<uint32_t>(FrameCount / DeltaTime);
-            FrameCount               = 0;
-            LastTime                 = CurrentTime;
-        }
-
-        if (m_Specification.FPSLock == 0) continue;
-
-        if (m_MainThreadDelta < frameTimeLimit.count())
-        {
-            const std::chrono::duration<float> frameDuration(m_MainThreadDelta);
-            std::this_thread::sleep_for(frameTimeLimit - frameDuration);
+            Renderer::GetStats().FPS = static_cast<uint32_t>(frameCount / dt);
+            frameCount               = 0;
+            lastTime                 = currentTime;
         }
     }
 }
@@ -136,23 +123,13 @@ void Application::OnEvent(Event& e)
     m_ImGuiLayer->OnEvent(e);
     if (e.IsHandled()) return;
 
-    for (auto& OneLayer : m_LayerQueue)
+    for (auto& layer : m_LayerQueue)
     {
-        if (OneLayer) OneLayer->OnEvent(e);
+        if (layer) layer->OnEvent(e);
     }
 }
 
-const float Application::GetTimeNow()
-{
-    return static_cast<float>(glfwGetTime());
-}
-
 void Application::Close()
-{
-    m_Window->SetIsRunning(false);
-}
-
-void Application::OnWindowClosed(WindowCloseEvent& InEvent)
 {
     m_Window->SetIsRunning(false);
 }

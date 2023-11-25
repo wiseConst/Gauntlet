@@ -1,5 +1,8 @@
 #version 460
 
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_KHR_vulkan_glsl : enable
+
 layout(location = 0) in vec2 in_TexCoord;
 
 layout(location = 0) out vec4 out_FragColor;
@@ -23,17 +26,15 @@ struct DirectionalLight
     vec3 Color;
     float Intensity;
     vec3 Direction;
-    int CastShadows;
+    float CastShadows;
 };
 
 struct PointLight
 {
     vec4 Position;
     vec4 Color;
-    float Ambient;    // useless
-    float Specular;   // useless
-    float Shininess;  // useless
-    int IsActive;
+    float Intensity;
+    float IsActive;
 };
 
 struct SpotLight
@@ -42,18 +43,17 @@ struct SpotLight
     vec4 Color;
     vec3 Direction;
     float CutOff;
+    float OuterCutOff;
 
-    float Ambient;  // useless
-    float Specular;
-    float Shininess;  // useless
-    int Active;
+    float Intensity;
+    float IsActive;
 };
 
 #define MAX_POINT_LIGHTS 16
 #define MAX_SPOT_LIGHTS 8
 #define MAX_DIR_LIGHTS 4
 
-layout(set = 0, binding = 5) uniform UBLightingData
+layout(set = 0, binding = 5, scalar) uniform UBLightingData
 {
 	DirectionalLight DirLights[MAX_DIR_LIGHTS];
 	SpotLight SpotLights[MAX_SPOT_LIGHTS];
@@ -122,7 +122,7 @@ void main()
     vec3 color = vec3(0.0);
 
     // constant ambient light
-    vec3 ambient = vec3(0.03) * albedo * ao * calcAO;
+    const vec3 ambient = vec3(0.03) * albedo * ao * calcAO;
     for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
     {
         if(u_LightingData.PointLights[i].IsActive == 0) continue;
@@ -133,7 +133,7 @@ void main()
         vec3 H = normalize(V + L);
         float distance = length(u_LightingData.PointLights[i].Position.xyz - fragPos);
         float attenuation = 1.0 / (distance * distance) + 0.0001;
-        vec3 radiance = u_LightingData.PointLights[i].Color.xyz * attenuation;
+        vec3 radiance = u_LightingData.PointLights[i].Color.xyz * attenuation *  u_LightingData.PointLights[i].Intensity;
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);
@@ -163,7 +163,6 @@ void main()
         color += ambient + Lo;
     }
 
-    //ambient*=calcAO;
     for(int i = 0; i < MAX_DIR_LIGHTS; ++i)
     {
         // reflectance equation
@@ -200,6 +199,52 @@ void main()
         // add to outgoing radiance Lo
         Lo += (kD * albedo / PI + specular) * radiance * I;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
         
+        color += ambient + Lo;
+    }
+
+    for(int i = 0; i < MAX_SPOT_LIGHTS; ++i)
+    {
+        if(u_LightingData.SpotLights[i].IsActive == 0) continue;
+        vec3 Lo = vec3(0.0);
+
+        // check if lighting is inside the spotlight cone
+        vec3 L = normalize(u_LightingData.SpotLights[i].Position.xyz - fragPos);
+
+        // Spotlight
+        const float theta = dot(L, normalize(-u_LightingData.SpotLights[i].Direction)); 
+        const float epsilon   = u_LightingData.SpotLights[i].CutOff - u_LightingData.SpotLights[i].OuterCutOff;
+        const float radiusAttenutaion = clamp((theta - u_LightingData.SpotLights[i].OuterCutOff) / epsilon, 0.0, 1.0); // theta > outer cut off -> 0, inside cutoff -> 1, otherwise interpolate
+
+        // calculate per-light radiance
+        vec3 H = normalize(V + L);
+        float distance = length(u_LightingData.SpotLights[i].Position.xyz - fragPos);
+        float attenuation = 1.0 / (distance * distance) + 0.0001;
+        vec3 radiance = u_LightingData.SpotLights[i].Color.xyz * attenuation * u_LightingData.SpotLights[i].Intensity * radiusAttenutaion;
+
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, roughness);
+        float G   = GeometrySmith(N, V, L, roughness);
+        vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
+        
+        vec3 numerator    = NDF * G * F; 
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;
+        
+        vec3 kS = F; // coefficient Specular equal fresnel
+        // Energy conservation: the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - metallic;	  
+
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);        
+
+        // add to outgoing radiance Lo
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
         color += ambient + Lo;
     }
 

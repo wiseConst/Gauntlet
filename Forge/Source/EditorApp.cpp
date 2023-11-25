@@ -20,7 +20,6 @@ Scoped<Application> CreateApplication(const CommandLineArguments& args)
     appSpec.AppName                  = "Gauntlet Editor";
     appSpec.WindowLogoPath           = "../Resources/Logo/Gauntlet.png";
     appSpec.GraphicsAPI              = RendererAPI::EAPI::Vulkan;
-    appSpec.bUseCustomTitleBar       = false;
     appSpec.CmdArgs                  = args;
 
     return MakeScoped<GauntletEditor>(appSpec);

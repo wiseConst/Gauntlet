@@ -62,10 +62,8 @@ struct PointLight
 {
     glm::vec4 Position = glm::vec4(0.0f);
     glm::vec4 Color    = glm::vec4(0.0f);
-    float Ambient      = 0.0f;
-    float Specular     = 0.0f;
-    float Shininess    = 0.0f;
-    int32_t IsActive   = 0;
+    float Intensity    = 1.0f;
+    float IsActive     = 0;
 };
 
 struct DirectionalLight
@@ -73,7 +71,7 @@ struct DirectionalLight
     glm::vec3 Color     = glm::vec3(0.0f);
     float Intensity     = 1.0f;
     glm::vec3 Direction = glm::vec3(0.0f);
-    int32_t CastShadows = 0;
+    float CastShadows   = 0;
 };
 
 struct SpotLight
@@ -82,11 +80,10 @@ struct SpotLight
     glm::vec4 Color     = glm::vec4(0.0f);
     glm::vec3 Direction = glm::vec3(0.0f);
     float CutOff        = 0.0f;
+    float OuterCutOff   = 0.0f;
 
-    float Ambient   = 0.0f;
-    float Specular  = 0.0f;
-    float Shininess = 0.0f;
-    int32_t Active  = 0;
+    float Intensity = 1.0f;
+    float IsActive  = 0;
 };
 
 struct UBLighting

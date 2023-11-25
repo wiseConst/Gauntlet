@@ -7,7 +7,7 @@
 #include "VulkanShader.h"
 #include "VulkanSwapchain.h"
 
-#include "Gauntlet/Core/Application.h"
+#include "Gauntlet/Core/Timer.h"
 
 namespace Gauntlet
 {
@@ -28,10 +28,10 @@ void VulkanPipeline::Invalidate()
 
     CreateLayout();
 
-    const float PipelineCreationBegin = Application::Get().GetTimeNow();
+    const float pipelineCreationBegin = static_cast<float>(Timer::Now());
     Create();
-    const float PipelineCreationEnd = Application::Get().GetTimeNow();
-    LOG_INFO("Took %0.3f ms to create <%s> pipeline!", (PipelineCreationEnd - PipelineCreationBegin) * 1000.0f,
+    const float pipelineCreationEnd = static_cast<float>(Timer::Now());
+    LOG_INFO("Took %0.3f ms to create <%s> pipeline!", (pipelineCreationEnd - pipelineCreationBegin) * 1000.0f,
              m_Specification.Name.data());
 
     // Destroying linked shaders here.

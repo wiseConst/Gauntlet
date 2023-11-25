@@ -7,7 +7,7 @@
 #include <Gauntlet/Core/Application.h>
 #include <Gauntlet/Core/Log.h>
 #include <Gauntlet/Layer/Layer.h>
-#include <Gauntlet/Core/Timestep.h>
+#include <Gauntlet/Core/Timer.h>
 #include <Gauntlet/Core/Random.h>
 
 // Math defines
@@ -45,5 +45,6 @@
 
 // MULTITHREADING
 #include <Gauntlet/Core/JobSystem.h>
+#include <Gauntlet/Core/Thread.h>
 
 // Don't forget to #include <Legion/Core/Entrypoint.h> after this include.

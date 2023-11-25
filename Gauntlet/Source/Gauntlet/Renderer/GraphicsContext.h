@@ -22,16 +22,13 @@ class GraphicsContext : private Uncopyable, private Unmovable
     virtual void SetVSync(bool bIsVSync) = 0;
     virtual void Destroy()               = 0;
 
-    virtual void WaitDeviceOnFinish() = 0;
+    virtual void WaitDeviceOnFinish()        = 0;
+    virtual float GetTimestampPeriod() const = 0;
 
     static GraphicsContext* Create(Scoped<Window>& window);
 
     FORCEINLINE static auto& Get() { return *s_Context; }
-
     virtual uint32_t GetCurrentFrameIndex() const = 0;
-
-    virtual const std::vector<uint64_t>& GetPipelineStats() const        = 0;
-    virtual const std::vector<std::string>& GetPipelineStatNames() const = 0;
 
   protected:
     Scoped<Window>& m_Window;

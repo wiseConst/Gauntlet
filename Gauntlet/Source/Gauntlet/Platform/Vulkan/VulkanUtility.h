@@ -24,8 +24,10 @@ const std::vector<const char*> InstanceLayers = {"VK_LAYER_KHRONOS_validation"};
 
 // Now I assume these are supported
 const std::vector<const char*> DeviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME,          // Swapchain creation (array of images that we render into, and present to screen)
-    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,  // For advanced GPU info
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,            // Swapchain creation (array of images that we render into, and present to screen)
+    VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,    // For advanced GPU info
+    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,    // To get rid of render pass objects
+    VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,  //
 #if !RENDERDOC_DEBUG
     VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,  // For useful pipeline features that can be changed real-time.
 #endif

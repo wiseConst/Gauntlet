@@ -268,9 +268,7 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                            ImGui::ColorPicker3("Color", (float*)&lc.Color);
 
                                            ImGui::Separator();
-                                           ImGui::DragFloat("Ambient", &lc.AmbientSpecularShininess.x, 0.05f, 0.0f, 1.0f, "%.2f");
-                                           ImGui::DragFloat("Specular", &lc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
-                                           ImGui::DragFloat("Shininess", &lc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
+                                           ImGui::SliderFloat("Intensity", &lc.Intensity, 0.0f, 100.0f, "%.2f");
 
                                            ImGui::Separator();
                                            ImGui::Checkbox("Active", &lc.bIsActive);
@@ -298,12 +296,11 @@ void SceneHierarchyPanel::ShowComponents(Entity entity)
                                           ImGui::ColorPicker3("Color", (float*)&slc.Color);
 
                                           ImGui::Separator();
-                                          ImGui::DragFloat("Ambient", &slc.AmbientSpecularShininess.x, 0.05f, 0.0f, 1.0f, "%.2f");
-                                          ImGui::DragFloat("Specular", &slc.AmbientSpecularShininess.y, 0.05f, 0.0f, FLT_MAX, "%.2f");
-                                          ImGui::DragFloat("Shininess", &slc.AmbientSpecularShininess.z, 1.0f, 1.0f, 256.0f, "%.2f");
+                                          ImGui::SliderFloat("Intensity", &slc.Intensity, 0.0f, 100.0f, "%.2f");
 
                                           ImGui::Separator();
                                           ImGui::DragFloat("Cut Off", &slc.CutOff, 1.0f);
+                                          ImGui::DragFloat("Outer Cut Off", &slc.OuterCutOff, 1.0f);
 
                                           ImGui::Separator();
                                           ImGui::Checkbox("Active", &slc.bIsActive);

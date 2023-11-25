@@ -41,7 +41,6 @@ void main()
 	const vec3 B = cross(worldN, T);
 	const mat3 TBN = mat3(T, B, worldN);
 
-	// Goal: count how many samples pass depth test(do they occlude our rendered fragment)
 	float occlusion = 0.0f;
 	for(int i = 0; i < NUM_SAMPLES; ++i)
 	{
@@ -60,7 +59,7 @@ void main()
 		// To make sure that distance between sampled pos and init pos in a hemisphere radius range
 		const vec4 worldOffsetPos = texture(u_PositionMap, offsetUV.xy);
 		const float rangeCheck = smoothstep(0.0, 1.0, u_UBSSAO.Radius / abs(worldPos.z -  worldOffsetPos.z));
-
+		
 		const vec3 renderedFragmentViewPos = vec3(u_UBSSAO.InvViewMatrix * worldOffsetPos); // transform offset pos from world to view space
 		occlusion += (renderedFragmentViewPos.z >= samplePos.z + u_UBSSAO.Bias ? 1.0f : 0.0f) * NdotS * rangeCheck; // in case rendered fragment is further than generated sample, then sample is not occluded
 	}

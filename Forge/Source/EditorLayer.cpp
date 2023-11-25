@@ -123,10 +123,6 @@ void EditorLayer::OnImGuiRender()
         ImGui::Text("Rendering Device: %s", Stats.RenderingDevice.data());
         ImGui::Text("Upload Heap Capacity: (%0.2f) MB", Stats.UploadHeapCapacity / 1024.0f / 1024.0f);
 
-        static constexpr uint32_t uint32MAX = 300;
-        ImGui::InputScalar("FPS Capping( 0 means no fps cap)", ImGuiDataType_U32, &Application::Get().GetSpecification().FPSLock);
-        if (Application::Get().GetSpecification().FPSLock > uint32MAX) Application::Get().GetSpecification().FPSLock = 0;
-
         ImGui::End();
     }
 
@@ -169,13 +165,16 @@ void EditorLayer::OnImGuiRender()
 
     if (ImGui::TreeNodeEx("Pipeline Statistics", ImGuiTreeNodeFlags_Framed))
     {
-        const auto& pipelineStatNames = Renderer::GetPipelineStatNames();
-        const auto& pipelineStats     = Renderer::GetPipelineStats();
-        for (uint32_t i = 0; i < pipelineStats.size(); ++i)
-        {
-            const std::string str = pipelineStatNames[i] + " %zu";
-            ImGui::Text(str.data(), pipelineStats[i]);
-        }
+        const auto passStats = Renderer::GetPassStatistics();
+        for (auto& passStat : passStats)
+            ImGui::Text("%s", passStat.data());
+
+        ImGui::Separator();
+
+        const auto pipelineStats = Renderer::GetPipelineStatistics();
+        for (auto& pipelineStat : pipelineStats)
+            ImGui::Text("%s", pipelineStat.data());
+
         ImGui::TreePop();
     }
 

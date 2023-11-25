@@ -22,6 +22,7 @@ VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage bufferUsage)
     if (bufferUsage & EBufferUsageFlags::UNIFORM_BUFFER) BufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     if (bufferUsage & EBufferUsageFlags::TRANSFER_DST) BufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     if (bufferUsage & EBufferUsageFlags::STAGING_BUFFER) BufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    if (bufferUsage & EBufferUsageFlags::STORAGE_BUFFER) BufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
     GNT_ASSERT(BufferUsageFlags != 0, "Unknown buffer usage flag!");
     return BufferUsageFlags;
@@ -84,10 +85,7 @@ void CopyDataToBuffer(VulkanAllocatedBuffer& buffer, const VkDeviceSize dataSize
 
 // VERTEX
 
-VulkanVertexBuffer::VulkanVertexBuffer(BufferInfo& bufferInfo)
-    : VertexBuffer(bufferInfo), m_VertexCount(bufferInfo.Count), m_Layout(bufferInfo.Layout)
-{
-}
+VulkanVertexBuffer::VulkanVertexBuffer(BufferInfo& bufferInfo) : m_VertexCount(bufferInfo.Count), m_Layout(bufferInfo.Layout) {}
 
 void VulkanVertexBuffer::SetData(const void* data, const size_t size)
 {
@@ -147,7 +145,7 @@ void VulkanVertexBuffer::SetStagedData(const Ref<StagingBuffer>& stagingBuffer, 
 
 // INDEX
 
-VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& bufferInfo) : IndexBuffer(bufferInfo), m_IndicesCount(bufferInfo.Count)
+VulkanIndexBuffer::VulkanIndexBuffer(BufferInfo& bufferInfo) : m_IndicesCount(bufferInfo.Count)
 {
     GNT_ASSERT(bufferInfo.Data && bufferInfo.Size > 0);
 
@@ -198,6 +196,8 @@ void VulkanUniformBuffer::Destroy()
 
 void VulkanUniformBuffer::MapPersistent()
 {
+    m_bIsPersistent = true;
+
     auto& context = (VulkanContext&)VulkanContext::Get();
     for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
     {
@@ -240,7 +240,10 @@ void VulkanUniformBuffer::Update(void* data, const uint64_t size)
     GNT_ASSERT(mapped, "Failed to map uniform buffer!");
     memcpy(mapped, data, size);
 
-    Unmap();
+    if (!m_bIsPersistent)
+    {
+        Unmap();
+    }
     mapped = nullptr;
 }
 

@@ -30,7 +30,7 @@ class VulkanImGuiLayer final : public ImGuiLayer
 
   private:
     VulkanContext& m_Context;
-    VulkanCommandBuffer* m_CurrentCommandBuffer;
+    Weak<VulkanCommandBuffer> m_CurrentCommandBuffer;
 
     VkDescriptorPool m_ImGuiDescriptorPool = VK_NULL_HANDLE;
     bool m_bBlockEvents{false};

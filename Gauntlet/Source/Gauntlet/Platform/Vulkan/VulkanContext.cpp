@@ -11,6 +11,9 @@
 
 #include "Gauntlet/Core/Application.h"
 #include "Gauntlet/Core/Window.h"
+#include <GLFW/glfw3.h>
+
+#include "Gauntlet/Core/Timer.h"
 
 namespace Gauntlet
 {
@@ -33,67 +36,22 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
 
     {
         CommandPoolSpecification CommandPoolSpec = {};
-        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_DEFAULT_USAGE;
+        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_USAGE_GRAPHICS;
         CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GraphicsFamily;
+        m_GraphicsCommandPool                    = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
 
-        m_GraphicsCommandPool = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
-    }
+        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_USAGE_COMPUTE;
+        CommandPoolSpec.QueueFamilyIndex = m_Device->GetQueueFamilyIndices().ComputeFamily;
+        m_ComputeCommandPool             = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
 
-    {
-        CommandPoolSpecification CommandPoolSpec = {};
-        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_TRANSFER_USAGE;
-        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().TransferFamily;
-
-        m_TransferCommandPool = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
+        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_USAGE_TRANSFER;
+        CommandPoolSpec.QueueFamilyIndex = m_Device->GetQueueFamilyIndices().TransferFamily;
+        m_TransferCommandPool            = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
     }
 
     CreateSyncObjects();
 
     m_DescriptorAllocator = MakeScoped<VulkanDescriptorAllocator>(m_Device);
-
-    s_PipelineStatNames = {"Input assembly vertex count        ", "Input assembly primitives count    ",
-                           "Vertex shader invocations          "};
-
-    VkQueryPoolCreateInfo queryPoolCreateInfo = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
-    // This query pool will store pipeline statistics
-    queryPoolCreateInfo.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
-    // Pipeline counters to be returned for this pool
-    queryPoolCreateInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |      // Input assembly vertices
-                                             VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |    // Input assembly primitives
-                                             VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |    // Vertex shader invocations
-                                             VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |  // Fragment shader invocations
-                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |         // Clipping invocations
-                                             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |          // Clipped primitives
-                                             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;    // Compute shader invocations
-
-    if (m_Device->GetGPUFeatures().geometryShader)
-    {
-        queryPoolCreateInfo.pipelineStatistics |=
-            VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT | VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT;
-
-        s_PipelineStatNames.emplace_back("Geometry Shader Invocations        ");
-        s_PipelineStatNames.emplace_back("Geometry Shader Primitives         ");
-    }
-
-    s_PipelineStatNames.emplace_back("Clipping stage primitives processed");
-    s_PipelineStatNames.emplace_back("Clipping stage primitives output   ");
-    s_PipelineStatNames.emplace_back("Fragment shader invocations        ");
-
-    if (m_Device->GetGPUFeatures().tessellationShader)
-    {
-        queryPoolCreateInfo.pipelineStatistics |= VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
-                                                  VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT;
-
-        s_PipelineStatNames.push_back("Tess. control shader patches       ");
-        s_PipelineStatNames.push_back("Tess. eval. shader invocations     ");
-    }
-
-    s_PipelineStatNames.emplace_back("Compute shader invocations         ");
-
-    queryPoolCreateInfo.queryCount = FRAMES_IN_FLIGHT;
-
-    VK_CHECK(vkCreateQueryPool(m_Device->GetLogicalDevice(), &queryPoolCreateInfo, nullptr, &m_QueryPool), "Failed to create query pool!");
-    s_PipelineStats.resize(s_PipelineStatNames.size());
 }
 
 void VulkanContext::CreateInstance()
@@ -326,42 +284,39 @@ void VulkanContext::CreateSyncObjects()
 
 void VulkanContext::BeginRender()
 {
-    m_CurrentCommandBuffer = &m_GraphicsCommandPool->GetCommandBuffer(m_Swapchain->GetCurrentFrameIndex());
-    GNT_ASSERT(m_CurrentCommandBuffer, "Failed to retrieve graphics command buffer!");
+    m_CurrentCommandBuffer = m_GraphicsCommandPool->GetCommandBuffers()[m_Swapchain->GetCurrentFrameIndex()];
+    GNT_ASSERT(m_CurrentCommandBuffer.lock(), "Failed to retrieve graphics command buffer!");
 
-    const auto cpuWaitForGpuBegin = Application::GetTimeNow();
+    const auto cpuWaitForGpuBegin = Timer::Now();
     // Firstly wait for GPU to finish drawing therefore set fence to signaled.
     VK_CHECK(vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()], VK_TRUE, UINT64_MAX),
              "Failed to wait for fences!");
 
-    const auto cpuWaitForGpuEnd      = Application::GetTimeNow();
-    Renderer::GetStats().CPUWaitTime = cpuWaitForGpuEnd - cpuWaitForGpuBegin;
+    const auto cpuWaitForGpuEnd      = Timer::Now();
+    Renderer::GetStats().CPUWaitTime = static_cast<float>(cpuWaitForGpuEnd - cpuWaitForGpuBegin);
 
-    m_LastGPUWaitTime = cpuWaitForGpuEnd;
+    m_LastGPUWaitTime = static_cast<float>(cpuWaitForGpuEnd);
     if (!m_Swapchain->TryAcquireNextImage(m_ImageAcquiredSemaphores[m_Swapchain->GetCurrentFrameIndex()])) return;
 
     // Reset fence if only we've acquired an image, otherwise if you reset it after waiting && swapchain recreated then here will be
     // deadlock because fence is unsignaled, but we will be waiting it to be signaled.
     VK_CHECK(vkResetFences(m_Device->GetLogicalDevice(), 1, &m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to reset fences!");
-
-    m_CurrentCommandBuffer->BeginRecording();
-
-    vkCmdResetQueryPool(m_CurrentCommandBuffer->Get(), m_QueryPool, m_Swapchain->GetCurrentFrameIndex(), 1);
-    vkCmdBeginQuery(m_CurrentCommandBuffer->Get(), m_QueryPool, m_Swapchain->GetCurrentFrameIndex(), 0);
 }
 
 void VulkanContext::EndRender()
 {
-    vkCmdEndQuery(m_CurrentCommandBuffer->Get(), m_QueryPool, m_Swapchain->GetCurrentFrameIndex());
-    m_CurrentCommandBuffer->EndRecording();
-
     // As far as I understand this stage doesn't block vertex shader, fragment shaders, but only blocks outputting color to the framebuffer
     // Combining this stage with wait semaphore we make sure to not apply new color until we acquired swapchain image
     std::vector<VkPipelineStageFlags> WaitStages{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers    = &m_CurrentCommandBuffer->Get();
+    if (auto commandBuffer = m_CurrentCommandBuffer.lock())
+    {
+        submitInfo.pCommandBuffers = &commandBuffer->Get();  // it's gonna be recorded from imgui layer
+    }
+    else
+        GNT_ASSERT(false, "Failed to submit general command buffer!");
 
     // To put it simply, we gonna wait on pWaitDstStageMask until pWaitSemaphores gonna be signaled.
     submitInfo.waitSemaphoreCount = 1;
@@ -376,14 +331,7 @@ void VulkanContext::EndRender()
     VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_InFlightFences[m_Swapchain->GetCurrentFrameIndex()]),
              "Failed to submit command buffes to the queue.");
 
-    Renderer::GetStats().GPUWaitTime = Application::GetTimeNow() - m_LastGPUWaitTime;
-
-    // TODO: Figure out how to move it to different place
-    const uint64_t dataSize = static_cast<uint32_t>(s_PipelineStats.size()) * sizeof(s_PipelineStats[0]);
-    // The stride between queries is the no. of unique value entries
-    const uint32_t stride = static_cast<uint32_t>(s_PipelineStats.size()) * sizeof(s_PipelineStats[0]);
-    vkGetQueryPoolResults(m_Device->GetLogicalDevice(), m_QueryPool, 0, 1, dataSize, s_PipelineStats.data(), stride,
-                          VK_QUERY_RESULT_64_BIT);
+    Renderer::GetStats().GPUWaitTime = static_cast<float>(Timer::Now() - m_LastGPUWaitTime);
 }
 
 void VulkanContext::SwapBuffers()
@@ -395,9 +343,9 @@ void VulkanContext::SetVSync(bool bIsVSync)
 {
     WaitDeviceOnFinish();
 
-    float SwapchainRecreationStartTime = Application::Get().GetTimeNow();
+    float SwapchainRecreationStartTime = static_cast<float>(Timer::Now());
     m_Swapchain->Invalidate();
-    float SwapchainRecreationEndTime = Application::Get().GetTimeNow();
+    float SwapchainRecreationEndTime = static_cast<float>(Timer::Now());
     LOG_INFO("Time took to set vsync(invalidate swapchain): (%0.2f)ms",
              (SwapchainRecreationEndTime - SwapchainRecreationStartTime) * 1000.0f);
 }
@@ -406,9 +354,6 @@ void VulkanContext::Destroy()
 {
     WaitDeviceOnFinish();
 
-    vkDestroyQueryPool(m_Device->GetLogicalDevice(), m_QueryPool, nullptr);
-
-    m_CurrentCommandBuffer = nullptr;
     m_DescriptorAllocator->Destroy();
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
@@ -421,6 +366,7 @@ void VulkanContext::Destroy()
 
     m_TransferCommandPool->Destroy();
     m_GraphicsCommandPool->Destroy();
+    m_ComputeCommandPool->Destroy();
 
     m_Swapchain->Destroy();
     m_Allocator->Destroy();
@@ -452,6 +398,11 @@ uint32_t VulkanContext::GetCurrentFrameIndex() const
 void VulkanContext::AddSwapchainResizeCallback(const std::function<void()>& resizeCallback)
 {
     m_Swapchain->AddResizeCallback(resizeCallback);
+}
+
+float VulkanContext::GetTimestampPeriod() const
+{
+    return m_Device->GetGPUProperties().limits.timestampPeriod;
 }
 
 }  // namespace Gauntlet

@@ -35,6 +35,7 @@ class VulkanContext final : public GraphicsContext
 
     void WaitDeviceOnFinish() final override;
     uint32_t GetCurrentFrameIndex() const final override;
+    float GetTimestampPeriod() const final override;
 
     FORCEINLINE const auto& GetUploadFence() const { return m_UploadFence; }
     FORCEINLINE auto& GetUploadFence() { return m_UploadFence; }
@@ -57,14 +58,13 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetGraphicsCommandPool() const { return m_GraphicsCommandPool; }
     FORCEINLINE auto& GetGraphicsCommandPool() { return m_GraphicsCommandPool; }
 
+    FORCEINLINE const auto& GetComputeCommandPool() const { return m_ComputeCommandPool; }
+    FORCEINLINE auto& GetComputeCommandPool() { return m_ComputeCommandPool; }
+
     FORCEINLINE const auto& GetDescriptorAllocator() const { return m_DescriptorAllocator; }
     FORCEINLINE auto& GetDescriptorAllocator() { return m_DescriptorAllocator; }
 
     void AddSwapchainResizeCallback(const std::function<void()>& resizeCallback);
-
-    // TODO: Work with queries
-    FORCEINLINE const std::vector<uint64_t>& GetPipelineStats() const final override { return s_PipelineStats; }
-    FORCEINLINE const std::vector<std::string>& GetPipelineStatNames() const final override { return s_PipelineStatNames; }
 
   private:
     VkInstance m_Instance                     = VK_NULL_HANDLE;
@@ -76,9 +76,10 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanSwapchain> m_Swapchain                     = nullptr;
     Scoped<VulkanCommandPool> m_TransferCommandPool         = nullptr;
     Scoped<VulkanCommandPool> m_GraphicsCommandPool         = nullptr;
+    Scoped<VulkanCommandPool> m_ComputeCommandPool          = nullptr;
     Scoped<VulkanDescriptorAllocator> m_DescriptorAllocator = nullptr;
 
-    VulkanCommandBuffer* m_CurrentCommandBuffer = nullptr;
+    Weak<VulkanCommandBuffer> m_CurrentCommandBuffer;
 
     // Sync objects GPU-GPU.
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
@@ -90,13 +91,6 @@ class VulkanContext final : public GraphicsContext
 
     // For single-time commands
     VkFence m_UploadFence = VK_NULL_HANDLE;
-
-    // TODO: Move them to Renderer && abstract
-    // Query Statistics
-    VkQueryPool m_QueryPool = VK_NULL_HANDLE;
-
-    static inline std::vector<uint64_t> s_PipelineStats;
-    static inline std::vector<std::string> s_PipelineStatNames;
 
     void CreateInstance();
     void CreateDebugMessenger();

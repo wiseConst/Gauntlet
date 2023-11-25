@@ -8,11 +8,13 @@
 
 #include "Gauntlet/Core/Application.h"
 #include "Gauntlet/Core/Window.h"
-
 #include "SwapchainSupportDetails.h"
+
+#include "Gauntlet/Core/Timer.h"
 
 namespace Gauntlet
 {
+
 VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& device, VkSurfaceKHR& surface) : m_Device(device), m_Surface(surface)
 {
     Invalidate();
@@ -64,11 +66,11 @@ void VulkanSwapchain::PresentImage(const VkSemaphore& renderFinishedSemaphore)
     presentInfo.swapchainCount     = 1;
     presentInfo.pSwapchains        = &m_Swapchain;
 
-    const float imagePresentBegin = Application::GetTimeNow();
+    const float imagePresentBegin = static_cast<float>(Timer::Now());
 
     const auto result = vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
-    const float imagePresentEnd      = Application::GetTimeNow();
+    const float imagePresentEnd      = static_cast<float>(Timer::Now());
     Renderer::GetStats().PresentTime = imagePresentEnd - imagePresentBegin;
 
     if (result == VK_SUCCESS)

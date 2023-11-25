@@ -10,6 +10,7 @@
 #include "Material.h"
 #include "Renderer2D.h"
 #include "GraphicsContext.h"
+#include "CommandBuffer.h"
 
 #include "Gauntlet/Core/Random.h"
 #include "Animation.h"
@@ -352,7 +353,9 @@ void Renderer::Init()
         s_RendererStorage->PBRPipeline = Pipeline::Create(pbrPipelineSpec);
     }
 
-    s_Renderer->PostInit();
+    s_RendererStorage->RenderCommandBuffer.resize(FRAMES_IN_FLIGHT);
+    for (auto& commandBuffer : s_RendererStorage->RenderCommandBuffer)
+        commandBuffer = CommandBuffer::Create(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
 
     // Animation
     /*  {
@@ -381,6 +384,9 @@ void Renderer::Shutdown()
     GraphicsContext::Get().WaitDeviceOnFinish();
 
     ShaderLibrary::Shutdown();
+
+    for (auto& cmdBuffer : s_RendererStorage->RenderCommandBuffer)
+        cmdBuffer->Destroy();
 
     s_RendererStorage->UploadHeap->Destroy();
 
@@ -437,6 +443,8 @@ void Renderer::Begin()
     s_Renderer->BeginImpl();
     s_RendererStats.DrawCalls          = 0;
     s_RendererStats.UploadHeapCapacity = s_RendererStorage->UploadHeap->GetCapacity();
+
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginRecording();
 
     if (s_RendererSettings.Shadows.ShadowPresets[s_RendererSettings.Shadows.CurrentShadowPreset].second !=
         s_RendererStorage->ShadowMapFramebuffer->GetWidth())
@@ -519,6 +527,7 @@ void Renderer::Begin()
         s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_SSAOMap", s_RendererStorage->WhiteTexture);
     }
 
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp(true);
     // Clear geometry buffer contents
     BeginRenderPass(s_RendererStorage->SetupFramebuffer, glm::vec4(0.3f, 0.56f, 0.841f, 1.0f));
     EndRenderPass(s_RendererStorage->SetupFramebuffer);
@@ -544,6 +553,7 @@ void Renderer::Begin()
 void Renderer::Flush()
 {
     // SSAO-Pass
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     if (!s_RendererStorage->SortedGeometry.empty() && Renderer::GetSettings().AO.EnableSSAO)
     {
         s_RendererStorage->SSAODataBuffer.CameraProjection = s_RendererStorage->UBGlobalCamera.Projection;
@@ -569,8 +579,10 @@ void Renderer::Flush()
             EndRenderPass(s_RendererStorage->SSAOBlurFramebuffer);
         }
     }
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
     // Final Lighting-Pass
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     {
         BeginRenderPass(s_RendererStorage->LightingFramebuffer, glm::vec4(0.7f, 0.7f, 0.0f, 1.0f));
 
@@ -583,8 +595,10 @@ void Renderer::Flush()
 
         EndRenderPass(s_RendererStorage->LightingFramebuffer);
     }
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
     // Chromatic Aberration
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     {
         BeginRenderPass(s_RendererStorage->ChromaticAberrationFramebuffer, glm::vec4(0.23f, 0.32f, 0.0f, 1.0f));
 
@@ -592,6 +606,12 @@ void Renderer::Flush()
 
         EndRenderPass(s_RendererStorage->ChromaticAberrationFramebuffer);
     }
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
+
+    
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp(true);
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndRecording();
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->Submit();
 }
 
 void Renderer::BeginScene(const Camera& camera)
@@ -602,6 +622,64 @@ void Renderer::BeginScene(const Camera& camera)
 
     s_RendererStorage->CameraUniformBuffer->Update(&s_RendererStorage->UBGlobalCamera, sizeof(UBCamera));
     Renderer2D::GetStorageData().CameraProjectionMatrix = camera.GetViewProjectionMatrix();
+}
+
+const std::vector<std::string> Renderer::GetPassStatistics()
+{
+    std::vector<std::string> result;
+    auto& timestampResults = s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetTimestampResults();
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[1] - timestampResults[0]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "Dir ShadowMap Pass: " + std::to_string(time) + " (ms)";
+        result.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[3] - timestampResults[2]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "GPass: " + std::to_string(time) + " (ms)";
+        result.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[5] - timestampResults[4]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "SSAO: " + std::to_string(time) + " (ms)";
+        result.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[7] - timestampResults[6]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "Lighting: " + std::to_string(time) + " (ms)";
+        result.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[9] - timestampResults[8]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "Chromatic Aberration: " + std::to_string(time) + " (ms)";
+        result.push_back(str);
+    }
+
+    return result;
+}
+
+const std::vector<std::string> Renderer::GetPipelineStatistics()
+{
+    std::vector<std::string> result = {
+        "Input assembly vertex count        ", "Input assembly primitives count    ", "Vertex shader invocations          ",
+        "Geometry Shader Invocations        ", "Geometry Shader Primitives         ", "Clipping stage primitives processed",
+        "Clipping stage primitives output   ", "Fragment shader invocations        ", "Tess. control shader patches       ",
+        "Tess. eval. shader invocations     ", "Compute shader invocations         "};
+
+    auto& statisticsResults = s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetStatisticsResults();
+    for (uint32_t i = 0; i < statisticsResults.size(); ++i)
+        result[i] += std::to_string(statisticsResults[i]);
+
+    return result;
 }
 
 void Renderer::EndScene()
@@ -621,6 +699,7 @@ void Renderer::EndScene()
 
     // TODO: Compute Culling-Pass
 
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     // ShadowMap-Pass
     {
         s_RendererStorage->ShadowMapFramebuffer->SetDepthStencilClearColor(GetSettings().Shadows.RenderShadows ? 1.0f : 0.0f, 0);
@@ -649,7 +728,9 @@ void Renderer::EndScene()
 
         EndRenderPass(s_RendererStorage->ShadowMapFramebuffer);
     }
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     // GPass
     {
         BeginRenderPass(s_RendererStorage->GeometryFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
@@ -666,32 +747,31 @@ void Renderer::EndScene()
 
         EndRenderPass(s_RendererStorage->GeometryFramebuffer);
     }
+    s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
-    // PBR-ForwardPass
-    //{
-    //    BeginRenderPass(s_RendererStorage->PBRFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+    /*  // PBR-ForwardPass
+    {
+        BeginRenderPass(s_RendererStorage->PBRFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
 
-    //    for (auto& geometry : s_RendererStorage->SortedGeometry)
-    //    {
-    //        MeshPushConstants pushConstants = {};
-    //        pushConstants.TransformMatrix   = geometry.Transform;
+        for (auto& geometry : s_RendererStorage->SortedGeometry)
+        {
+            MeshPushConstants pushConstants = {};
+            pushConstants.TransformMatrix   = geometry.Transform;
 
-    //        SubmitMesh(s_RendererStorage->PBRPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &pushConstants);
-    //    }
+            SubmitMesh(s_RendererStorage->PBRPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &pushConstants);
+        }
 
-    //    EndRenderPass(s_RendererStorage->PBRFramebuffer);
-    //}
+        EndRenderPass(s_RendererStorage->PBRFramebuffer);
+    }*/
 }
 
-void Renderer::AddPointLight(const glm::vec3& position, const glm::vec3& color, const glm::vec3& AmbientSpecularShininess, int32_t active)
+void Renderer::AddPointLight(const glm::vec3& position, const glm::vec3& color, const float intensity, int32_t active)
 {
     if (s_RendererStorage->CurrentPointLightIndex >= s_MAX_POINT_LIGHTS) return;
 
     s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Position  = glm::vec4(position, 0.0f);
     s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Color     = glm::vec4(color, 0.0f);
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Ambient   = AmbientSpecularShininess.x;
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Specular  = AmbientSpecularShininess.y;
-    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Shininess = AmbientSpecularShininess.z;
+    s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].Intensity = intensity;
 
     const bool bIsActive = color.x > 0.0f || color.y > 0.0f || color.z > 0.0f;
     s_RendererStorage->UBGlobalLighting.PointLights[s_RendererStorage->CurrentPointLightIndex].IsActive = active;
@@ -711,19 +791,19 @@ void Renderer::AddDirectionalLight(const glm::vec3& color, const glm::vec3& dire
     ++s_RendererStorage->CurrentDirLightIndex;
 }
 
-void Renderer::AddSpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color,
-                            const glm::vec3& ambientSpecularShininess, const int32_t active, const float cutOff)
+void Renderer::AddSpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color, const float intensity,
+                            const int32_t active, const float cutOff, const float outerCutOff)
 {
     if (s_RendererStorage->CurrentSpotLightIndex >= s_MAX_SPOT_LIGHTS) return;
 
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Position  = glm::vec4(position, 0.0f);
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Color     = glm::vec4(color, 0.0f);
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Direction = glm::vec4(direction, 0.0f);
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].CutOff    = cutOff;
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Ambient   = ambientSpecularShininess.x;
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Specular  = ambientSpecularShininess.y;
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Shininess = ambientSpecularShininess.z;
-    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Active    = active;
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Position    = glm::vec4(position, 0.0f);
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Color       = glm::vec4(color, 0.0f);
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Direction   = glm::vec4(direction, 0.0f);
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].CutOff      = cutOff;
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].OuterCutOff = outerCutOff;
+
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].Intensity = intensity;
+    s_RendererStorage->UBGlobalLighting.SpotLights[s_RendererStorage->CurrentSpotLightIndex].IsActive  = active;
 
     ++s_RendererStorage->CurrentSpotLightIndex;
 }

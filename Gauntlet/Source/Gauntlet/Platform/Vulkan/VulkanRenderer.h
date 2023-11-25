@@ -4,34 +4,22 @@
 
 #include <volk/volk.h>
 
-#include "VulkanBuffer.h"
-#include "VulkanDescriptors.h"
 #include "Gauntlet/Renderer/CoreRendererStructs.h"
 
 namespace Gauntlet
 {
 
-class VulkanFramebuffer;
 class VulkanContext;
-class VulkanPipeline;
-class Pipeline;
-class VulkanShader;
-class VulkanTexture2D;
-class VulkanCommandBuffer;
 
 class VulkanRenderer final : public Renderer
 {
   private:
     struct VulkanRendererStorage
     {
-        // Material
-        VkDescriptorSetLayout GeometryDescriptorSetLayout = VK_NULL_HANDLE;
-
         // UI
         VkDescriptorSetLayout ImageDescriptorSetLayout = VK_NULL_HANDLE;
 
         // Misc
-        VulkanCommandBuffer* CurrentCommandBuffer = nullptr;
         Weak<Pipeline> CurrentPipelineToBind;
 
         // Sampler handling
@@ -90,8 +78,6 @@ class VulkanRenderer final : public Renderer
                       void* pushConstants = nullptr) final override;
 
     FORCEINLINE static VulkanRendererStorage& GetVulkanStorageData() { return s_Data; }
-
-    void PostInit() final override;
 
   private:
     VulkanContext& m_Context;
