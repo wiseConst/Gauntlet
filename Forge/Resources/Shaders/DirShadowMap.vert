@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
+
 layout(location = 0) in vec3 in_Pos;
 
 layout(push_constant) uniform LightSpaceUBO

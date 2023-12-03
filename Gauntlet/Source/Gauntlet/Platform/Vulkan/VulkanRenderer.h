@@ -65,10 +65,17 @@ class VulkanRenderer final : public Renderer
     VulkanRenderer();
     ~VulkanRenderer();
 
-    void BeginImpl() final override;
+    // TODO: mb simply submit the whole particle system class?
+    void SubmitParticleSystemImpl(const Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, Ref<StorageBuffer>& ssbo,
+                                  uint32_t particleCount, void* pushConstants = nullptr) final override;
 
-    void BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f)) final override;
-    void EndRenderPassImpl(const Ref<Framebuffer>& framebuffer) final override;
+    void BeginImpl() final override;
+    void DispatchImpl(Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, void* pushConstants = nullptr,
+                      const uint32_t groupCountX = 1, const uint32_t groupCountY = 1, const uint32_t groupCountZ = 1) final override;
+
+    void BeginRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
+                             const glm::vec4& debugLabelColor = glm::vec4(1.0f)) final override;
+    void EndRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer) final override;
 
     void SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer, Ref<Material>& material,
                         void* pushConstants = nullptr) final override;

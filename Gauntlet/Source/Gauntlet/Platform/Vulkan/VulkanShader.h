@@ -17,6 +17,7 @@ struct ShaderStage
     EShaderStage Stage                   = EShaderStage::SHADER_STAGE_VERTEX;
     VkShaderModule Module                = VK_NULL_HANDLE;
     SpvReflectShaderModule ReflectModule = {};
+    std::string EntrypointName           = "main";
 
     struct DescriptorSetLayoutData
     {
@@ -50,6 +51,7 @@ class VulkanShader final : public Shader
     void Set(const std::string& name, const Ref<Image>& image) final override;
     void Set(const std::string& name, const std::vector<Ref<Texture2D>>& textures) final override;
     void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) final override;
+    void Set(const std::string& name, const Ref<StorageBuffer>& ssbo, const uint64_t offset = 0) final override;
 
     FORCEINLINE const auto& GetDescriptorSets() const { return m_DescriptorSets; }
 

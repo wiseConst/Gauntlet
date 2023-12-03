@@ -40,7 +40,7 @@ class Material : private Unmovable
     std::vector<Ref<Texture2D>> m_AOTextures;
 
     PBRMaterial m_Data;
-    Ref<UniformBuffer> m_UBMaterial = nullptr;
+    std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> m_UBMaterial;
 
     friend class Mesh;
 };

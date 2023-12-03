@@ -5,8 +5,6 @@
 
 #include <volk/volk.h>
 
-#include "Gauntlet/Core/Math.h"
-
 namespace Gauntlet
 {
 
@@ -15,41 +13,47 @@ class VulkanPipeline;
 class VulkanCommandBuffer final : public CommandBuffer
 {
   public:
-    VulkanCommandBuffer(ECommandBufferType type, bool bIsSeparate = false);
-    VulkanCommandBuffer()  = delete;
-    ~VulkanCommandBuffer() = default;
+    VulkanCommandBuffer(ECommandBufferType type, ECommandBufferLevel level = ECommandBufferLevel::COMMAND_BUFFER_LEVEL_PRIMARY);
+    VulkanCommandBuffer() = delete;
+    ~VulkanCommandBuffer() { Destroy(); }
 
     FORCEINLINE const auto& Get() const { return m_CommandBuffer; }
     FORCEINLINE auto& Get() { return m_CommandBuffer; }
 
-    FORCEINLINE const auto& GetLevel() const { return m_Level; }
-    FORCEINLINE auto& GetLevel() { return m_Level; }
+    FORCEINLINE ECommandBufferLevel GetLevel() const final override { return m_Level; }
 
-    FORCEINLINE const std::vector<size_t>& GetTimestampResults() final override { return m_TimestampResults; }
-    FORCEINLINE const std::vector<size_t>& GetStatisticsResults() final override { return m_StatsResults; }
+    FORCEINLINE const std::vector<size_t>& GetTimestampResults() const final override { return m_TimestampResults; }
+    FORCEINLINE const std::vector<size_t>& GetPipelineStatisticsResults() const final override { return m_PipelineStatsResults; }
+    const std::vector<std::string> GetPipelineStatisticsStrings() const final override;
 
-    FORCEINLINE void Reset() const { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
-    void Destroy() final override;
+    FORCEINLINE void Reset() final override { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
 
     void BeginTimestamp(bool bStatisticsQuery = false) final override;
     void EndTimestamp(bool bStatisticsQuery = false) final override;
 
-    // Call before render pass begin
-    void BeginDebugLabel(const char* commandBufferLabelName = "NONAME", const glm::vec4& labelColor = glm::vec4(1.0f)) const;
-
-    // Call after render pass end
-    FORCEINLINE void EndDebugLabel() const
+    void BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const final override;
+    FORCEINLINE void EndDebugLabel() const final override
     {
         if (s_bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
     }
 
-    void BeginRecording(const void* inheritanceInfo = VK_NULL_HANDLE) final override;
+    void BeginRecording(bool bOneTimeSubmit = false, const void* inheritanceInfo = VK_NULL_HANDLE) final override;
     FORCEINLINE void EndRecording() final override
     {
         VK_CHECK(vkEndCommandBuffer(m_CommandBuffer), "Failed to end recording command buffer");
     }
 
-    void Submit() final override;
+    void Submit(bool bWaitAfterSubmit = true) final override;
+
+    FORCEINLINE void InsertBarrier(const VkPipelineStageFlags srcStageMask, const VkPipelineStageFlags dstStageMask,
+                                   const VkDependencyFlags dependencyFlags, const uint32_t memoryBarrierCount,
+                                   const VkMemoryBarrier* pMemoryBarriers, const uint32_t bufferMemoryBarrierCount,
+                                   const VkBufferMemoryBarrier* pBufferMemoryBarriers, const uint32_t imageMemoryBarrierCount,
+                                   const VkImageMemoryBarrier* pImageMemoryBarriers)
+    {
+        vkCmdPipelineBarrier(m_CommandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers,
+                             bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
+    }
 
     FORCEINLINE void BindPushConstants(VkPipelineLayout pipelineLayout, const VkShaderStageFlags shaderStageFlags, const uint32_t offset,
                                        const uint32_t size, const void* values = VK_NULL_HANDLE) const
@@ -57,16 +61,11 @@ class VulkanCommandBuffer final : public CommandBuffer
         vkCmdPushConstants(m_CommandBuffer, pipelineLayout, shaderStageFlags, offset, size, values);
     }
 
-    FORCEINLINE void BindDescriptorSets(VkPipelineLayout pipelineLayout, const uint32_t firstSet = 0, const uint32_t descriptorCount = 0,
-                                        VkDescriptorSet* descriptorSets       = VK_NULL_HANDLE,
-                                        VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        const uint32_t dynamicOffsetCount = 0, uint32_t* dynamicOffsets = nullptr) const
-    {
-        vkCmdBindDescriptorSets(m_CommandBuffer, pipelineBindPoint, pipelineLayout, firstSet, descriptorCount, descriptorSets,
-                                dynamicOffsetCount, dynamicOffsets);
-    }
+    void BindDescriptorSets(Ref<VulkanPipeline>& pipeline, const uint32_t firstSet = 0, const uint32_t descriptorSetCount = 0,
+                            VkDescriptorSet* descriptorSets = VK_NULL_HANDLE, const uint32_t dynamicOffsetCount = 0,
+                            uint32_t* dynamicOffsets = nullptr) const;
 
-    void BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
+    void BindPipeline(Ref<VulkanPipeline>& pipeline) const;
     void SetPipelinePolygonMode(Ref<VulkanPipeline>& pipeline,
                                 const EPolygonMode polygonMode) const;  // Invoke before binding actual pipeline
 
@@ -121,23 +120,39 @@ class VulkanCommandBuffer final : public CommandBuffer
         vkCmdBuildAccelerationStructuresKHR(m_CommandBuffer, infoCount, infos, buildRangeInfos);
     }
 
+    FORCEINLINE void CopyBuffer(const VkBuffer& srcBuffer, VkBuffer& dstBuffer, const uint32_t regionCount, const VkBufferCopy* pRegions)
+    {
+        vkCmdCopyBuffer(m_CommandBuffer, srcBuffer, dstBuffer, regionCount, pRegions);
+    }
+
+    FORCEINLINE void CopyBufferToImage(const VkBuffer& srcBuffer, VkImage& dstImage, const VkImageLayout dstImageLayout,
+                                       const uint32_t regionCount, const VkBufferImageCopy* pRegions)
+    {
+        vkCmdCopyBufferToImage(m_CommandBuffer, srcBuffer, dstImage, dstImageLayout, regionCount, pRegions);
+    }
+
+    FORCEINLINE void BlitImage(const VkImage& srcImage, const VkImageLayout srcImageLayout, VkImage& dstImage,
+                               const VkImageLayout dstImageLayout, const uint32_t regionCount, const VkImageBlit* pRegions,
+                               const VkFilter filter)
+    {
+        vkCmdBlitImage(m_CommandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
+    }
+
   private:
     VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
-    VkCommandBufferLevel m_Level    = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    VkFence m_SubmitFence           = VK_NULL_HANDLE;
-    bool m_bAllocatedSeparate       = false;
+    ECommandBufferLevel m_Level     = ECommandBufferLevel::COMMAND_BUFFER_LEVEL_PRIMARY;
     ECommandBufferType m_Type       = ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS;
+    VkFence m_SubmitFence           = VK_NULL_HANDLE;
 
     VkQueryPool m_TimestampQueryPool = VK_NULL_HANDLE;
     std::vector<size_t> m_TimestampResults;
-    VkQueryPool m_StatisticsQueryPool = VK_NULL_HANDLE;
-    std::vector<size_t> m_StatsResults;
+
+    VkQueryPool m_PipelineStatisticsQueryPool = VK_NULL_HANDLE;
+    std::vector<size_t> m_PipelineStatsResults;
 
     uint32_t m_TimestampIndex = 0;
-
-    friend class VulkanCommandPool;
-
     void CreateSyncResourcesAndQueries();
+    void Destroy() final override;
 };
 
 }  // namespace Gauntlet

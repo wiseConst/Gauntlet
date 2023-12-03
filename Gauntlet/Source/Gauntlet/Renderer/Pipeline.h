@@ -90,11 +90,10 @@ class Pipeline : private Uncopyable, private Unmovable
     Pipeline()          = default;
     virtual ~Pipeline() = default;
 
-    virtual void Destroy() = 0;
+    virtual void Destroy()                                        = 0;
+    FORCEINLINE virtual PipelineSpecification& GetSpecification() = 0;
 
     static Ref<Pipeline> Create(const PipelineSpecification& pipelineSpec);
-
-    FORCEINLINE virtual PipelineSpecification& GetSpecification() = 0;
 };
 
 }  // namespace Gauntlet

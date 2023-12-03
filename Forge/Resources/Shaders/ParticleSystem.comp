@@ -1,0 +1,38 @@
+#version 460
+
+#extension GL_KHR_vulkan_glsl : enable
+#extension GL_EXT_scalar_block_layout: require
+
+layout(push_constant) uniform PushConstants
+{
+	float DeltaTime;
+    uint ParticleCount;
+} u_ParticleSystemData;
+
+struct Particle {
+  vec3 position;
+  vec3 velocity;
+  vec3 color;
+};
+
+layout(set = 0, binding = 0, scalar) readonly buffer ParticleSSBOIn {
+   Particle particles[];
+} s_ParticleSSBOIn;
+
+layout(set = 0, binding = 1, scalar) buffer ParticleSSBOOut {
+   Particle particles[];
+} s_ParticleSSBOOut;
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+	const uint index = gl_GlobalInvocationID.x;
+    if(index >= u_ParticleSystemData.ParticleCount) return; 
+
+    Particle particleIn = s_ParticleSSBOIn.particles[index];
+
+    s_ParticleSSBOOut.particles[index].position = particleIn.position + particleIn.velocity * u_ParticleSystemData.DeltaTime;
+    s_ParticleSSBOOut.particles[index].velocity = particleIn.velocity * u_ParticleSystemData.DeltaTime;
+    s_ParticleSSBOOut.particles[index].color = abs(vec3(particleIn.velocity.x * u_ParticleSystemData.DeltaTime, particleIn.velocity.y + u_ParticleSystemData.DeltaTime, particleIn.velocity.z - u_ParticleSystemData.DeltaTime));
+} 

@@ -101,15 +101,14 @@ struct UBShadows
     glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);
 };
 
-#define SSAO_KERNEL_SIZE 16
+static constexpr uint32_t s_SSAO_KERNEL_SIZE = 16;
 struct UBSSAO
 {
-    glm::mat4 CameraProjection = glm::mat4(1.0f);
-    glm::mat4 ViewProjection   = glm::mat4(1.0f);
-    glm::vec4 Samples[SSAO_KERNEL_SIZE];
-    float Radius      = 0.5f;
-    float Bias        = 0.025f;
-    int32_t Magnitude = 1;
+    glm::mat4 CameraProjection  = glm::mat4(1.0f);
+    glm::mat4 InvViewProjection = glm::mat4(1.0f);  // glm::lookAt returns inverse view matrix
+    float Radius                = 0.5f;
+    float Bias                  = 0.025f;
+    int32_t Magnitude           = 1;
 };
 
 struct PBRMaterial

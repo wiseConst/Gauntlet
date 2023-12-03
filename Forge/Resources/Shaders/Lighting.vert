@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
+
 // Drawing clipped to quad triangle
 // https://www.saschawillems.de/blog/2016/08/13/vulkan-tutorial-on-rendering-a-fullscreen-quad-without-buffers/
 

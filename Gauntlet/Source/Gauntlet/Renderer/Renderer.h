@@ -24,6 +24,7 @@ class IndexBuffer;
 class Framebuffer;
 class Pipeline;
 class CommandBuffer;
+class ParticleSystem;
 
 struct RendererOutput
 {
@@ -43,16 +44,32 @@ class Renderer : private Uncopyable, private Unmovable
     static void BeginScene(const Camera& camera);
     static void EndScene();
 
-    FORCEINLINE static void BeginRenderPass(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f))
+    FORCEINLINE static void SubmitParticleSystem(const Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, Ref<StorageBuffer>& ssbo,
+                                                 uint32_t particleCount, void* pushConstants = nullptr)
     {
-        s_Renderer->BeginRenderPassImpl(framebuffer, debugLabelColor);
+        s_Renderer->SubmitParticleSystemImpl(commandBuffer, pipeline, ssbo, particleCount, pushConstants);
     }
-    FORCEINLINE static void EndRenderPass(const Ref<Framebuffer>& framebuffer) { s_Renderer->EndRenderPassImpl(framebuffer); }
+
+    FORCEINLINE static void BeginRenderPass(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
+                                            const glm::vec4& debugLabelColor = glm::vec4(1.0f))
+    {
+        s_Renderer->BeginRenderPassImpl(commandBuffer, framebuffer, debugLabelColor);
+    }
+    FORCEINLINE static void EndRenderPass(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer)
+    {
+        s_Renderer->EndRenderPassImpl(commandBuffer, framebuffer);
+    }
 
     FORCEINLINE static void SubmitMesh(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                                        Ref<Material> material, void* pushConstants = nullptr)
     {
         s_Renderer->SubmitMeshImpl(pipeline, vertexBuffer, indexBuffer, material, pushConstants);
+    }
+
+    FORCEINLINE static void Dispatch(Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, void* pushConstants = nullptr,
+                                     const uint32_t groupCountX = 1, const uint32_t groupCountY = 1, const uint32_t groupCountZ = 1)
+    {
+        s_Renderer->DispatchImpl(commandBuffer, pipeline, pushConstants, groupCountX, groupCountY, groupCountZ);
     }
 
     FORCEINLINE static void SubmitFullscreenQuad(Ref<Pipeline>& pipeline, void* pushConstants = nullptr)
@@ -82,7 +99,6 @@ class Renderer : private Uncopyable, private Unmovable
 
     FORCEINLINE static auto& GetStats() { return s_RendererStats; }
     FORCEINLINE static auto& GetSettings() { return s_RendererSettings; }
-    static const std::vector<std::string> GetPassStatistics();
     static const std::vector<std::string> GetPipelineStatistics();
 
     static const Ref<Image>& GetFinalImage();
@@ -103,6 +119,8 @@ class Renderer : private Uncopyable, private Unmovable
         glm::mat4 Transform;
     };
 
+    static void CollectPassStatistics();
+
   protected:
     struct RendererSettings
     {
@@ -111,6 +129,7 @@ class Renderer : private Uncopyable, private Unmovable
         bool ShowWireframes          = false;
         bool VSync                   = false;
         bool ChromaticAberrationView = false;
+        uint32_t ParticleCount       = 500;
 
         struct
         {
@@ -127,12 +146,11 @@ class Renderer : private Uncopyable, private Unmovable
 
         struct
         {
-            const uint16_t KernelSize = 16;  // TODO: Pass into shaders correctly?
-            bool EnableSSAO           = true;
-            bool BlurSSAO             = true;
-            float Radius              = 0.5f;
-            float Bias                = 0.025f;
-            int32_t Magnitude         = 1;
+            bool EnableSSAO   = true;
+            bool BlurSSAO     = true;
+            float Radius      = 0.5f;
+            float Bias        = 0.025f;
+            int32_t Magnitude = 1;
         } AO;
     } static s_RendererSettings;
 
@@ -156,8 +174,12 @@ class Renderer : private Uncopyable, private Unmovable
         float PresentTime = 0.0f;
         float FrameTime   = 0.0f;
 
-        std::string RenderingDevice = "None";
-        size_t UploadHeapCapacity   = 0;
+        std::string RenderingDevice                   = "None";
+        static constexpr size_t s_MaxUploadHeapSizeMB = 4 * 1024 * 1024;
+        size_t UploadHeapCapacity                     = 0;
+
+        std::vector<size_t> PipelineStatisticsResults;
+        std::vector<std::string> PassStatistsics;
     } static s_RendererStats;
 
     struct RendererStorage
@@ -167,9 +189,11 @@ class Renderer : private Uncopyable, private Unmovable
         glm::uvec2 NewFramebufferSize = {1280, 720};
         std::vector<Ref<CommandBuffer>> RenderCommandBuffer;  // per-frame
 
+        Ref<ParticleSystem> GPUParticleSystem;
+
         // Defaults
-        BufferLayout StaticMeshVertexBufferLayout;
-        BufferLayout AnimatedVertexBufferLayout;
+        BufferLayout StaticMeshVertexBufferLayout;  // can remove?
+        BufferLayout AnimatedVertexBufferLayout;    // can remove?
         Ref<Texture2D> WhiteTexture = nullptr;
 
         // Clear-Pass
@@ -188,7 +212,7 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Pipeline> ShadowMapPipeline       = nullptr;
 
         // Shadows UB
-        Ref<UniformBuffer> ShadowsUniformBuffer;
+        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> ShadowsUniformBuffer;
         UBShadows MeshShadowsBuffer;
 
         // SSAO
@@ -196,7 +220,7 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Pipeline> SSAOPipeline       = nullptr;
 
         // SSAO UB
-        Ref<UniformBuffer> SSAOUniformBuffer = nullptr;
+        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> SSAOUniformBuffer;
         UBSSAO SSAODataBuffer;
 
         // SSAO-Blur
@@ -216,11 +240,11 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Pipeline> ChromaticAberrationPipeline       = nullptr;
 
         // Camera UB
-        Ref<UniformBuffer> CameraUniformBuffer = nullptr;
+        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> CameraUniformBuffer;
         UBCamera UBGlobalCamera;
 
         // Global lighting UB
-        Ref<UniformBuffer> LightingUniformBuffer = nullptr;
+        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> LightingUniformBuffer;
         UBLighting UBGlobalLighting;
         uint32_t CurrentPointLightIndex = 0;
         uint32_t CurrentDirLightIndex   = 0;
@@ -237,8 +261,14 @@ class Renderer : private Uncopyable, private Unmovable
 
     virtual void BeginImpl() = 0;
 
-    virtual void BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor = glm::vec4(1.0f)) = 0;
-    virtual void EndRenderPassImpl(const Ref<Framebuffer>& framebuffer)                                                       = 0;
+    virtual void SubmitParticleSystemImpl(const Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, Ref<StorageBuffer>& ssbo,
+                                          uint32_t particleCount, void* pushConstants = nullptr)                              = 0;
+    virtual void DispatchImpl(Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, void* pushConstants = nullptr,
+                              const uint32_t groupCountX = 1, const uint32_t groupCountY = 1, const uint32_t groupCountZ = 1) = 0;
+
+    virtual void BeginRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
+                                     const glm::vec4& debugLabelColor = glm::vec4(1.0f))                         = 0;
+    virtual void EndRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer) = 0;
 
     virtual void SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants = nullptr) = 0;
     virtual void SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,

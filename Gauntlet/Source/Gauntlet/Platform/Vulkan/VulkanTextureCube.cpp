@@ -36,7 +36,7 @@ void VulkanTextureCube::Create()
     const VkDeviceSize CubeMapSize = ImageSize * s_MaxCubeMapImages;
 
     // Create staging buffer for image data
-    VulkanAllocatedBuffer StagingBuffer = {};
+    VulkanBuffer StagingBuffer = {};
     BufferUtils::CreateBuffer(EBufferUsageFlags::STAGING_BUFFER, CubeMapSize, StagingBuffer, VMA_MEMORY_USAGE_CPU_ONLY);
 
     const auto& Context = (VulkanContext&)VulkanContext::Get();

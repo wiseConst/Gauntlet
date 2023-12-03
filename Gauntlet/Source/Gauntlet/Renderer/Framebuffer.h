@@ -59,11 +59,17 @@ struct FramebufferSpecification
 class Framebuffer : private Uncopyable, private Unmovable
 {
   public:
+    Framebuffer()          = default;
+    virtual ~Framebuffer() = default;
+
     FORCEINLINE virtual FramebufferSpecification& GetSpecification() = 0;
     static Ref<Framebuffer> Create(const FramebufferSpecification& framebufferSpecification);
 
     virtual void Destroy()                               = 0;
     virtual void Resize(uint32_t width, uint32_t height) = 0;
+
+    virtual void BeginPass(const Ref<class CommandBuffer>& commandBuffer) = 0;
+    virtual void EndPass(const Ref<class CommandBuffer>& commandBuffer)   = 0;
 
     virtual void SetDepthStencilClearColor(const float depth, const uint32_t stencil)    = 0;
     FORCEINLINE virtual const std::vector<FramebufferAttachment>& GetAttachments() const = 0;

@@ -107,27 +107,33 @@ void EditorLayer::OnImGuiRender()
         ImGui::Begin("Application Stats", &bShowAppStats);
 
         const auto& Stats = Renderer::GetStats();
+        ImGui::SeparatorText("VMA Statistics");
+
         ImGui::Text("Allocated Images: %llu", Stats.AllocatedImages.load());
         ImGui::Text("Allocated Buffers: %llu", Stats.AllocatedBuffers.load());
         ImGui::Text("VRAM Usage: (%0.2f) MB", Stats.GPUMemoryAllocated.load() / 1024.0f / 1024.0f);
         ImGui::Text("RAM Usage: (%0.2f) MB", Stats.RAMMemoryAllocated.load() / 1024.0f / 1024.0f);
+
+        ImGui::Text("VMA Allocations: %llu", Stats.Allocations.load());
+        ImGui::Text("Upload Heap Capacity: (%0.2f) MB", Stats.UploadHeapCapacity / 1024.0f / 1024.0f);
+
+        ImGui::SeparatorText("General Statistics");
         ImGui::Text("FPS: (%u)", Stats.FPS);
         ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets.load());
         ImGui::Text("CPU Wait Time: %0.2f ms", Stats.CPUWaitTime * 1000.0f);
         ImGui::Text("GPU Wait Time: %0.2f ms", Stats.GPUWaitTime * 1000.0f);
         ImGui::Text("Swapchain Image Present Time: %0.2fms", Stats.PresentTime * 1000.0f);
         ImGui::Text("FrameTime: %0.2f ms", Stats.FrameTime * 1000.0f);
-        ImGui::Text("VMA Allocations: %llu", Stats.Allocations.load());
         ImGui::Text("DrawCalls: %llu", Stats.DrawCalls.load());
         ImGui::Text("QuadCount: %llu", Stats.QuadCount.load());
         ImGui::Text("Rendering Device: %s", Stats.RenderingDevice.data());
-        ImGui::Text("Upload Heap Capacity: (%0.2f) MB", Stats.UploadHeapCapacity / 1024.0f / 1024.0f);
 
         ImGui::End();
     }
 
     ImGui::Begin("Renderer Settings");
     auto& rs = Renderer::GetSettings();
+    ImGui::Text("Viewport Size: (%u, %u)", (uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
     ImGui::Checkbox("Render Wireframe", &rs.ShowWireframes);
     ImGui::Checkbox("ChromaticAberration View", &rs.ChromaticAberrationView);
     ImGui::Checkbox("VSync", &rs.VSync);
@@ -152,6 +158,15 @@ void EditorLayer::OnImGuiRender()
         ImGui::TreePop();
     }
 
+    if (ImGui::TreeNodeEx("GPU-Based Particle System", ImGuiTreeNodeFlags_Framed))
+    {
+        constexpr uint32_t min = 0;
+        constexpr uint32_t max = 5000;
+        ImGui::SliderScalar("Particles", ImGuiDataType_U32, &Renderer::GetSettings().ParticleCount, &min, &max);
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNodeEx("SSAO", ImGuiTreeNodeFlags_Framed))
     {
         ImGui::Checkbox("Enable SSAO", &rs.AO.EnableSSAO);
@@ -163,18 +178,20 @@ void EditorLayer::OnImGuiRender()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNodeEx("Pipeline Statistics", ImGuiTreeNodeFlags_Framed))
+    if (ImGui::TreeNodeEx("Pass Statistics", ImGuiTreeNodeFlags_Framed))
     {
-        const auto passStats = Renderer::GetPassStatistics();
+        const auto& passStats = Renderer::GetStats().PassStatistsics;
         for (auto& passStat : passStats)
             ImGui::Text("%s", passStat.data());
 
-        ImGui::Separator();
+        if (ImGui::TreeNodeEx("Pipeline Statistics", ImGuiTreeNodeFlags_Framed))
+        {
+            const auto pipelineStats = Renderer::GetPipelineStatistics();
+            for (auto& pipelineStat : pipelineStats)
+                ImGui::Text("%s", pipelineStat.data());
 
-        const auto pipelineStats = Renderer::GetPipelineStatistics();
-        for (auto& pipelineStat : pipelineStats)
-            ImGui::Text("%s", pipelineStat.data());
-
+            ImGui::TreePop();
+        }
         ImGui::TreePop();
     }
 

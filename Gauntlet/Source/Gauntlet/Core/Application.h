@@ -59,6 +59,7 @@ class Application : private Uncopyable, private Unmovable
     FORCEINLINE auto& GetWindow() { return m_Window; }
 
     FORCEINLINE void PushLayer(Layer* InLayer) { m_LayerQueue.Enqueue(InLayer); }
+    FORCEINLINE float GetDeltaTime() const { return m_MainThreadDelta; }
 
   private:
     static Application* s_Instance;

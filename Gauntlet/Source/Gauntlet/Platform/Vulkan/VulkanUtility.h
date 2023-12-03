@@ -7,6 +7,7 @@
 #include "Gauntlet/Renderer/Buffer.h"
 #include "Gauntlet/Renderer/Pipeline.h"
 #include "Gauntlet/Renderer/Renderer.h"
+#include "Gauntlet/Utils/CoreUtils.h"
 
 namespace Gauntlet
 {
@@ -14,16 +15,19 @@ namespace Gauntlet
 #define LOG_VULKAN_SHADER_REFLECTION 0
 #define LOG_VULKAN_INFO 0
 #define LOG_VMA_INFO 0
+
 #define RENDERDOC_DEBUG 1
+
 #define VK_PREFER_IGPU 0
 #define VK_RTX 0
+#define VK_MESH_SHADING 0
 
 static constexpr uint32_t GNT_VK_API_VERSION = VK_API_VERSION_1_3;
 
-const std::vector<const char*> InstanceLayers = {"VK_LAYER_KHRONOS_validation"};
+static const std::vector<const char*> s_InstanceLayers = {"VK_LAYER_KHRONOS_validation"};
 
 // Now I assume these are supported
-const std::vector<const char*> DeviceExtensions = {
+static const std::vector<const char*> s_DeviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,            // Swapchain creation (array of images that we render into, and present to screen)
     VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,    // For advanced GPU info
     VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,    // To get rid of render pass objects
@@ -35,6 +39,9 @@ const std::vector<const char*> DeviceExtensions = {
     VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,    // To build acceleration structures
     VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,      // To use vkCmdTraceRaysKHR
     VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,  // Required by acceleration structures
+#endif
+#if VK_MESH_SHADING
+    VK_EXT_MESH_SHADER_EXTENSION_NAME,
 #endif
 };
 
@@ -152,10 +159,19 @@ static VkShaderStageFlagBits GauntletShaderStageToVulkan(EShaderStage shaderStag
         case EShaderStage::SHADER_STAGE_VERTEX: return VK_SHADER_STAGE_VERTEX_BIT;
         case EShaderStage::SHADER_STAGE_GEOMETRY: return VK_SHADER_STAGE_GEOMETRY_BIT;
         case EShaderStage::SHADER_STAGE_FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        case EShaderStage::SHADER_STAGE_TESSELLATION_CONTROL: return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        case EShaderStage::SHADER_STAGE_TESSELLATION_EVALUATION: return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+
         case EShaderStage::SHADER_STAGE_COMPUTE: return VK_SHADER_STAGE_COMPUTE_BIT;
+
         case EShaderStage::SHADER_STAGE_RAYGEN: return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
         case EShaderStage::SHADER_STAGE_MISS: return VK_SHADER_STAGE_MISS_BIT_KHR;
         case EShaderStage::SHADER_STAGE_CLOSEST_HIT: return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+        case EShaderStage::SHADER_STAGE_ANY_HIT: return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+
+        case EShaderStage::SHADER_STAGE_TASK: return VK_SHADER_STAGE_TASK_BIT_EXT;
+        case EShaderStage::SHADER_STAGE_MESH: return VK_SHADER_STAGE_MESH_BIT_EXT;
     }
 
     GNT_ASSERT(false, "Unknown shader stage flag!");
@@ -218,40 +234,6 @@ static VkCompareOp GauntletCompareOpToVulkan(ECompareOp compareOp)
 
     GNT_ASSERT(false, "Unknown compare op flag!");
     return VK_COMPARE_OP_NEVER;
-}
-
-NODISCARD static VkCommandBuffer BeginSingleTimeCommands(const VkCommandPool& commandPool, const VkDevice& device)
-{
-    VkCommandBufferAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    allocateInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocateInfo.commandPool                 = commandPool;
-    allocateInfo.commandBufferCount          = 1;
-
-    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
-    VK_CHECK(vkAllocateCommandBuffers(device, &allocateInfo, &commandBuffer), "Failed to allocate command buffer for single time command!");
-
-    VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    beginInfo.flags                    = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo), "Failed to begin command buffer for single time command!");
-
-    return commandBuffer;
-}
-
-static void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer, const VkCommandPool& commandPool, const VkQueue& queue,
-                                  const VkDevice& device, const VkFence& uploadFence)
-{
-    VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to end command buffer for single time command!");
-
-    VkSubmitInfo submitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers    = &commandBuffer;
-
-    VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, uploadFence), "Failed to submit command buffer to the queue!");
-    VK_CHECK(vkWaitForFences(device, 1, &uploadFence, true, UINT64_MAX), "Failed to wait on upload fence!");
-    VK_CHECK(vkResetFences(device, 1, &uploadFence), "Failed to reset upload fence!");
-
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
 NODISCARD static VkFormat GauntletShaderDataTypeToVulkan(EShaderDataType format)
@@ -350,11 +332,7 @@ NODISCARD static VkWriteDescriptorSet GetWriteDescriptorSet(VkDescriptorType des
 NODISCARD static VkDescriptorBufferInfo GetDescriptorBufferInfo(const VkBuffer& buffer, const VkDeviceSize range,
                                                                 const VkDeviceSize offset = 0)
 {
-    VkDescriptorBufferInfo descriptorBufferInfo = {};
-    descriptorBufferInfo.buffer                 = buffer;
-    descriptorBufferInfo.range                  = range;
-    descriptorBufferInfo.offset                 = offset;
-
+    VkDescriptorBufferInfo descriptorBufferInfo = {buffer, offset, range};
     return descriptorBufferInfo;
 }
 
@@ -408,40 +386,6 @@ NODISCARD static VkPushConstantRange GetPushConstantRange(const VkShaderStageFla
     PushConstants.stageFlags          = shaderStages;
 
     return PushConstants;
-}
-
-static bool SaveDataToDisk(const void* data, const size_t dataSize, const std::string& filePath)
-{
-    std::ofstream out(filePath.data(), std::ios::out | std::ios::binary);
-    if (!out.is_open())
-    {
-        LOG_WARN("Failed to load %s!", filePath.data());
-        return false;
-    }
-
-    out.write((char*)data, dataSize);
-
-    out.close();
-    return true;
-}
-
-static std::vector<uint8_t> LoadDataFromDisk(const std::string& filePath)
-{
-    std::vector<uint8_t> data;
-
-    std::ifstream in(filePath.data(), std::ios::in | std::ios::binary | std::ios::ate);
-    if (!in.is_open())
-    {
-        LOG_WARN("Failed to load %s!", filePath.data());
-        return data;
-    }
-
-    data.resize(in.tellg());
-    in.seekg(0, std::ios::beg);
-    in.read(reinterpret_cast<char*>(data.data()), data.size());
-
-    in.close();
-    return data;
 }
 
 static VkBool32 DropPipelineCacheToDisk(const VkDevice& logicalDevice, const VkPipelineCache& pipelineCache,

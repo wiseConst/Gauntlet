@@ -9,8 +9,8 @@ namespace Gauntlet
 #define LOG_WARN_ENABLED 1
 #define LOG_TRACE_ENABLED 1
 
-#define OUT_MESSAGE_LENGTH 32000
-#define MAX_TIME_FORMAT_LENGTH 100
+static constexpr uint32_t s_OutMessageLength    = 32000;
+static constexpr uint32_t s_MaxTimeFormatLength = 100;
 
 enum class ELogLevel : uint8_t
 {
@@ -72,7 +72,7 @@ class Log final
             }
         }
 
-        char FormattedMessage[OUT_MESSAGE_LENGTH] = {0};
+        char FormattedMessage[s_OutMessageLength] = {0};
         sprintf(FormattedMessage, message, args...);
 
         // Get global UTC time
@@ -83,10 +83,10 @@ class Log final
         const std::tm* CurrentLocalTime = std::localtime(&CurrentTime);
 
         // Format the time with timezone
-        char FormattedTime[MAX_TIME_FORMAT_LENGTH] = {0};
-        std::strftime(FormattedTime, MAX_TIME_FORMAT_LENGTH, "[%d/%m/%Y|%H:%M:%S]", CurrentLocalTime);
+        char FormattedTime[s_MaxTimeFormatLength] = {0};
+        std::strftime(FormattedTime, s_MaxTimeFormatLength, "[%d/%m/%Y|%H:%M:%S]", CurrentLocalTime);
 
-        char FinalOutMessage[OUT_MESSAGE_LENGTH] = {0};
+        char FinalOutMessage[s_OutMessageLength] = {0};
         sprintf(FinalOutMessage, "%s %s%s", FormattedTime, LevelStrings[LevelIndex], FormattedMessage);
         printf("%s%s \033[0m\n", LogLevelColors[LevelIndex], FinalOutMessage);
         s_Output << FinalOutMessage << std::endl;

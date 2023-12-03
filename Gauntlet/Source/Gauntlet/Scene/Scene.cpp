@@ -14,17 +14,10 @@ Scene::Scene(const std::string& name) : m_Name(name) {}
 
 Scene::~Scene()
 {
-    m_Registry.each(
-        [this](entt::entity entityID)
-        {
-            Entity entity{entityID, this};
-
-            if (entity.HasComponent<MeshComponent>())
-            {
-                auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
-                Mesh->Destroy();
-            }
-        });
+    for (auto entityID : m_Registry.view<IDComponent>())
+    {
+        m_Registry.destroy(entityID);
+    }
 }
 
 Entity Scene::CreateEntity(const std::string& name)
@@ -49,19 +42,12 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name)
 
 void Scene::DestroyEntity(Entity entity)
 {
-    if (entity.HasComponent<MeshComponent>())
-    {
-        // Temporary until I move every destroy func in destructor
-        auto& Mesh = entity.GetComponent<MeshComponent>().Mesh;
-        Mesh->Destroy();
-    }
-
     m_Registry.destroy(entity);  // Implicitly returns entt::entity by Gauntlet::Entity impl
 }
 
 void Scene::OnUpdate(const float deltaTime)
 {
-    for (auto entityID : m_Registry.view<TagComponent>())
+    for (auto entityID : m_Registry.view<IDComponent>())
     {
         Entity entity{entityID, this};
 

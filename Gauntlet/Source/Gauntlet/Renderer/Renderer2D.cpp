@@ -36,7 +36,7 @@ void Renderer2D::Init()
             Offset += 4;
         }
 
-        BufferInfo indexBufferInfo           = {};
+        BufferSpecification indexBufferInfo  = {};
         indexBufferInfo.Usage                = EBufferUsageFlags::INDEX_BUFFER;
         indexBufferInfo.Count                = s_RendererStorage2D->MaxIndices;
         indexBufferInfo.Size                 = s_RendererStorage2D->MaxIndices * sizeof(uint32_t);
@@ -70,9 +70,8 @@ void Renderer2D::Init()
     {
         s_RendererStorage2D->QuadVertexBufferBase[frame] = new QuadVertex[s_RendererStorage2D->MaxVertices];
 
-        BufferInfo vbInfo = {};
-        vbInfo.Layout     = s_RendererStorage2D->VertexBufferLayout;
-        vbInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
+        BufferSpecification vbInfo = {};
+        vbInfo.Usage               = EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
         s_RendererStorage2D->QuadVertexBuffers[frame].push_back(VertexBuffer::Create(vbInfo));
 
         s_RendererStorage2D->CurrentVertexBufferIndex[frame] = 0;
@@ -149,9 +148,8 @@ void Renderer2D::Flush()
     auto& currentVertexBufferArray = s_RendererStorage2D->QuadVertexBuffers[s_RendererStorage2D->CurrentFrameIndex];
     if (s_RendererStorage2D->CurrentVertexBufferIndex[s_RendererStorage2D->CurrentFrameIndex] >= currentVertexBufferArray.size())
     {
-        BufferInfo vbInfo = {};
-        vbInfo.Layout     = s_RendererStorage2D->VertexBufferLayout;
-        vbInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER;
+        BufferSpecification vbInfo = {};
+        vbInfo.Usage               = EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
 
         currentVertexBufferArray.push_back(VertexBuffer::Create(vbInfo));
     }
@@ -162,12 +160,14 @@ void Renderer2D::Flush()
     auto& vertexBuffer = currentVertexBufferArray[s_RendererStorage2D->CurrentVertexBufferIndex[s_RendererStorage2D->CurrentFrameIndex]];
     vertexBuffer->SetStagedData(rs.UploadHeap, DataSize);
 
-    Renderer::BeginRenderPass(Renderer::GetStorageData().GeometryFramebuffer, glm::vec4(0.8f, 0.1f, 0.1f, 1.0f));
+    Renderer::BeginRenderPass(Renderer::GetStorageData().RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                              Renderer::GetStorageData().GeometryFramebuffer, glm::vec4(0.8f, 0.1f, 0.1f, 1.0f));
 
     Renderer::DrawQuad(s_RendererStorage2D->QuadPipeline, vertexBuffer, s_RendererStorage2D->QuadIndexBuffer,
                        s_RendererStorage2D->QuadIndexCount, &s_RendererStorage2D->PushConstants);
 
-    Renderer::EndRenderPass(Renderer::GetStorageData().GeometryFramebuffer);
+    Renderer::EndRenderPass(Renderer::GetStorageData().RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                            Renderer::GetStorageData().GeometryFramebuffer);
 
     ++Renderer::GetStats().DrawCalls;
     ++s_RendererStorage2D->CurrentVertexBufferIndex[s_RendererStorage2D->CurrentFrameIndex];

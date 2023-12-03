@@ -29,3 +29,4 @@
 #include <condition_variable>
 
 #include <Gauntlet/Core/Log.h>
+#include <Gauntlet/Core/Timer.h>

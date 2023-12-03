@@ -7,7 +7,7 @@ namespace Gauntlet
 {
 extern Scoped<Application> CreateApplication(const CommandLineArguments& args);
 
-int Main(int argc, char** argv)
+int32_t Main(int32_t argc, char** argv)
 {
     auto App = Gauntlet::CreateApplication({argc, argv});
     App->Run();
@@ -27,7 +27,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 #else
 
-int main(int argc, char** argv)
+int32_t main(int32_t argc, char** argv)
 {
     return Gauntlet::Main(argc, argv);
 }

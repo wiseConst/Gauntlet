@@ -11,9 +11,8 @@
 namespace Gauntlet
 {
 
-struct AllocatedImage
+struct AllocatedImage final
 {
-  public:
     AllocatedImage() : Image(VK_NULL_HANDLE), ImageView(VK_NULL_HANDLE), Allocation(VK_NULL_HANDLE) {}
     ~AllocatedImage() = default;
 
@@ -71,7 +70,6 @@ class VulkanImage final : public Image
         return static_cast<float>(GetWidth() / GetHeight());
     }
 
-    FORCEINLINE auto& GetDescriptorInfo() { return m_DescriptorImageInfo; }
     FORCEINLINE const auto& GetDescriptorInfo() const { return m_DescriptorImageInfo; }
     FORCEINLINE void* GetTextureID() const final override
     {

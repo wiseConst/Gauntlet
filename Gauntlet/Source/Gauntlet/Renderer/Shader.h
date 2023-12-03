@@ -13,11 +13,19 @@ enum class EShaderStage : uint8_t
     SHADER_STAGE_VERTEX = 0,
     SHADER_STAGE_GEOMETRY,
     SHADER_STAGE_FRAGMENT,
+
+    SHADER_STAGE_TESSELLATION_CONTROL,
+    SHADER_STAGE_TESSELLATION_EVALUATION,
+
     SHADER_STAGE_COMPUTE,
+
     SHADER_STAGE_RAYGEN,
     SHADER_STAGE_MISS,
     SHADER_STAGE_CLOSEST_HIT,
-    SHADER_STAGE_GROUP_COUNT
+    SHADER_STAGE_ANY_HIT,
+
+    SHADER_STAGE_TASK,
+    SHADER_STAGE_MESH
 };
 
 class Texture2D;
@@ -38,6 +46,7 @@ class Shader
     virtual void Set(const std::string& name, const Ref<TextureCube>& texture)                                    = 0;
     virtual void Set(const std::string& name, const Ref<Image>& image)                                            = 0;
     virtual void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) = 0;
+    virtual void Set(const std::string& name, const Ref<StorageBuffer>& ssbo, const uint64_t offset = 0) = 0;
     virtual void Set(const std::string& name, const std::vector<Ref<Texture2D>>& textures)                        = 0;
 
     static Ref<Shader> Create(const std::string_view& filePath);
@@ -55,7 +64,6 @@ class ShaderLibrary final : private Uncopyable, private Unmovable
         s_LoadedShaders.clear();
     }
 
-    // TODO: Make it Load("FlatColor"), but not Load("Assets/Shaders/FlatColor")
     static Ref<Shader> Load(const std::string& shaderName)
     {
         s_LoadedShaders[shaderName] = Shader::Create(shaderName);

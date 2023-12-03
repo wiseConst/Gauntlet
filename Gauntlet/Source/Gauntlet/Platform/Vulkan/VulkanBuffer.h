@@ -8,10 +8,10 @@
 namespace Gauntlet
 {
 
-struct VulkanAllocatedBuffer final
+struct VulkanBuffer final
 {
-    VulkanAllocatedBuffer()  = default;
-    ~VulkanAllocatedBuffer() = default;
+    VulkanBuffer()  = default;
+    ~VulkanBuffer() = default;
 
     VmaAllocation Allocation =
         VK_NULL_HANDLE;  // Holds the state that the VMA library uses, like the memory that buffer was allocated from, and its size.
@@ -26,14 +26,14 @@ class VulkanStagingBuffer final : public StagingBuffer
 
     void Destroy() final override;
     void SetData(const void* data, const uint64_t dataSize) final override;
-    FORCEINLINE void* Get() const final override { return m_AllocatedBuffer.Buffer; }
+
+    FORCEINLINE void* Get() const final override { return m_Handle.Buffer; }
     FORCEINLINE size_t GetCapacity() const final override { return m_Capacity; }
+    void Resize(const uint64_t newBufferSize) final override;
 
   private:
-    VulkanAllocatedBuffer m_AllocatedBuffer;
+    VulkanBuffer m_Handle;
     VkDeviceSize m_Capacity = 0;
-
-    void Resize(const uint64_t newBufferSize) final override;
 };
 
 // VERTEX BUFFER
@@ -42,24 +42,21 @@ class VulkanVertexBuffer final : public VertexBuffer
 {
   public:
     VulkanVertexBuffer() = delete;
-    VulkanVertexBuffer(BufferInfo& bufferInfo);
+    VulkanVertexBuffer(BufferSpecification& bufferSpec);
     ~VulkanVertexBuffer() = default;
 
-    FORCEINLINE const BufferLayout& GetLayout() const final override { return m_Layout; }
-    FORCEINLINE void SetLayout(const BufferLayout& layout) final override { m_Layout = layout; }
     void SetData(const void* data, const size_t size) final override;
     void SetStagedData(const Ref<StagingBuffer>& stagingBuffer, const uint64_t stagingBufferDataSize) final override;
 
     FORCEINLINE uint64_t GetCount() const final override { return m_VertexCount; }
     void Destroy() final override;
 
-    FORCEINLINE const void* Get() const final override { return m_AllocatedBuffer.Buffer; }
-    FORCEINLINE void* Get() final override { return m_AllocatedBuffer.Buffer; }
+    FORCEINLINE const void* Get() const final override { return m_Handle.Buffer; }
 
   private:
-    VulkanAllocatedBuffer m_AllocatedBuffer;
-    BufferLayout m_Layout;
-    uint64_t m_VertexCount = 0;
+    VulkanBuffer m_Handle;
+    uint64_t m_VertexCount     = 0;
+    EBufferUsage m_BufferUsage = 0;
 };
 
 // INDEX BUFFER
@@ -68,17 +65,16 @@ class VulkanIndexBuffer final : public IndexBuffer
 {
   public:
     VulkanIndexBuffer() = delete;
-    VulkanIndexBuffer(BufferInfo& bufferInfo);
+    VulkanIndexBuffer(BufferSpecification& bufferSpec);
     ~VulkanIndexBuffer() = default;
 
     uint64_t GetCount() const final override { return m_IndicesCount; }
     void Destroy() final override;
 
-    FORCEINLINE const void* Get() const final override { return m_AllocatedBuffer.Buffer; }
-    FORCEINLINE void* Get() final override { return m_AllocatedBuffer.Buffer; }
+    FORCEINLINE const void* Get() const final override { return m_Handle.Buffer; }
 
   private:
-    VulkanAllocatedBuffer m_AllocatedBuffer;
+    VulkanBuffer m_Handle;
     uint64_t m_IndicesCount = 0;
 };
 
@@ -92,34 +88,53 @@ class VulkanUniformBuffer final : public UniformBuffer
 
     void Destroy() final override;
 
-    void MapPersistent() final override;
+    void Map(bool bPersistent = false) final override;
     void* RetrieveMapped() final override;
     void Unmap() final override;
 
     void Update(void* data, const uint64_t size) final override;
 
-    FORCEINLINE const auto& GetHandles() const { return m_AllocatedBuffers; }
-    const uint64_t GetSize() const final override { return m_Size; }
+    FORCEINLINE const auto& Get() const { return m_Handle.Buffer; }
+    FORCEINLINE size_t GetSize() const final override { return m_Size; }
 
   private:
-    std::vector<VulkanAllocatedBuffer> m_AllocatedBuffers;  // Per-frame
-    std::vector<bool> m_bAreMapped;                         // Per-frame for buffers
+    VulkanBuffer m_Handle;
     VkDeviceSize m_Size  = 0;
+    bool m_bIsMapped     = false;
     bool m_bIsPersistent = false;
+};
+
+// STORAGE BUFFER
+class VulkanStorageBuffer final : public StorageBuffer
+{
+  public:
+    VulkanStorageBuffer() = delete;
+    VulkanStorageBuffer(const BufferSpecification& bufferSpec);
+    ~VulkanStorageBuffer() = default;
+
+    void Destroy() final override;
+    void SetData(const void* data, const uint64_t dataSize) final override;
+
+    FORCEINLINE void* Get() const final override { return m_Handle.Buffer; }
+    FORCEINLINE size_t GetSize() const final override { return m_Specification.Size; }
+
+  private:
+    VulkanBuffer m_Handle;
+    BufferSpecification m_Specification;
 };
 
 namespace BufferUtils
 {
 VkBufferUsageFlags GauntletBufferUsageToVulkan(const EBufferUsage bufferUsage);
 
-void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, VulkanAllocatedBuffer& outAllocatedBuffer,
+void CreateBuffer(const EBufferUsage bufferUsage, const VkDeviceSize size, VulkanBuffer& outAllocatedBuffer,
                   VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_AUTO);
 
 void CopyBuffer(const VkBuffer& sourceBuffer, VkBuffer& destBuffer, const VkDeviceSize size);
 
-void DestroyBuffer(VulkanAllocatedBuffer& buffer);
+void DestroyBuffer(VulkanBuffer& buffer);
 
-void CopyDataToBuffer(VulkanAllocatedBuffer& buffer, const VkDeviceSize dataSize, const void* data);
+void CopyDataToBuffer(VulkanBuffer& buffer, const VkDeviceSize dataSize, const void* data);
 
 }  // namespace BufferUtils
 

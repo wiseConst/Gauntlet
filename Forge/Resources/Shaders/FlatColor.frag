@@ -1,5 +1,6 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
 layout(location = 0) in vec4 in_Color;

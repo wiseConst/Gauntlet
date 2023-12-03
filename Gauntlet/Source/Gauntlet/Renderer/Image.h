@@ -95,8 +95,8 @@ struct ImageSpecification
 class Image
 {
   public:
-    Image()  = default;
-    ~Image() = default;
+    Image()          = default;
+    virtual ~Image() = default;
 
     virtual void Invalidate() = 0;
     virtual void Destroy()    = 0;

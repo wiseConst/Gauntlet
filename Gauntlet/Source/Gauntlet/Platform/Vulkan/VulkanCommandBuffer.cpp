@@ -5,37 +5,29 @@
 #include "VulkanSwapchain.h"
 #include "VulkanPipeline.h"
 #include "VulkanDevice.h"
-#include "VulkanCommandPool.h"
 
 namespace Gauntlet
 {
 
 static constexpr uint32_t s_MaxTimestampQueries = 16;
 
-VulkanCommandBuffer::VulkanCommandBuffer(ECommandBufferType type, bool bIsSeparate) : m_Type(type), m_bAllocatedSeparate(bIsSeparate)
+static VkCommandBufferLevel GauntletCommandBufferLevelToVulkan(ECommandBufferLevel level)
 {
-    if (bIsSeparate)  // created from renderer, not from command pool
+    switch (level)
     {
-        auto& context = (VulkanContext&)VulkanContext::Get();
-        switch (type)
-        {
-            case ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS:
-            {
-                context.GetGraphicsCommandPool()->AllocateSingleCommandBuffer(m_CommandBuffer);
-                break;
-            }
-            case ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE:
-            {
-                context.GetComputeCommandPool()->AllocateSingleCommandBuffer(m_CommandBuffer);
-                break;
-            }
-            case ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER:
-            {
-                context.GetTransferCommandPool()->AllocateSingleCommandBuffer(m_CommandBuffer);
-                break;
-            }
-        }
+        case Gauntlet::ECommandBufferLevel::COMMAND_BUFFER_LEVEL_PRIMARY: return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        case Gauntlet::ECommandBufferLevel::COMMAND_BUFFER_LEVEL_SECONDARY: return VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        default: break;
     }
+    GNT_ASSERT(false, "Unknown command buffer level!");
+
+    return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+}
+
+VulkanCommandBuffer::VulkanCommandBuffer(ECommandBufferType type, ECommandBufferLevel level) : m_Type(type), m_Level(level)
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    context.GetDevice()->AllocateCommandBuffer(m_CommandBuffer, type, GauntletCommandBufferLevelToVulkan(m_Level));
 
     CreateSyncResourcesAndQueries();
 }
@@ -55,15 +47,24 @@ void VulkanCommandBuffer::CreateSyncResourcesAndQueries()
                                              VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |  // Fragment shader invocations
                                              VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |         // Clipping invocations
                                              VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |          // Clipped primitives
-                                             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT |   // Compute shader invocations
                                              VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT |  //  Geometry Shader
                                              VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT |   //
                                              VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |  // Tesselation
-                                             VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT;
+                                             VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT |
+                                             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT  // Compute shader invocations
+#if VK_MESH_SHADING
+                                             | VK_QUERY_PIPELINE_STATISTIC_TASK_SHADER_INVOCATIONS_BIT_EXT |  // MESH SHADING
+                                             VK_QUERY_PIPELINE_STATISTIC_MESH_SHADER_INVOCATIONS_BIT_EXT
+#endif
+        ;
+
+    // compute only case
+    if (m_Type == ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE)
+        queryPoolCreateInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
 
     queryPoolCreateInfo.queryCount = 1;
-    m_StatsResults.resize(11);
-    VK_CHECK(vkCreateQueryPool(context.GetDevice()->GetLogicalDevice(), &queryPoolCreateInfo, nullptr, &m_StatisticsQueryPool),
+    m_PipelineStatsResults.resize(VK_MESH_SHADING ? 13 : 11);
+    VK_CHECK(vkCreateQueryPool(context.GetDevice()->GetLogicalDevice(), &queryPoolCreateInfo, nullptr, &m_PipelineStatisticsQueryPool),
              "Failed to create query pools!");
 
     queryPoolCreateInfo.queryCount         = s_MaxTimestampQueries;
@@ -75,42 +76,69 @@ void VulkanCommandBuffer::CreateSyncResourcesAndQueries()
              "Failed to create query pools!");
 }
 
-void VulkanCommandBuffer::BeginRecording(const void* inheritanceInfo)
+void VulkanCommandBuffer::BeginRecording(bool bOneTimeSubmit, const void* inheritanceInfo)
 {
     VkCommandBufferBeginInfo commandBufferBeginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
 
-    if (m_Level == VK_COMMAND_BUFFER_LEVEL_SECONDARY)
+    if (m_Level == ECommandBufferLevel::COMMAND_BUFFER_LEVEL_SECONDARY)
+    {
         commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-    else
-        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        GNT_ASSERT(inheritanceInfo, "Secondary command buffer requires inheritance info!");
+    }
+
+    if (bOneTimeSubmit) commandBufferBeginInfo.flags /= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     commandBufferBeginInfo.pInheritanceInfo = (VkCommandBufferInheritanceInfo*)inheritanceInfo;
     VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &commandBufferBeginInfo), "Failed to begin command buffer recording!");
+
     m_TimestampIndex = 0;
 }
 
-void VulkanCommandBuffer::Submit()
+void VulkanCommandBuffer::Submit(bool bWaitAfterSubmit)
 {
     VkSubmitInfo submitInfo       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &m_CommandBuffer;
 
-    // what if m_Type  is compute?
     auto& context = (VulkanContext&)VulkanContext::Get();
-    VK_CHECK(vkQueueSubmit(context.GetDevice()->GetGraphicsQueue(), 1, &submitInfo, m_SubmitFence), "Failed to submit command buffer!");
-    VK_CHECK(vkWaitForFences(context.GetDevice()->GetLogicalDevice(), 1, &m_SubmitFence, VK_TRUE, UINT64_MAX), "Failed to wait for fence!");
-    VK_CHECK(vkResetFences(context.GetDevice()->GetLogicalDevice(), 1, &m_SubmitFence), "Failed to reset fence!");
+    VkQueue queue = VK_NULL_HANDLE;
+    switch (m_Type)
+    {
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS:
+        {
+            queue = context.GetDevice()->GetGraphicsQueue();
+            break;
+        }
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE:
+        {
+            queue = context.GetDevice()->GetComputeQueue();
+            break;
+        }
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER:
+        {
+            queue = context.GetDevice()->GetTransferQueue();
+            break;
+        }
+    }
+
+    VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, m_SubmitFence), "Failed to submit command buffer!");
+
+    if (bWaitAfterSubmit)
+    {
+        VK_CHECK(vkWaitForFences(context.GetDevice()->GetLogicalDevice(), 1, &m_SubmitFence, VK_TRUE, UINT64_MAX),
+                 "Failed to wait for fence!");
+        VK_CHECK(vkResetFences(context.GetDevice()->GetLogicalDevice(), 1, &m_SubmitFence), "Failed to reset fence!");
+    }
 
     // A note on the flags used:
     //	VK_QUERY_RESULT_64_BIT: Results will have 64 bits. As time stamp values are on nano-seconds, this flag should always be used to
     // avoid 32 bit overflows
     //  VK_QUERY_RESULT_WAIT_BIT: Since we want to immediately display the results, we use this flag to have the CPU wait until the
     //  results are available (it stalls my cpu)
-
     {
-        vkGetQueryPoolResults(context.GetDevice()->GetLogicalDevice(), m_StatisticsQueryPool, 0, 1,
-                              m_StatsResults.size() * sizeof(m_StatsResults[0]), m_StatsResults.data(), sizeof(m_StatsResults[0]),
-                              VK_QUERY_RESULT_64_BIT);
+        vkGetQueryPoolResults(context.GetDevice()->GetLogicalDevice(), m_PipelineStatisticsQueryPool, 0, 1,
+                              m_PipelineStatsResults.size() * sizeof(m_PipelineStatsResults[0]), m_PipelineStatsResults.data(),
+                              sizeof(m_PipelineStatsResults[0]), VK_QUERY_RESULT_64_BIT);
 
         vkGetQueryPoolResults(context.GetDevice()->GetLogicalDevice(), m_TimestampQueryPool, 0, s_MaxTimestampQueries,
                               m_TimestampResults.size() * sizeof(m_TimestampResults[0]), m_TimestampResults.data(),
@@ -118,32 +146,46 @@ void VulkanCommandBuffer::Submit()
     }
 }
 
+const std::vector<std::string> VulkanCommandBuffer::GetPipelineStatisticsStrings() const
+{
+    const std::vector<std::string> pipelineStatisticsStrings = {
+        "Input assembly vertex count         ",
+        "Input assembly primitives count     ",
+        "Vertex shader invocations           ",
+        "Geometry Shader Invocations         ",
+        "Geometry Shader Primitives          ",
+        "Clipping stage primitives processed ",
+        "Clipping stage primitives output    ",
+        "Fragment shader invocations         ",
+        "Tess. control shader patches        ",
+        "Tess. eval. shader invocations      ",
+        "Compute shader invocations          ",
+#if VK_MESH_SHADING
+        "Task shader invocations             ",
+        "Mesh shader invocations             ",
+#endif
+    };
+
+    return pipelineStatisticsStrings;
+}
+
 void VulkanCommandBuffer::Destroy()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
-    context.WaitDeviceOnFinish();
 
-    if (m_bAllocatedSeparate)
-    {
-        if (m_Type == ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS)
-            context.GetGraphicsCommandPool()->FreeSingleCommandBuffer(m_CommandBuffer);
-        else if (m_Type == ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE)
-            context.GetComputeCommandPool()->FreeSingleCommandBuffer(m_CommandBuffer);
-        else if (m_Type == ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER)
-            context.GetTransferCommandPool()->FreeSingleCommandBuffer(m_CommandBuffer);
-    }
+    context.GetDevice()->FreeCommandBuffer(m_CommandBuffer, m_Type);
 
     vkDestroyFence(context.GetDevice()->GetLogicalDevice(), m_SubmitFence, VK_NULL_HANDLE);
     vkDestroyQueryPool(context.GetDevice()->GetLogicalDevice(), m_TimestampQueryPool, VK_NULL_HANDLE);
-    vkDestroyQueryPool(context.GetDevice()->GetLogicalDevice(), m_StatisticsQueryPool, VK_NULL_HANDLE);
+    vkDestroyQueryPool(context.GetDevice()->GetLogicalDevice(), m_PipelineStatisticsQueryPool, VK_NULL_HANDLE);
 }
 
 void VulkanCommandBuffer::BeginTimestamp(bool bStatisticsQuery)
 {
     if (bStatisticsQuery)
     {
-        vkCmdResetQueryPool(m_CommandBuffer, m_StatisticsQueryPool, 0, 1);
-        vkCmdBeginQuery(m_CommandBuffer, m_StatisticsQueryPool, 0, 0);
+        vkCmdResetQueryPool(m_CommandBuffer, m_PipelineStatisticsQueryPool, 0, 1);
+        vkCmdBeginQuery(m_CommandBuffer, m_PipelineStatisticsQueryPool, 0, 0);
         return;
     }
 
@@ -162,7 +204,7 @@ void VulkanCommandBuffer::EndTimestamp(bool bStatisticsQuery)
 {
     if (bStatisticsQuery)
     {
-        vkCmdEndQuery(m_CommandBuffer, m_StatisticsQueryPool, 0);
+        vkCmdEndQuery(m_CommandBuffer, m_PipelineStatisticsQueryPool, 0);
         return;
     }
 
@@ -186,37 +228,65 @@ void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, co
     vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
 }
 
-void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline, VkPipelineBindPoint pipelineBindPoint) const
+void VulkanCommandBuffer::BindDescriptorSets(Ref<VulkanPipeline>& pipeline, const uint32_t firstSet, const uint32_t descriptorSetCount,
+                                             VkDescriptorSet* descriptorSets, const uint32_t dynamicOffsetCount,
+                                             uint32_t* dynamicOffsets) const
 {
-    auto& Context         = (VulkanContext&)VulkanContext::Get();
-    const auto& Swapchain = Context.GetSwapchain();
-    GNT_ASSERT(Swapchain->IsValid(), "Vulkan swapchain is not valid!");
+    VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    switch (pipeline->GetSpecification().PipelineType)
+    {
+        case EPipelineType::PIPELINE_TYPE_COMPUTE: pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE; break;
+        case EPipelineType::PIPELINE_TYPE_GRAPHICS: pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS; break;
+        case EPipelineType::PIPELINE_TYPE_RAY_TRACING: pipelineBindPoint = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR; break;
+    }
 
-    VkViewport Viewport = {};
-    Viewport.x          = 0.0f;
-    Viewport.minDepth   = 0.0f;
-    Viewport.maxDepth   = 1.0f;
+    vkCmdBindDescriptorSets(m_CommandBuffer, pipelineBindPoint, pipeline->GetLayout(), firstSet, descriptorSetCount, descriptorSets,
+                            dynamicOffsetCount, dynamicOffsets);
+}
 
-    Viewport.y      = static_cast<float>(Swapchain->GetImageExtent().height);
-    Viewport.width  = static_cast<float>(Swapchain->GetImageExtent().width);
-    Viewport.height = -static_cast<float>(Swapchain->GetImageExtent().height);
+void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline) const
+{
+    auto& context         = (VulkanContext&)VulkanContext::Get();
+    const auto& swapchain = context.GetSwapchain();
+    GNT_ASSERT(swapchain->IsValid(), "Vulkan swapchain is not valid!");
 
-    VkRect2D Scissor = {{0, 0}, Swapchain->GetImageExtent()};
+    VkViewport viewport = {};
+    viewport.x          = 0.0f;
+    viewport.minDepth   = 0.0f;
+    viewport.maxDepth   = 1.0f;
+
+    viewport.y      = static_cast<float>(swapchain->GetImageExtent().height);
+    viewport.width  = static_cast<float>(swapchain->GetImageExtent().width);
+    viewport.height = -static_cast<float>(swapchain->GetImageExtent().height);
+
+    VkRect2D scissor = {{0, 0}, swapchain->GetImageExtent()};
     if (auto& targetFramebuffer = pipeline->GetSpecification().TargetFramebuffer)
     {
-        Scissor.extent = VkExtent2D(targetFramebuffer->GetWidth(), targetFramebuffer->GetHeight());
+        scissor.extent = VkExtent2D(targetFramebuffer->GetWidth(), targetFramebuffer->GetHeight());
 
-        Viewport.y      = static_cast<float>(Scissor.extent.height);
-        Viewport.width  = static_cast<float>(Scissor.extent.width);
-        Viewport.height = -static_cast<float>(Scissor.extent.height);
+        viewport.y      = static_cast<float>(scissor.extent.height);
+        viewport.width  = static_cast<float>(scissor.extent.width);
+        viewport.height = -static_cast<float>(scissor.extent.height);
     }
 
     if (pipeline->GetSpecification().bDynamicPolygonMode && !RENDERDOC_DEBUG)
         vkCmdSetPolygonModeEXT(m_CommandBuffer, Utility::GauntletPolygonModeToVulkan(pipeline->GetSpecification().PolygonMode));
 
+    VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    switch (pipeline->GetSpecification().PipelineType)
+    {
+        case EPipelineType::PIPELINE_TYPE_COMPUTE: pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE; break;
+        case EPipelineType::PIPELINE_TYPE_GRAPHICS: pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS; break;
+        case EPipelineType::PIPELINE_TYPE_RAY_TRACING: pipelineBindPoint = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR; break;
+    }
+
     vkCmdBindPipeline(m_CommandBuffer, pipelineBindPoint, pipeline->Get());
-    vkCmdSetViewport(m_CommandBuffer, 0, 1, &Viewport);
-    vkCmdSetScissor(m_CommandBuffer, 0, 1, &Scissor);
+
+    if (pipelineBindPoint != VK_PIPELINE_BIND_POINT_COMPUTE)
+    {
+        vkCmdSetViewport(m_CommandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(m_CommandBuffer, 0, 1, &scissor);
+    }
 }
 
 void VulkanCommandBuffer::SetPipelinePolygonMode(Ref<VulkanPipeline>& pipeline, const EPolygonMode polygonMode) const

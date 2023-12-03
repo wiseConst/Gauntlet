@@ -3,6 +3,7 @@
 
 #include "SwapchainSupportDetails.h"
 #include "VulkanUtility.h"
+#include "VulkanCommandBuffer.h"
 
 namespace Gauntlet
 {
@@ -42,6 +43,36 @@ VulkanDevice::VulkanDevice(const VkInstance& instance, const VkSurfaceKHR& surfa
 {
     PickPhysicalDevice(instance, surface);
     CreateLogicalDevice();
+    CreateCommandPools();
+}
+
+void VulkanDevice::CreateCommandPools()
+{
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+
+    // Graphics command pool
+    {
+        commandPoolCreateInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        commandPoolCreateInfo.queueFamilyIndex = m_GPUInfo.QueueFamilyIndices.GraphicsFamily;
+        VK_CHECK(vkCreateCommandPool(m_GPUInfo.LogicalDevice, &commandPoolCreateInfo, VK_NULL_HANDLE, &m_GPUInfo.GraphicsCommandPool),
+                 "Failed to create graphics command pool!");
+    }
+
+    // Async-Compute(if possible) command pool
+    {
+        commandPoolCreateInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        commandPoolCreateInfo.queueFamilyIndex = m_GPUInfo.QueueFamilyIndices.ComputeFamily;
+        VK_CHECK(vkCreateCommandPool(m_GPUInfo.LogicalDevice, &commandPoolCreateInfo, VK_NULL_HANDLE, &m_GPUInfo.ComputeCommandPool),
+                 "Failed to create (async)compute command pool!");
+    }
+
+    // Dedicated transfer command pool
+    {
+        commandPoolCreateInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        commandPoolCreateInfo.queueFamilyIndex = m_GPUInfo.QueueFamilyIndices.TransferFamily;
+        VK_CHECK(vkCreateCommandPool(m_GPUInfo.LogicalDevice, &commandPoolCreateInfo, VK_NULL_HANDLE, &m_GPUInfo.TransferCommandPool),
+                 "Failed to create (dedicated)transfer command pool!");
+    }
 }
 
 void VulkanDevice::PickPhysicalDevice(const VkInstance& instance, const VkSurfaceKHR& surface)
@@ -114,13 +145,6 @@ void VulkanDevice::CreateLogicalDevice()
     deviceCI.pQueueCreateInfos    = QueueCreateInfos.data();
     deviceCI.queueCreateInfoCount = static_cast<uint32_t>(QueueCreateInfos.size());
 
-#if !RENDERDOC_DEBUG
-    // Useful pipeline features that can be changed in real-time(for instance, polygon mode, primitive topology, etc..)
-    VkPhysicalDeviceExtendedDynamicState3FeaturesEXT extendedDynamicState3FeaturesEXT = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT};
-    extendedDynamicState3FeaturesEXT.extendedDynamicState3PolygonMode = VK_TRUE;
-#endif
-
     // Useful vulkan 1.2 features (bindless)
     VkPhysicalDeviceVulkan12Features vulkan12Features              = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     vulkan12Features.shaderSampledImageArrayNonUniformIndexing     = VK_TRUE;
@@ -131,13 +155,24 @@ void VulkanDevice::CreateLogicalDevice()
     vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
     vulkan12Features.scalarBlockLayout                             = VK_TRUE;
 
+    deviceCI.pNext = &vulkan12Features;  // chaining extensions
+    void** ppNext  = &vulkan12Features.pNext;
+
 #if !RENDERDOC_DEBUG
-    vulkan12Features.pNext = &extendedDynamicState3FeaturesEXT;
+    // Useful pipeline features that can be changed in real-time(for instance, polygon mode, primitive topology, etc..)
+    VkPhysicalDeviceExtendedDynamicState3FeaturesEXT extendedDynamicState3FeaturesEXT = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT};
+    extendedDynamicState3FeaturesEXT.extendedDynamicState3PolygonMode = VK_TRUE;
+
+    *ppNext = &extendedDynamicState3FeaturesEXT;
+    ppNext  = &extendedDynamicState3FeaturesEXT.pNext;
 #endif
-    deviceCI.pNext = &vulkan12Features;  // vk1.2
 
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
     dynamicRenderingFeatures.dynamicRendering                            = VK_TRUE;
+
+    *ppNext = &dynamicRenderingFeatures;
+    ppNext  = &dynamicRenderingFeatures.pNext;
 
 #if VK_RTX
     vulkan12Features.bufferDeviceAddress = VK_TRUE;
@@ -145,20 +180,27 @@ void VulkanDevice::CreateLogicalDevice()
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR enabledRayTracingPipelineFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
     enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-    enabledRayTracingPipelineFeatures.pNext              = &vulkan12Features;  // vk1.2
+
+    *ppNext = &enabledRayTracingPipelineFeatures;
+    ppNext  = &enabledRayTracingPipelineFeatures.pNext;
 
     VkPhysicalDeviceAccelerationStructureFeaturesKHR enabledAccelerationStructureFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
     enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
-    enabledAccelerationStructureFeatures.pNext                 = &enabledRayTracingPipelineFeatures;
 
-    deviceCI.pNext                             = &enabledAccelerationStructureFeatures;
-    enabledAccelerationStructureFeatures.pNext = &dynamicRenderingFeatures;
-#else
-
-    vulkan12Features.pNext = &dynamicRenderingFeatures;
+    *ppNext = &enabledAccelerationStructureFeatures;
+    ppNext  = &enabledAccelerationStructureFeatures.pNext;
 #endif
 
+#if VK_MESH_SHADING
+    VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeaturesEXT = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT};
+    meshShaderFeaturesEXT.meshShaderQueries                     = VK_TRUE;
+    meshShaderFeaturesEXT.meshShader                            = VK_TRUE;
+    meshShaderFeaturesEXT.taskShader                            = VK_TRUE;
+
+    *ppNext = &meshShaderFeaturesEXT;
+    ppNext  = &meshShaderFeaturesEXT.pNext;
+#endif
 
     // Required gpu features
     VkPhysicalDeviceFeatures PhysicalDeviceFeatures = {};
@@ -169,8 +211,8 @@ void VulkanDevice::CreateLogicalDevice()
                m_GPUInfo.GPUFeatures.textureCompressionBC);
 
     deviceCI.pEnabledFeatures        = &PhysicalDeviceFeatures;
-    deviceCI.enabledExtensionCount   = static_cast<uint32_t>(DeviceExtensions.size());
-    deviceCI.ppEnabledExtensionNames = DeviceExtensions.data();
+    deviceCI.enabledExtensionCount   = static_cast<uint32_t>(s_DeviceExtensions.size());
+    deviceCI.ppEnabledExtensionNames = s_DeviceExtensions.data();
 
     {
         const auto result = vkCreateDevice(m_GPUInfo.PhysicalDevice, &deviceCI, nullptr, &m_GPUInfo.LogicalDevice);
@@ -214,6 +256,9 @@ uint32_t VulkanDevice::RateDeviceSuitability(GPUInfo& gpuInfo, const VkSurfaceKH
 
     // Maximum size of fast(-accessible) uniform data in shaders.
     score += gpuInfo.GPUProperties.limits.maxPushConstantsSize;
+
+    // RTX part
+    score += gpuInfo.RTProperties.maxRayRecursionDepth;
 
     return score;
 }
@@ -313,6 +358,20 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
     }
 #endif
 
+    // Since all depth formats may be optional, we need to find a supported depth formats
+    const std::vector<VkFormat> availableDepthFormats = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT,
+                                                         VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D16_UNORM};
+    for (auto& format : availableDepthFormats)
+    {
+        VkFormatProperties formatProps = {};
+        vkGetPhysicalDeviceFormatProperties(gpuInfo.PhysicalDevice, format, &formatProps);
+        if (formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+            gpuInfo.SupportedDepthFormats.emplace_back(format);
+    }
+
+    // No support for any depth format??
+    if (gpuInfo.SupportedDepthFormats.empty()) return false;
+
     QueueFamilyIndices Indices = QueueFamilyIndices::FindQueueFamilyIndices(surface, gpuInfo.PhysicalDevice);
     gpuInfo.QueueFamilyIndices = Indices;
 
@@ -349,7 +408,7 @@ bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& physicalD
     LOG_INFO("Available extensions on current gpu: (%u)", ExtensionCount);
 #endif
 
-    std::set<std::string> RequiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
+    std::set<std::string> RequiredExtensions(s_DeviceExtensions.begin(), s_DeviceExtensions.end());
     for (const auto& Ext : AvailableExtensions)
     {
 #if !LOG_VULKAN_INFO
@@ -368,7 +427,53 @@ bool VulkanDevice::CheckDeviceExtensionSupport(const VkPhysicalDevice& physicalD
 
 void VulkanDevice::Destroy()
 {
+    WaitDeviceOnFinish();
+
+    vkDestroyCommandPool(m_GPUInfo.LogicalDevice, m_GPUInfo.GraphicsCommandPool, nullptr);
+    vkDestroyCommandPool(m_GPUInfo.LogicalDevice, m_GPUInfo.ComputeCommandPool, nullptr);
+    vkDestroyCommandPool(m_GPUInfo.LogicalDevice, m_GPUInfo.TransferCommandPool, nullptr);
+
     vkDestroyDevice(m_GPUInfo.LogicalDevice, nullptr);
+}
+
+void VulkanDevice::AllocateCommandBuffer(VkCommandBuffer& inOutCommandBuffer, ECommandBufferType type, VkCommandBufferLevel level)
+{
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    commandBufferAllocateInfo.level                       = level;
+    commandBufferAllocateInfo.commandBufferCount          = 1;
+
+    switch (type)
+    {
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS: commandBufferAllocateInfo.commandPool = m_GPUInfo.GraphicsCommandPool; break;
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE: commandBufferAllocateInfo.commandPool = m_GPUInfo.ComputeCommandPool; break;
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER: commandBufferAllocateInfo.commandPool = m_GPUInfo.TransferCommandPool; break;
+        default: GNT_ASSERT(false, "Unknown command buffer type!");
+    }
+
+    VK_CHECK(vkAllocateCommandBuffers(m_GPUInfo.LogicalDevice, &commandBufferAllocateInfo, &inOutCommandBuffer),
+             "Failed to allocate command buffer!");
+}
+
+void VulkanDevice::FreeCommandBuffer(const VkCommandBuffer& commandBuffer, ECommandBufferType type)
+{
+    switch (type)
+    {
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS:
+        {
+            vkFreeCommandBuffers(m_GPUInfo.LogicalDevice, m_GPUInfo.GraphicsCommandPool, 1, &commandBuffer);
+            break;
+        }
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_COMPUTE:
+        {
+            vkFreeCommandBuffers(m_GPUInfo.LogicalDevice, m_GPUInfo.ComputeCommandPool, 1, &commandBuffer);
+            break;
+        }
+        case ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER:
+        {
+            vkFreeCommandBuffers(m_GPUInfo.LogicalDevice, m_GPUInfo.TransferCommandPool, 1, &commandBuffer);
+            break;
+        }
+    }
 }
 
 }  // namespace Gauntlet

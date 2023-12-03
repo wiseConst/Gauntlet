@@ -5,7 +5,6 @@
 #include "VulkanContext.h"
 #include "VulkanAllocator.h"
 #include "VulkanDevice.h"
-#include "VulkanCommandPool.h"
 #include "VulkanDescriptors.h"
 #include "VulkanRenderer.h"
 
@@ -100,8 +99,8 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
         case EImageFormat::SRGB: return VK_FORMAT_R8G8B8A8_SRGB;
         case EImageFormat::RGBA16F: return VK_FORMAT_R16G16B16A16_SFLOAT;
         case EImageFormat::RGBA32F: return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case EImageFormat::RGB32F: return VK_FORMAT_R32G32B32_SFLOAT;
         case EImageFormat::RGB16F: return VK_FORMAT_R16G16B16_SFLOAT;
+        case EImageFormat::RGB32F: return VK_FORMAT_R32G32B32_SFLOAT;
         case EImageFormat::R8: return VK_FORMAT_R8_UNORM;
         case EImageFormat::R16: return VK_FORMAT_R16_UNORM;
         case EImageFormat::R16F: return VK_FORMAT_R16_SFLOAT;
@@ -190,11 +189,8 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
 
     auto& Context = (VulkanContext&)VulkanContext::Get();
 
-    // Problem: The transfer queue does not support VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT -- only the graphics queue does.
-    const bool bIsFragmentShaderStageInDestination = PipelineDestinationStageFlags == VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    auto CommandBuffer = Utility::BeginSingleTimeCommands(bIsFragmentShaderStageInDestination ? Context.GetGraphicsCommandPool()->Get()
-                                                                                              : Context.GetTransferCommandPool()->Get(),
-                                                          Context.GetDevice()->GetLogicalDevice());
+    Ref<VulkanCommandBuffer> commandBuffer = MakeRef<VulkanCommandBuffer>(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
+    commandBuffer->BeginRecording(true);
 
     /*
      * PipelineBarrier
@@ -202,31 +198,29 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
      * completed before barrier) Third parameter specifies in which pipeline stage the operations occur that should wait on the barrier.
      * (stages that should be completed after barrier)
      */
-    vkCmdPipelineBarrier(CommandBuffer, PipelineSourceStageFlags, PipelineDestinationStageFlags, VK_DEPENDENCY_BY_REGION_BIT, 0,
-                         VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &imageMemoryBarrier);
+    commandBuffer->InsertBarrier(PipelineSourceStageFlags, PipelineDestinationStageFlags, VK_DEPENDENCY_BY_REGION_BIT, 0, VK_NULL_HANDLE, 0,
+                                 VK_NULL_HANDLE, 1, &imageMemoryBarrier);
 
-    Utility::EndSingleTimeCommands(
-        CommandBuffer,
-        bIsFragmentShaderStageInDestination ? Context.GetGraphicsCommandPool()->Get() : Context.GetTransferCommandPool()->Get(),
-        bIsFragmentShaderStageInDestination ? Context.GetDevice()->GetGraphicsQueue() : Context.GetDevice()->GetTransferQueue(),
-        Context.GetDevice()->GetLogicalDevice(), Context.GetUploadFence());
+    commandBuffer->EndRecording();
+    commandBuffer->Submit();
 }
 
 void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent, const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
-    auto& Context      = (VulkanContext&)VulkanContext::Get();
-    auto CommandBuffer = Utility::BeginSingleTimeCommands(Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetLogicalDevice());
+    auto& Context = (VulkanContext&)VulkanContext::Get();
 
-    VkBufferImageCopy CopyRegion           = {};
-    CopyRegion.imageSubresource.layerCount = bIsCubeMap ? 6 : 1;
-    CopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    CopyRegion.imageExtent                 = imageExtent;
+    Ref<VulkanCommandBuffer> commandBuffer = MakeRef<VulkanCommandBuffer>(ECommandBufferType::COMMAND_BUFFER_TYPE_TRANSFER);
+    commandBuffer->BeginRecording(true);
 
-    vkCmdCopyBufferToImage(CommandBuffer, sourceBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &CopyRegion);
+    VkBufferImageCopy copyRegion           = {};
+    copyRegion.imageSubresource.layerCount = bIsCubeMap ? 6 : 1;
+    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.imageExtent                 = imageExtent;
 
-    Utility::EndSingleTimeCommands(CommandBuffer, Context.GetTransferCommandPool()->Get(), Context.GetDevice()->GetTransferQueue(),
-                                   Context.GetDevice()->GetLogicalDevice(), Context.GetUploadFence());
+    commandBuffer->CopyBufferToImage(sourceBuffer, destinationImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    commandBuffer->EndRecording();
+    commandBuffer->Submit();
 }
 
 void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filter, const uint32_t width, const uint32_t height,
@@ -247,7 +241,8 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
                        "Linear blitting is not supported");
     }
 
-    auto commandBuffer = Utility::BeginSingleTimeCommands(context.GetGraphicsCommandPool()->Get(), context.GetDevice()->GetLogicalDevice());
+    Ref<VulkanCommandBuffer> commandBuffer = MakeRef<VulkanCommandBuffer>(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
+    commandBuffer->BeginRecording(true);
 
     VkImageMemoryBarrier barrier            = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     barrier.image                           = image;
@@ -269,8 +264,8 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
 
         barrier.newLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
-                             &barrier);
+        commandBuffer->InsertBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                                     &barrier);
 
         // Downscaling image
         VkImageBlit blit                   = {};
@@ -290,8 +285,8 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
 
         // Note that image is used for both the srcImage and dstImage parameter.
         // This is because we’re blitting between different levels of the same image
-        vkCmdBlitImage(commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
-                       filter);
+        commandBuffer->BlitImage(image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+                                 filter);
 
         // Inserting second barrier to properly transition our downsampled image into SHADER_READ_ONLY layout
         barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -299,8 +294,8 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
 
         barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                             nullptr, 1, &barrier);
+        commandBuffer->InsertBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                                     &barrier);
 
         if (mipWidth > 1) mipWidth /= 2;
         if (mipHeight > 1) mipHeight /= 2;
@@ -312,11 +307,12 @@ void GenerateMipmaps(VkImage& image, const VkFormat format, const VkFilter filte
     barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.newLayout                     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.dstAccessMask                 = VK_ACCESS_SHADER_READ_BIT;
-    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1,
-                         &barrier);
 
-    Utility::EndSingleTimeCommands(commandBuffer, context.GetGraphicsCommandPool()->Get(), context.GetDevice()->GetGraphicsQueue(),
-                                   context.GetDevice()->GetLogicalDevice(), context.GetUploadFence());
+    commandBuffer->InsertBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                                 &barrier);
+
+    commandBuffer->EndRecording();
+    commandBuffer->Submit();
 }
 
 VkFilter GauntletTextureFilterToVulkan(ETextureFilter textureFilter)
@@ -352,13 +348,10 @@ VulkanImage::VulkanImage(const ImageSpecification& imageSecification) : m_Specif
 
 void VulkanImage::Invalidate()
 {
-    if (m_Image.Image)
-    {
-        Destroy();
-    }
+    if (m_Image.Image) Destroy();
 
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
     VkImageUsageFlags ImageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT;
     if (m_Specification.Copyable) ImageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -383,9 +376,14 @@ void VulkanImage::Invalidate()
 
     m_Specification.FlipOnLoad = true;
     const auto ImageFormat     = ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format);
+    if (ImageUtils::IsDepthFormat(m_Specification.Format))
+    {
+        GNT_ASSERT(context.GetDevice()->IsDepthFormatSupported(ImageFormat), "Unsupported depth format!");
+    }
+
     ImageUtils::CreateImage(&m_Image, m_Specification.Width, m_Specification.Height, ImageUsageFlags, ImageFormat, VK_IMAGE_TILING_OPTIMAL,
                             m_Specification.Mips, m_Specification.Layers);
-    ImageUtils::CreateImageView(Context.GetDevice()->GetLogicalDevice(), m_Image.Image, &m_Image.ImageView, ImageFormat,
+    ImageUtils::CreateImageView(context.GetDevice()->GetLogicalDevice(), m_Image.Image, &m_Image.ImageView, ImageFormat,
                                 ImageUtils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
                                 m_Specification.Layers == 6 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D, m_Specification.Mips);
 
@@ -399,14 +397,14 @@ void VulkanImage::Invalidate()
     {
         if (!m_DescriptorSet.Handle)  // Preventing allocating on image resizing, just simply update descriptor set
         {
-            GNT_ASSERT(Context.GetDescriptorAllocator()->Allocate(m_DescriptorSet,
+            GNT_ASSERT(context.GetDescriptorAllocator()->Allocate(m_DescriptorSet,
                                                                   VulkanRenderer::GetVulkanStorageData().ImageDescriptorSetLayout),
                        "Failed to allocate texture/image descriptor set!");
         }
 
         auto TextureWriteDescriptorSet =
             Utility::GetWriteDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, m_DescriptorSet.Handle, 1, &m_DescriptorImageInfo);
-        vkUpdateDescriptorSets(Context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteDescriptorSet, 0, nullptr);
+        vkUpdateDescriptorSets(context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteDescriptorSet, 0, nullptr);
     }
 
     if (!ImageUtils::IsDepthFormat(m_Specification.Format))

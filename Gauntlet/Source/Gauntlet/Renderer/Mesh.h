@@ -188,10 +188,8 @@ class Animation;
 class Mesh final
 {
   public:
-    Mesh()  = default;
-    ~Mesh() = default;
-
-    void Destroy();
+    Mesh() = default;
+    ~Mesh();
 
     FORCEINLINE const auto& GetVertexBuffers() const { return m_VertexBuffers; }
     FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
@@ -222,6 +220,7 @@ class Mesh final
     std::vector<Ref<IndexBuffer>> m_IndexBuffers;
 
     Mesh(const std::string& meshPath);
+    void Destroy();
 
     void LoadMesh(const std::string& meshPath);
     void LoadAnimation(const aiScene* scene);

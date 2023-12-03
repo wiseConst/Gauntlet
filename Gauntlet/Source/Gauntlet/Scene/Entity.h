@@ -36,19 +36,11 @@ class Entity final
     {
         GNT_ASSERT(HasComponent<T>(), "Attempting to delete component that entity doesn't have.");
 
-        if (typeid(T) == typeid(TransformComponent) || typeid(T) == typeid(TagComponent))
+        if (typeid(T) == typeid(IDComponent) || typeid(T) == typeid(TransformComponent) || typeid(T) == typeid(TagComponent))
         {
             LOG_WARN("Attempting to delete transform/tag component! Returning...");
             return;
         }
-
-        if (typeid(T) == typeid(MeshComponent))
-        {
-            // Temporary until I move every destroy func in destructor
-            auto& mc = GetComponent<MeshComponent>();
-            mc.Mesh->Destroy();
-        }
-
         m_Scene->m_Registry.remove<T>(m_EntityHandle);
     }
 

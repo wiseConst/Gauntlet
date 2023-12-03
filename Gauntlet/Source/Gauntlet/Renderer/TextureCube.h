@@ -19,7 +19,7 @@ class TextureCube : private Uncopyable, private Unmovable
 {
   public:
     TextureCube()  = default;
-    ~TextureCube() = default;
+    virtual ~TextureCube() = default;
 
     virtual void Destroy() = 0;
 

@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
+
 layout(location = 0) in ivec4 InBoneIDs; 
 layout(location = 1) in vec3 InPosition;
 layout(location = 2) in vec4 InWeights;

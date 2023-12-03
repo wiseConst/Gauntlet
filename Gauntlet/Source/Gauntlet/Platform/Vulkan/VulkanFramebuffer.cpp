@@ -6,6 +6,7 @@
 #include "VulkanSwapchain.h"
 #include "VulkanImage.h"
 #include "VulkanDevice.h"
+#include "VulkanCommandBuffer.h"
 
 #include "Gauntlet/Core/Application.h"
 #include "Gauntlet/Core/Window.h"
@@ -361,6 +362,28 @@ const VkFramebuffer& VulkanFramebuffer::Get() const
     GNT_ASSERT(context.GetSwapchain()->IsValid(), "Swapchain is not valid!");
 
     return m_Framebuffers[context.GetSwapchain()->GetCurrentFrameIndex()];
+}
+
+void VulkanFramebuffer::BeginPass(const Ref<class CommandBuffer>& commandBuffer)
+{
+    auto vulkanCommandBuffer = static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
+    GNT_ASSERT(vulkanCommandBuffer, "Failed to cast CommandBuffer to VulkanCommandBuffer");
+
+    VkRenderingInfo renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO};
+    if (vulkanCommandBuffer->GetLevel() == ECommandBufferLevel::COMMAND_BUFFER_LEVEL_SECONDARY)
+        renderingInfo.flags |= VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
+
+    VkRenderingAttachmentInfo attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+
+    vkCmdBeginRendering(vulkanCommandBuffer->Get(), &renderingInfo);
+}
+
+void VulkanFramebuffer::EndPass(const Ref<class CommandBuffer>& commandBuffer)
+{
+    auto vulkanCommandBuffer = static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
+    GNT_ASSERT(vulkanCommandBuffer, "Failed to cast CommandBuffer to VulkanCommandBuffer");
+
+    vkCmdEndRendering(vulkanCommandBuffer->Get());
 }
 
 void VulkanFramebuffer::SetDepthStencilClearColor(const float depth, const uint32_t stencil)

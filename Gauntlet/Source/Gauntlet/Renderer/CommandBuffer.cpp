@@ -2,17 +2,16 @@
 #include "CommandBuffer.h"
 
 #include "Gauntlet/Platform/Vulkan/VulkanCommandBuffer.h"
-#include "Gauntlet/Platform/Vulkan/VulkanCommandPool.h"
 
 namespace Gauntlet
 {
-Ref<CommandBuffer> CommandBuffer::Create(ECommandBufferType type)
+Ref<CommandBuffer> CommandBuffer::Create(ECommandBufferType type, ECommandBufferLevel level)
 {
     switch (RendererAPI::Get())
     {
         case RendererAPI::EAPI::Vulkan:
         {
-            return MakeRef<VulkanCommandBuffer>(type, true);
+            return MakeRef<VulkanCommandBuffer>(type, level);
         }
         case RendererAPI::EAPI::None:
         {

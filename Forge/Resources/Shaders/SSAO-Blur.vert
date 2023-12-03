@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
+
 layout(location = 0) out vec2 out_TexCoord;
 
 void main()

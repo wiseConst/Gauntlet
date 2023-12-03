@@ -138,19 +138,18 @@ enum EBufferUsageFlags
 
 typedef uint32_t EBufferUsage;
 
-struct BufferInfo final
+// TODO: Refactor, create storage buffer
+struct BufferSpecification final
 {
-  public:
-    BufferInfo() = default;
+    BufferSpecification() = default;
 
-    BufferInfo(EBufferUsage bufferUsage, const uint64_t size, const uint64_t count, void* data)
+    BufferSpecification(EBufferUsage bufferUsage, const uint64_t size, const uint64_t count, void* data)
         : Usage(bufferUsage), Size(size), Count(count), Data(data)
     {
     }
 
-    ~BufferInfo() = default;
+    ~BufferSpecification() = default;
 
-    BufferLayout Layout;
     EBufferUsage Usage = EBufferUsageFlags::NONE;
     size_t Size        = 0;  // Size in bytes
     size_t Count       = 0;
@@ -165,22 +164,18 @@ class StagingBuffer;
 class VertexBuffer : private Uncopyable, private Unmovable
 {
   public:
-    VertexBuffer() = default;
-
+    VertexBuffer()          = default;
     virtual ~VertexBuffer() = default;
 
-    virtual const BufferLayout& GetLayout() const                                                             = 0;
-    virtual void SetLayout(const BufferLayout& InLayout)                                                      = 0;
-    virtual void SetData(const void* InData, const size_t InDataSize)                                         = 0;
+    virtual void SetData(const void* data, const size_t dataSize)                                             = 0;
     virtual void SetStagedData(const Ref<StagingBuffer>& stagingBuffer, const uint64_t stagingBufferDataSize) = 0;
 
     virtual FORCEINLINE const void* Get() const = 0;
-    virtual FORCEINLINE void* Get()             = 0;
 
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy()            = 0;
 
-    static Ref<VertexBuffer> Create(BufferInfo& InBufferInfo);
+    static Ref<VertexBuffer> Create(BufferSpecification& bufferSpec);
 };
 
 // INDEX
@@ -188,17 +183,15 @@ class VertexBuffer : private Uncopyable, private Unmovable
 class IndexBuffer : private Uncopyable, private Unmovable
 {
   public:
-    IndexBuffer() = default;
-
+    IndexBuffer()          = default;
     virtual ~IndexBuffer() = default;
 
     virtual FORCEINLINE const void* Get() const = 0;
-    virtual FORCEINLINE void* Get()             = 0;
 
     virtual uint64_t GetCount() const = 0;
     virtual void Destroy()            = 0;
 
-    static Ref<IndexBuffer> Create(BufferInfo& InBufferInfo);
+    static Ref<IndexBuffer> Create(BufferSpecification& bufferSpec);
 };
 
 class UniformBuffer : private Uncopyable, private Unmovable
@@ -209,12 +202,12 @@ class UniformBuffer : private Uncopyable, private Unmovable
 
     virtual void Destroy() = 0;
 
-    virtual void MapPersistent()   = 0;
-    virtual void* RetrieveMapped() = 0;
-    virtual void Unmap()           = 0;
+    virtual void Map(bool bPersistent = false) = 0;
+    virtual void* RetrieveMapped()             = 0;
+    virtual void Unmap()                       = 0;
 
-    virtual FORCEINLINE const uint64_t GetSize() const   = 0;
     virtual void Update(void* data, const uint64_t size) = 0;
+    virtual size_t GetSize() const                       = 0;
 
     static Ref<UniformBuffer> Create(const uint64_t bufferSize);
 };
@@ -227,13 +220,27 @@ class StagingBuffer : private Uncopyable, private Unmovable
 
     virtual void Destroy()                                          = 0;
     virtual void SetData(const void* data, const uint64_t dataSize) = 0;
-    virtual void* Get() const                                       = 0;
-    virtual size_t GetCapacity() const                              = 0;
+
+    virtual void Resize(const uint64_t newSize) = 0;
+    virtual void* Get() const                   = 0;
+    virtual size_t GetCapacity() const          = 0;
 
     static Ref<StagingBuffer> Create(const uint64_t bufferSize);
+};
 
-  protected:
-    virtual void Resize(const uint64_t newBufferSize) = 0;
+class StorageBuffer : private Uncopyable, private Unmovable
+{
+  public:
+    StorageBuffer()          = default;
+    virtual ~StorageBuffer() = default;
+
+    virtual void Destroy()                                          = 0;
+    virtual void SetData(const void* data, const uint64_t dataSize) = 0;
+
+    virtual void* Get() const          = 0;
+    virtual size_t GetSize() const = 0;
+    
+    static Ref<StorageBuffer> Create(const BufferSpecification& bufferSpec);
 };
 
 }  // namespace Gauntlet

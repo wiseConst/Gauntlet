@@ -302,6 +302,8 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
     LOG_DEBUG("Source lang ver : %u", reflectModule.source_language_version);
 #endif
 
+    m_ShaderStages[m_ShaderStages.size() - 1].EntrypointName = reflectModule.entry_point_name;
+
     // Determine shader stage by shader spirv execution model
     std::string shaderStageString;
     switch (reflectModule.spirv_execution_model)
@@ -324,7 +326,7 @@ void VulkanShader::Reflect(const std::vector<uint8_t>& shaderCode)
             shaderStageString                               = "FS";
             break;
         }
-        case SpvExecutionModelKernel:
+        case SpvExecutionModelGLCompute:
         {
             m_ShaderStages[m_ShaderStages.size() - 1].Stage = EShaderStage::SHADER_STAGE_COMPUTE;
             shaderStageString                               = "CS";
@@ -480,6 +482,9 @@ BufferLayout VulkanShader::GetVertexBufferLayout()
     result = spvReflectEnumerateInputVariables(&m_ShaderStages[i].ReflectModule, &count, inputVars.data());
     GNT_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
 
+    // RoflanEbalo, input vars retrieved in a random order
+    std::sort(inputVars.begin(), inputVars.end(), [](const auto& lhs, const auto& rhs) { return lhs->location < rhs->location; });
+
     std::vector<BufferElement> elements;
     elements.reserve(count);
     for (auto& inputVar : inputVars)
@@ -494,20 +499,20 @@ BufferLayout VulkanShader::GetVertexBufferLayout()
     return layout;
 }
 
-VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint8_t>& InShaderCode)
+VkShaderModule VulkanShader::LoadShaderModule(const std::vector<uint8_t>& shaderCode)
 {
-    auto& Context = (VulkanContext&)VulkanContext::Get();
-    GNT_ASSERT(Context.GetDevice()->IsValid(), "Vulkan device is not valid!");
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    VkShaderModuleCreateInfo ShaderModuleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    ShaderModuleCreateInfo.codeSize                 = InShaderCode.size();
-    ShaderModuleCreateInfo.pCode                    = reinterpret_cast<const uint32_t*>(InShaderCode.data());
+    VkShaderModuleCreateInfo shaderModuleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    shaderModuleCreateInfo.codeSize                 = shaderCode.size();
+    shaderModuleCreateInfo.pCode                    = reinterpret_cast<const uint32_t*>(shaderCode.data());
 
-    VkShaderModule ShaderModule = VK_NULL_HANDLE;
-    VK_CHECK(vkCreateShaderModule(Context.GetDevice()->GetLogicalDevice(), &ShaderModuleCreateInfo, nullptr, &ShaderModule),
+    VkShaderModule shaderModule = VK_NULL_HANDLE;
+    VK_CHECK(vkCreateShaderModule(context.GetDevice()->GetLogicalDevice(), &shaderModuleCreateInfo, nullptr, &shaderModule),
              "Failed to create shader module!");
 
-    return ShaderModule;
+    return shaderModule;
 }
 
 void VulkanShader::Set(const std::string& name, const Ref<Texture2D>& texture)
@@ -579,8 +584,22 @@ void VulkanShader::Set(const std::string& name, const Ref<UniformBuffer>& unifor
     auto vulkanUniformBuffer = std::static_pointer_cast<VulkanUniformBuffer>(uniformBuffer);
     GNT_ASSERT(vulkanUniformBuffer, "Failed to cast UniformBuffer to VulkanUniformBuffer!");
 
-    auto descriptorBufferInfo = Utility::GetDescriptorBufferInfo(
-        vulkanUniformBuffer->GetHandles()[GraphicsContext::Get().GetCurrentFrameIndex()].Buffer, vulkanUniformBuffer->GetSize());
+    auto descriptorBufferInfo = Utility::GetDescriptorBufferInfo(vulkanUniformBuffer->Get(), vulkanUniformBuffer->GetSize(), offset);
+
+    VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.pBufferInfo          = &descriptorBufferInfo;
+
+    UpdateDescriptorSets(name, writeDescriptorSet);
+}
+
+void VulkanShader::Set(const std::string& name, const Ref<StorageBuffer>& ssbo, const uint64_t offset)
+{
+    GNT_ASSERT(!name.empty() && ssbo, "Invalid parameters! VulkanShader::Set()");
+
+    auto vulkanSSBO = std::static_pointer_cast<VulkanStorageBuffer>(ssbo);
+    GNT_ASSERT(vulkanSSBO, "Failed to cast StorageBuffer to VulkanStorageBuffer!");
+
+    auto descriptorBufferInfo = Utility::GetDescriptorBufferInfo((VkBuffer)vulkanSSBO->Get(), vulkanSSBO->GetSize(), offset);
 
     VkWriteDescriptorSet writeDescriptorSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     writeDescriptorSet.pBufferInfo          = &descriptorBufferInfo;

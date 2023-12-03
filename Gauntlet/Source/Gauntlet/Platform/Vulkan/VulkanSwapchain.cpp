@@ -18,6 +18,12 @@ namespace Gauntlet
 VulkanSwapchain::VulkanSwapchain(Scoped<VulkanDevice>& device, VkSurfaceKHR& surface) : m_Device(device), m_Surface(surface)
 {
     Invalidate();
+
+    m_CommandBuffers.resize(FRAMES_IN_FLIGHT);
+    for (auto& commandBuffer : m_CommandBuffers)
+    {
+        commandBuffer = MakeRef<VulkanCommandBuffer>(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
+    }
 }
 
 void VulkanSwapchain::BeginRenderPass(const VkCommandBuffer& commandBuffer)
@@ -174,6 +180,8 @@ void VulkanSwapchain::Destroy()
     }
 
     DestroyRenderPass();
+
+    m_CommandBuffers.clear();
 }
 
 void VulkanSwapchain::InvalidateRenderPass()
@@ -183,7 +191,7 @@ void VulkanSwapchain::InvalidateRenderPass()
     // RenderPass creation
     {
         VkAttachmentDescription ColorAttachmentDesc = {};
-        ColorAttachmentDesc.format                  = VK_FORMAT_B8G8R8A8_UNORM /*m_Swapchain->GetImageFormat()*/;
+        ColorAttachmentDesc.format                  = m_SwapchainImageFormat.format;
         ColorAttachmentDesc.samples                 = VK_SAMPLE_COUNT_1_BIT;
         ColorAttachmentDesc.loadOp                  = VK_ATTACHMENT_LOAD_OP_CLEAR;
         ColorAttachmentDesc.storeOp                 = VK_ATTACHMENT_STORE_OP_STORE;
@@ -245,6 +253,7 @@ void VulkanSwapchain::InvalidateRenderPass()
 void VulkanSwapchain::DestroyRenderPass()
 {
     vkDestroyRenderPass(m_Device->GetLogicalDevice(), m_RenderPass, nullptr);
+    m_RenderPass = nullptr;
 
     for (auto& Framebuffer : m_Framebuffers)
         vkDestroyFramebuffer(m_Device->GetLogicalDevice(), Framebuffer, nullptr);

@@ -6,14 +6,11 @@
 #include "VulkanDevice.h"
 #include "VulkanAllocator.h"
 #include "VulkanSwapchain.h"
-#include "VulkanCommandPool.h"
 #include "VulkanDescriptors.h"
 
 #include "Gauntlet/Core/Application.h"
 #include "Gauntlet/Core/Window.h"
 #include <GLFW/glfw3.h>
-
-#include "Gauntlet/Core/Timer.h"
 
 namespace Gauntlet
 {
@@ -27,30 +24,13 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
     CreateDebugMessenger();
     CreateSurface();
 
-    m_Device    = MakeScoped<VulkanDevice>(m_Instance, m_Surface);
-    m_Allocator = MakeScoped<VulkanAllocator>(m_Instance, m_Device);
-
+    m_Device                             = MakeScoped<VulkanDevice>(m_Instance, m_Surface);
     Renderer::GetStats().RenderingDevice = m_Device->GetGPUProperties().deviceName;
 
     m_Swapchain = MakeScoped<VulkanSwapchain>(m_Device, m_Surface);
-
-    {
-        CommandPoolSpecification CommandPoolSpec = {};
-        CommandPoolSpec.CommandPoolUsage         = ECommandPoolUsage::COMMAND_POOL_USAGE_GRAPHICS;
-        CommandPoolSpec.QueueFamilyIndex         = m_Device->GetQueueFamilyIndices().GraphicsFamily;
-        m_GraphicsCommandPool                    = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
-
-        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_USAGE_COMPUTE;
-        CommandPoolSpec.QueueFamilyIndex = m_Device->GetQueueFamilyIndices().ComputeFamily;
-        m_ComputeCommandPool             = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
-
-        CommandPoolSpec.CommandPoolUsage = ECommandPoolUsage::COMMAND_POOL_USAGE_TRANSFER;
-        CommandPoolSpec.QueueFamilyIndex = m_Device->GetQueueFamilyIndices().TransferFamily;
-        m_TransferCommandPool            = MakeScoped<VulkanCommandPool>(CommandPoolSpec);
-    }
-
     CreateSyncObjects();
 
+    m_Allocator           = MakeScoped<VulkanAllocator>(m_Instance, m_Device);
     m_DescriptorAllocator = MakeScoped<VulkanDescriptorAllocator>(m_Device);
 }
 
@@ -96,8 +76,8 @@ void VulkanContext::CreateInstance()
     InstanceCreateInfo.ppEnabledExtensionNames = RequiredExtensions.data();
 
 #if GNT_DEBUG
-    InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(InstanceLayers.size());
-    InstanceCreateInfo.ppEnabledLayerNames = InstanceLayers.data();
+    InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(s_InstanceLayers.size());
+    InstanceCreateInfo.ppEnabledLayerNames = s_InstanceLayers.data();
 #else
     InstanceCreateInfo.enabledLayerCount   = 0;
     InstanceCreateInfo.ppEnabledLayerNames = nullptr;
@@ -221,7 +201,7 @@ bool VulkanContext::CheckValidationLayerSupport()
     }
 #endif
 
-    for (const char* ValidationLayerName : InstanceLayers)
+    for (const char* ValidationLayerName : s_InstanceLayers)
     {
         bool bIslayerFound = false;
 
@@ -266,9 +246,7 @@ void VulkanContext::CreateSyncObjects()
 
     VkFenceCreateInfo FenceCreateInfo = {};
     FenceCreateInfo.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-
-    vkCreateFence(m_Device->GetLogicalDevice(), &FenceCreateInfo, nullptr, &m_UploadFence);
-    FenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    FenceCreateInfo.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
 
     m_InFlightFences.resize(FRAMES_IN_FLIGHT);
     m_RenderFinishedSemaphores.resize(FRAMES_IN_FLIGHT);
@@ -284,7 +262,7 @@ void VulkanContext::CreateSyncObjects()
 
 void VulkanContext::BeginRender()
 {
-    m_CurrentCommandBuffer = m_GraphicsCommandPool->GetCommandBuffers()[m_Swapchain->GetCurrentFrameIndex()];
+    m_CurrentCommandBuffer = m_Swapchain->GetCommandBuffers()[m_Swapchain->GetCurrentFrameIndex()];
     GNT_ASSERT(m_CurrentCommandBuffer.lock(), "Failed to retrieve graphics command buffer!");
 
     const auto cpuWaitForGpuBegin = Timer::Now();
@@ -361,12 +339,6 @@ void VulkanContext::Destroy()
         vkDestroySemaphore(m_Device->GetLogicalDevice(), m_RenderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(m_Device->GetLogicalDevice(), m_ImageAcquiredSemaphores[i], nullptr);
     }
-
-    vkDestroyFence(m_Device->GetLogicalDevice(), m_UploadFence, nullptr);
-
-    m_TransferCommandPool->Destroy();
-    m_GraphicsCommandPool->Destroy();
-    m_ComputeCommandPool->Destroy();
 
     m_Swapchain->Destroy();
     m_Allocator->Destroy();

@@ -6,7 +6,6 @@
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
-#include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
 #include "VulkanPipeline.h"
 #include "VulkanFramebuffer.h"
@@ -51,22 +50,86 @@ void VulkanRenderer::BeginImpl()
     s_Data.CurrentPipelineToBind.reset();
 }
 
-void VulkanRenderer::BeginRenderPassImpl(const Ref<Framebuffer>& framebuffer, const glm::vec4& debugLabelColor)
+void VulkanRenderer::SubmitParticleSystemImpl(const Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, Ref<StorageBuffer>& ssbo,
+                                              uint32_t particleCount, void* pushConstants)
 {
-    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
-    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
-        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    GNT_ASSERT(commandBuffer);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
+
+    // Prevent same pipeline binding
+    auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
+    if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
+    {
+        cmdBuffer->SetPipelinePolygonMode(vulkanPipeline,
+                                          GetSettings().ShowWireframes ? EPolygonMode::POLYGON_MODE_LINE : EPolygonMode::POLYGON_MODE_FILL);
+        cmdBuffer->BindPipeline(vulkanPipeline);
+
+        s_Data.CurrentPipelineToBind = pipeline;
+    }
+
+    if (pushConstants)
+        cmdBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                     vulkanPipeline->GetPushConstantsSize(), pushConstants);
+
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(vulkanPipeline->GetSpecification().Shader);
+    std::vector<VkDescriptorSet> shaderDescriptorSets;
+    for (auto& descriptorSet : vulkanShader->GetDescriptorSets())
+        shaderDescriptorSets.push_back(descriptorSet.Handle);
+
+    if (!shaderDescriptorSets.empty())
+        cmdBuffer->BindDescriptorSets(vulkanPipeline, 0, static_cast<uint32_t>(shaderDescriptorSets.size()), shaderDescriptorSets.data());
+
+    VkDeviceSize offset = 0;
+    VkBuffer vb         = (VkBuffer)ssbo->Get();
+    cmdBuffer->BindVertexBuffers(0, 1, &vb, &offset);
+
+    cmdBuffer->Draw(particleCount);
+    ++Renderer::GetStats().DrawCalls;
+}
+
+void VulkanRenderer::DispatchImpl(Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, void* pushConstants,
+                                  const uint32_t groupCountX, const uint32_t groupCountY, const uint32_t groupCountZ)
+{
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
+
+    auto vulkanPipeline = std::static_pointer_cast<VulkanPipeline>(pipeline);
+    if (!s_Data.CurrentPipelineToBind.lock() || s_Data.CurrentPipelineToBind.lock() != pipeline)
+    {
+        cmdBuffer->BindPipeline(vulkanPipeline);
+
+        s_Data.CurrentPipelineToBind = pipeline;
+    }
+
+    if (pushConstants)
+        cmdBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,
+                                     vulkanPipeline->GetPushConstantsSize(), pushConstants);
+
+    auto vulkanShader = std::static_pointer_cast<VulkanShader>(pipeline->GetSpecification().Shader);
+    std::vector<VkDescriptorSet> descriptorSets;
+    for (auto& descriptorSet : vulkanShader->GetDescriptorSets())
+        descriptorSets.push_back(descriptorSet.Handle);
+
+    if (!descriptorSets.empty())
+        cmdBuffer->BindDescriptorSets(vulkanPipeline, 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
+
+    cmdBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
+}
+
+void VulkanRenderer::BeginRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
+                                         const glm::vec4& debugLabelColor)
+{
+    GNT_ASSERT(commandBuffer);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
 
     cmdBuffer->BeginDebugLabel(framebuffer->GetSpecification().Name.data(), debugLabelColor);
     auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(framebuffer);
     vulkanFramebuffer->BeginRenderPass(cmdBuffer->Get());
 }
 
-void VulkanRenderer::EndRenderPassImpl(const Ref<Framebuffer>& framebuffer)
+void VulkanRenderer::EndRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer)
 {
-    GNT_ASSERT(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
-    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(
-        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]);
+    GNT_ASSERT(commandBuffer);
+    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
 
     auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(framebuffer);
     vulkanFramebuffer->EndRenderPass(cmdBuffer->Get());
@@ -117,12 +180,12 @@ void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<Inde
             shaderDescriptorSets.push_back(descriptorSet.Handle);
 
         if (!shaderDescriptorSets.empty())
-            cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(shaderDescriptorSets.size()),
+            cmdBuffer->BindDescriptorSets(vulkanPipeline, 0, static_cast<uint32_t>(shaderDescriptorSets.size()),
                                           shaderDescriptorSets.data());
     }
     else
     {
-        cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, descriptorCount, descriptorSets);
+        cmdBuffer->BindDescriptorSets(vulkanPipeline, 0, descriptorCount, descriptorSets);
     }
 
     VkDeviceSize offset = 0;
@@ -134,8 +197,6 @@ void VulkanRenderer::DrawIndexedInternal(Ref<Pipeline>& pipeline, const Ref<Inde
     cmdBuffer->DrawIndexed(static_cast<uint32_t>(indexBuffer->GetCount()));
     ++Renderer::GetStats().DrawCalls;
 }
-
-// TODO: RenderCommandBuffer->Submit etc..
 
 void VulkanRenderer::SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants)
 {
@@ -161,7 +222,7 @@ void VulkanRenderer::SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pus
         descriptorSets.push_back(descriptorSet.Handle);
 
     if (!descriptorSets.empty())
-        cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
+        cmdBuffer->BindDescriptorSets(vulkanPipeline, 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
 
     cmdBuffer->Draw(3);
 }
@@ -197,7 +258,7 @@ void VulkanRenderer::DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& ve
         descriptorSets.push_back(descriptorSet.Handle);
 
     if (!descriptorSets.empty())
-        cmdBuffer->BindDescriptorSets(vulkanPipeline->GetLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
+        cmdBuffer->BindDescriptorSets(vulkanPipeline, 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
 
     if (pushConstants)
         cmdBuffer->BindPushConstants(vulkanPipeline->GetLayout(), vulkanPipeline->GetPushConstantsShaderStageFlags(), 0,

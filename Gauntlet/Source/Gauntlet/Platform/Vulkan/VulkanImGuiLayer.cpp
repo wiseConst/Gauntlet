@@ -12,9 +12,7 @@
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
-#include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
-#include "VulkanRenderer.h"
 
 namespace Gauntlet
 {
@@ -89,11 +87,13 @@ void VulkanImGuiLayer::OnAttach()
 
         io.Fonts->AddFontFromFileTTF("../Resources/Fonts/Rubik/Rubik-Bold.ttf", 18.0f);
 
-        auto CommandBuffer = Utility::BeginSingleTimeCommands(m_Context.GetGraphicsCommandPool()->Get(), Device->GetLogicalDevice());
-        ImGui_ImplVulkan_CreateFontsTexture(CommandBuffer);
+        Ref<VulkanCommandBuffer> commandBuffer = MakeRef<VulkanCommandBuffer>(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
+        commandBuffer->BeginRecording(true);
 
-        Utility::EndSingleTimeCommands(CommandBuffer, m_Context.GetGraphicsCommandPool()->Get(), Device->GetGraphicsQueue(),
-                                       Device->GetLogicalDevice(), m_Context.GetUploadFence());
+        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer->Get());
+
+        commandBuffer->EndRecording();
+        commandBuffer->Submit();
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 }
@@ -110,7 +110,7 @@ void VulkanImGuiLayer::OnDetach()
 
 void VulkanImGuiLayer::BeginRender()
 {
-    m_CurrentCommandBuffer = m_Context.GetGraphicsCommandPool()->GetCommandBuffers()[m_Context.GetSwapchain()->GetCurrentFrameIndex()];
+    m_CurrentCommandBuffer = m_Context.GetCurrentCommandBuffer();
     GNT_ASSERT(m_CurrentCommandBuffer.lock(), "Failed to retrieve imgui command buffer!");
 
     if (auto commandBuffer = m_CurrentCommandBuffer.lock())

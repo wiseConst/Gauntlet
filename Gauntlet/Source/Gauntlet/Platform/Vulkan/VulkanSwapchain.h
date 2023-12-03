@@ -10,6 +10,7 @@
 namespace Gauntlet
 {
 class VulkanDevice;
+class VulkanCommandBuffer;
 
 class VulkanSwapchain final : private Uncopyable, private Unmovable
 {
@@ -49,6 +50,7 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
     void Destroy();
 
     FORCEINLINE void AddResizeCallback(const std::function<void()>& resizeCallback) { m_ResizeCallbacks.push_back(resizeCallback); }
+    FORCEINLINE const auto& GetCommandBuffers() const { return m_CommandBuffers; }
 
   private:
     std::vector<ResizeCallback> m_ResizeCallbacks;
@@ -71,6 +73,8 @@ class VulkanSwapchain final : private Uncopyable, private Unmovable
 
     uint32_t m_ImageIndex{0};
     uint32_t m_FrameIndex{0};
+
+    std::vector<Ref<VulkanCommandBuffer>> m_CommandBuffers;
 
     void InvalidateRenderPass();
     void DestroyRenderPass();

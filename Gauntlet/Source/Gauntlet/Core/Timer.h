@@ -5,6 +5,7 @@
 
 namespace Gauntlet
 {
+
 class Timer final
 {
   public:
@@ -15,11 +16,12 @@ class Timer final
 
     FORCEINLINE double GetElapsedMilliseconds() const
     {
-        const std::chrono::duration<double, std::milli> elapsed = std::chrono::high_resolution_clock::now() - m_StartTime;
+        const auto elapsed = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - m_StartTime);
         return elapsed.count();
     }
 
   private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_StartTime;
 };
+
 }  // namespace Gauntlet

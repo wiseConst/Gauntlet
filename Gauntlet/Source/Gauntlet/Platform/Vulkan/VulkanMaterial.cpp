@@ -23,7 +23,7 @@ VulkanMaterial::VulkanMaterial()
 
 void VulkanMaterial::Update()
 {
-    m_UBMaterial->Update(&m_Data, sizeof(PBRMaterial));
+    m_UBMaterial[GraphicsContext::Get().GetCurrentFrameIndex()]->Update(&m_Data, sizeof(PBRMaterial));
 }
 
 void VulkanMaterial::Invalidate()
@@ -31,7 +31,10 @@ void VulkanMaterial::Invalidate()
     auto& Context                   = (VulkanContext&)VulkanContext::Get();
     const auto& RendererStorageData = Renderer::GetStorageData();
 
-    if (!m_UBMaterial) m_UBMaterial = UniformBuffer::Create(sizeof(PBRMaterial));
+    for (auto& materialUB : m_UBMaterial)
+    {
+        if (!materialUB) materialUB = UniformBuffer::Create(sizeof(PBRMaterial));
+    }
 
     if (!m_DescriptorSet.Handle)
     {
@@ -119,12 +122,12 @@ void VulkanMaterial::Invalidate()
         Writes.push_back(WhiteTextureWriteSet);
     }
 
-    auto vulkanCameraUB   = std::static_pointer_cast<VulkanUniformBuffer>(RendererStorageData.CameraUniformBuffer);
-    auto vulkanMaterialUB = std::static_pointer_cast<VulkanUniformBuffer>(m_UBMaterial);
-    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
+    for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
     {
+        auto vulkanCameraUB = std::static_pointer_cast<VulkanUniformBuffer>(RendererStorageData.CameraUniformBuffer[frame]);
+
         VkDescriptorBufferInfo CameraDataBufferInfo = {};
-        CameraDataBufferInfo.buffer                 = vulkanCameraUB->GetHandles()[i].Buffer;
+        CameraDataBufferInfo.buffer                 = vulkanCameraUB->Get();
         CameraDataBufferInfo.range                  = sizeof(UBCamera);
         CameraDataBufferInfo.offset                 = 0;
 
@@ -134,8 +137,9 @@ void VulkanMaterial::Invalidate()
 
         Writes.push_back(CameraDataBufferWriteSet);
 
+        auto vulkanMaterialUB                         = std::static_pointer_cast<VulkanUniformBuffer>(m_UBMaterial[frame]);
         VkDescriptorBufferInfo MaterialDataBufferInfo = {};
-        MaterialDataBufferInfo.buffer                 = vulkanMaterialUB->GetHandles()[i].Buffer;
+        MaterialDataBufferInfo.buffer                 = vulkanMaterialUB->Get();
         MaterialDataBufferInfo.range                  = sizeof(PBRMaterial);
         MaterialDataBufferInfo.offset                 = 0;
 
@@ -158,7 +162,10 @@ void VulkanMaterial::Destroy()
     auto& context = (VulkanContext&)VulkanContext::Get();
     context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
 
-    m_UBMaterial->Destroy();
+    for (auto& materialUB : m_UBMaterial)
+    {
+        materialUB->Destroy();
+    }
 }
 
 }  // namespace Gauntlet

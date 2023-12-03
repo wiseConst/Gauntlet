@@ -5,16 +5,14 @@
 
 #include <volk/volk.h>
 
-#include "VulkanCommandBuffer.h"
-
 namespace Gauntlet
 {
 
 class VulkanDevice;
 class VulkanAllocator;
 class VulkanSwapchain;
-class VulkanCommandPool;
 class VulkanDescriptorAllocator;
+class VulkanCommandBuffer;
 
 class VulkanContext final : public GraphicsContext
 {
@@ -37,9 +35,6 @@ class VulkanContext final : public GraphicsContext
     uint32_t GetCurrentFrameIndex() const final override;
     float GetTimestampPeriod() const final override;
 
-    FORCEINLINE const auto& GetUploadFence() const { return m_UploadFence; }
-    FORCEINLINE auto& GetUploadFence() { return m_UploadFence; }
-
     FORCEINLINE const auto& GetInstance() const { return m_Instance; }
     FORCEINLINE auto& GetInstance() { return m_Instance; }
 
@@ -52,19 +47,11 @@ class VulkanContext final : public GraphicsContext
     FORCEINLINE const auto& GetAllocator() const { return m_Allocator; }
     FORCEINLINE auto& GetAllocator() { return m_Allocator; }
 
-    FORCEINLINE const auto& GetTransferCommandPool() const { return m_TransferCommandPool; }
-    FORCEINLINE auto& GetTransferCommandPool() { return m_TransferCommandPool; }
-
-    FORCEINLINE const auto& GetGraphicsCommandPool() const { return m_GraphicsCommandPool; }
-    FORCEINLINE auto& GetGraphicsCommandPool() { return m_GraphicsCommandPool; }
-
-    FORCEINLINE const auto& GetComputeCommandPool() const { return m_ComputeCommandPool; }
-    FORCEINLINE auto& GetComputeCommandPool() { return m_ComputeCommandPool; }
-
     FORCEINLINE const auto& GetDescriptorAllocator() const { return m_DescriptorAllocator; }
     FORCEINLINE auto& GetDescriptorAllocator() { return m_DescriptorAllocator; }
 
     void AddSwapchainResizeCallback(const std::function<void()>& resizeCallback);
+    FORCEINLINE Ref<VulkanCommandBuffer> GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer.lock(); }
 
   private:
     VkInstance m_Instance                     = VK_NULL_HANDLE;
@@ -74,12 +61,7 @@ class VulkanContext final : public GraphicsContext
     Scoped<VulkanDevice> m_Device                           = nullptr;
     Scoped<VulkanAllocator> m_Allocator                     = nullptr;
     Scoped<VulkanSwapchain> m_Swapchain                     = nullptr;
-    Scoped<VulkanCommandPool> m_TransferCommandPool         = nullptr;
-    Scoped<VulkanCommandPool> m_GraphicsCommandPool         = nullptr;
-    Scoped<VulkanCommandPool> m_ComputeCommandPool          = nullptr;
     Scoped<VulkanDescriptorAllocator> m_DescriptorAllocator = nullptr;
-
-    Weak<VulkanCommandBuffer> m_CurrentCommandBuffer;
 
     // Sync objects GPU-GPU.
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
@@ -89,8 +71,7 @@ class VulkanContext final : public GraphicsContext
     std::vector<VkFence> m_InFlightFences;
     float m_LastGPUWaitTime = 0.0f;
 
-    // For single-time commands
-    VkFence m_UploadFence = VK_NULL_HANDLE;
+    Weak<VulkanCommandBuffer> m_CurrentCommandBuffer;
 
     void CreateInstance();
     void CreateDebugMessenger();

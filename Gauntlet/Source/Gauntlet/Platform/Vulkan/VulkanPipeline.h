@@ -13,7 +13,7 @@ class VulkanPipeline final : public Pipeline
 {
   public:
     VulkanPipeline(const PipelineSpecification& pipelineSpecification);
-    ~VulkanPipeline();
+    ~VulkanPipeline() = default;
 
     void Destroy() final override;
 
@@ -34,6 +34,8 @@ class VulkanPipeline final : public Pipeline
 
     void CreateLayout();
     void Create();
+    void CreateOrRetrieveAndValidatePipelineCache();
+    void SavePipelineCache();
 };
 
 }  // namespace Gauntlet

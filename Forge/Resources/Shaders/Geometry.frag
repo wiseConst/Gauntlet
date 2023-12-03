@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
+
 layout(location = 0) out vec4 out_Position;
 layout(location = 1) out vec4 out_Normal;
 layout(location = 2) out vec4 out_Albedo;

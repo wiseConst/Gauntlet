@@ -12,6 +12,8 @@
 #include "GraphicsContext.h"
 #include "CommandBuffer.h"
 
+#include "ParticleSystem.h"
+
 #include "Gauntlet/Core/Random.h"
 #include "Animation.h"
 
@@ -47,10 +49,14 @@ void Renderer::Init()
         }
     }
 
-    s_RendererStorage->UploadHeap = StagingBuffer::Create(10240);  // 10 KB
+    s_RendererStorage->UploadHeap = StagingBuffer::Create(1024 * 1024);  // 1 MB
 
-    s_RendererStorage->CameraUniformBuffer = UniformBuffer::Create(sizeof(UBCamera));
-    s_RendererStorage->CameraUniformBuffer->MapPersistent();
+    for (auto& cameraUB : s_RendererStorage->CameraUniformBuffer)
+    {
+        cameraUB = UniformBuffer::Create(sizeof(UBCamera));
+        cameraUB->Map(true);
+    }
+
     {
         const uint32_t WhiteTexutreData = 0xffffffff;
         s_RendererStorage->WhiteTexture = Texture2D::Create(&WhiteTexutreData, sizeof(WhiteTexutreData), 1, 1);
@@ -138,9 +144,13 @@ void Renderer::Init()
         shadowmapPipelineSpec.Layout                = s_RendererStorage->StaticMeshVertexBufferLayout;
         shadowmapPipelineSpec.Shader                = ShaderLibrary::Load("DirShadowMap");
 
-        s_RendererStorage->ShadowMapPipeline    = Pipeline::Create(shadowmapPipelineSpec);
-        s_RendererStorage->ShadowsUniformBuffer = UniformBuffer::Create(sizeof(UBShadows));
-        s_RendererStorage->ShadowsUniformBuffer->MapPersistent();
+        s_RendererStorage->ShadowMapPipeline = Pipeline::Create(shadowmapPipelineSpec);
+
+        for (auto& shadowsUB : s_RendererStorage->ShadowsUniformBuffer)
+        {
+            shadowsUB = UniformBuffer::Create(sizeof(UBShadows));
+            shadowsUB->Map();
+        }
     }
 
     // SSAO
@@ -160,21 +170,12 @@ void Renderer::Init()
         ssaoPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
         ssaoPipelineSpec.TargetFramebuffer     = s_RendererStorage->SSAOFramebuffer;
 
-        s_RendererStorage->SSAOPipeline      = Pipeline::Create(ssaoPipelineSpec);
-        s_RendererStorage->SSAOUniformBuffer = UniformBuffer::Create(sizeof(UBSSAO));
-        s_RendererStorage->SSAOUniformBuffer->MapPersistent();
+        s_RendererStorage->SSAOPipeline = Pipeline::Create(ssaoPipelineSpec);
 
-        // Generating the hemisphere kernel to use them in shader for sampling depth
-        for (uint32_t i = 0; i < s_RendererSettings.AO.KernelSize; ++i)
+        for (auto& ssaoUB : s_RendererStorage->SSAOUniformBuffer)
         {
-            glm::vec3 sample(Random::GetInRange0To1() * 2.0f - 1.0f, Random::GetInRange0To1() * 2.0f - 1.0f, Random::GetInRange0To1());
-            sample = glm::normalize(sample);
-            sample *= Random::GetInRange0To1();
-
-            // Scale sample because we want them to be dense to the origin
-            float scale                                  = (float)i / (float)s_RendererSettings.AO.KernelSize;
-            scale                                        = Math::Lerp(0.1f, 1.0f, scale * scale);
-            s_RendererStorage->SSAODataBuffer.Samples[i] = glm::vec4(sample * scale, 0.0f);
+            ssaoUB = UniformBuffer::Create(sizeof(UBSSAO));
+            ssaoUB->Map(true);
         }
     }
 
@@ -200,8 +201,8 @@ void Renderer::Init()
 
         // Next we need to generate a set of random values used to rotate the sample kernel, which will effectively increase the sample
         // count and minimize the 'banding' artifacts mentioned previously.
-        std::vector<glm::vec4> ssaoNoise(SSAO_KERNEL_SIZE);
-        for (uint32_t i = 0; i < SSAO_KERNEL_SIZE; ++i)  // 4*4
+        std::vector<glm::vec4> ssaoNoise(s_SSAO_KERNEL_SIZE);
+        for (uint32_t i = 0; i < s_SSAO_KERNEL_SIZE; ++i)  // 4*4 blur
         {
             ssaoNoise[i] = glm::vec4(Random::GetInRange0To1() * 2.0f - 1.0f, Random::GetInRange0To1() * 2.0f - 1.0f, 0.0f, 1.0f);
         }
@@ -238,8 +239,11 @@ void Renderer::Init()
 
         s_RendererStorage->LightingPipeline = Pipeline::Create(lightingPipelineSpec);
 
-        s_RendererStorage->LightingUniformBuffer = UniformBuffer::Create(sizeof(UBLighting));
-        s_RendererStorage->LightingUniformBuffer->MapPersistent();
+        for (auto& lightingUB : s_RendererStorage->LightingUniformBuffer)
+        {
+            lightingUB = UniformBuffer::Create(sizeof(UBLighting));
+            lightingUB->Map(true);
+        }
     }
 
     // Chromatic Aberration
@@ -290,7 +294,7 @@ void Renderer::Init()
 
         s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_TexNoiseMap", s_RendererStorage->SSAONoiseTexture);
 
-        s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer, 0);
+        s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer[frame], 0);
 
         // SSAO-Blur
         s_RendererStorage->SSAOBlurPipeline->GetSpecification().Shader->Set(
@@ -312,7 +316,8 @@ void Renderer::Init()
         s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
             "u_SSAOMap", s_RendererStorage->SSAOFramebuffer->GetAttachments()[0].Attachments[frame]);
 
-        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingData", s_RendererStorage->LightingUniformBuffer);
+        s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingData",
+                                                                            s_RendererStorage->LightingUniformBuffer[frame]);
     }
 
     // PBR
@@ -357,6 +362,10 @@ void Renderer::Init()
     for (auto& commandBuffer : s_RendererStorage->RenderCommandBuffer)
         commandBuffer = CommandBuffer::Create(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
 
+    s_RendererStats.PipelineStatisticsResults.resize(s_RendererStorage->RenderCommandBuffer[0]->GetPipelineStatisticsResults().size());
+
+    s_RendererStorage->GPUParticleSystem = MakeRef<ParticleSystem>();
+
     // Animation
     /*  {
           PipelineSpecification animationPipelineSpec = {};
@@ -385,8 +394,9 @@ void Renderer::Shutdown()
 
     ShaderLibrary::Shutdown();
 
-    for (auto& cmdBuffer : s_RendererStorage->RenderCommandBuffer)
-        cmdBuffer->Destroy();
+    s_RendererStorage->RenderCommandBuffer.clear();
+
+    s_RendererStorage->GPUParticleSystem->Destroy();
 
     s_RendererStorage->UploadHeap->Destroy();
 
@@ -402,11 +412,13 @@ void Renderer::Shutdown()
 
     s_RendererStorage->ShadowMapFramebuffer->Destroy();
     s_RendererStorage->ShadowMapPipeline->Destroy();
-    s_RendererStorage->ShadowsUniformBuffer->Destroy();
+    for (auto& ub : s_RendererStorage->ShadowsUniformBuffer)
+        ub->Destroy();
 
     s_RendererStorage->SSAOFramebuffer->Destroy();
     s_RendererStorage->SSAOPipeline->Destroy();
-    s_RendererStorage->SSAOUniformBuffer->Destroy();
+    for (auto& ub : s_RendererStorage->SSAOUniformBuffer)
+        ub->Destroy();
 
     s_RendererStorage->SSAONoiseTexture->Destroy();
     s_RendererStorage->SSAOBlurFramebuffer->Destroy();
@@ -414,12 +426,14 @@ void Renderer::Shutdown()
 
     s_RendererStorage->LightingFramebuffer->Destroy();
     s_RendererStorage->LightingPipeline->Destroy();
-    s_RendererStorage->LightingUniformBuffer->Destroy();
+    for (auto& ub : s_RendererStorage->LightingUniformBuffer)
+        ub->Destroy();
 
     s_RendererStorage->ChromaticAberrationFramebuffer->Destroy();
     s_RendererStorage->ChromaticAberrationPipeline->Destroy();
 
-    s_RendererStorage->CameraUniformBuffer->Destroy();
+    for (auto& ub : s_RendererStorage->CameraUniformBuffer)
+        ub->Destroy();
 
     s_RendererStorage->WhiteTexture->Destroy();
     delete s_RendererStorage;
@@ -441,8 +455,14 @@ const Ref<Image>& Renderer::GetFinalImage()
 void Renderer::Begin()
 {
     s_Renderer->BeginImpl();
-    s_RendererStats.DrawCalls          = 0;
+    s_RendererStats.DrawCalls = 0;
+    s_RendererStats.PassStatistsics.clear();
+    if (s_RendererStorage->UploadHeap->GetCapacity() > s_RendererStats.s_MaxUploadHeapSizeMB)
+        s_RendererStorage->UploadHeap->Resize(s_RendererStats.s_MaxUploadHeapSizeMB);
+
     s_RendererStats.UploadHeapCapacity = s_RendererStorage->UploadHeap->GetCapacity();
+    for (auto& currentStat : s_RendererStats.PipelineStatisticsResults)
+        currentStat = 0;
 
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginRecording();
 
@@ -487,7 +507,8 @@ void Renderer::Begin()
     s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set(
         "u_MRAO", s_RendererStorage->GeometryFramebuffer->GetAttachments()[3].Attachments[currentFrame]);
 
-    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingData", s_RendererStorage->LightingUniformBuffer);
+    s_RendererStorage->LightingPipeline->GetSpecification().Shader->Set("u_LightingData",
+                                                                        s_RendererStorage->LightingUniformBuffer[currentFrame]);
 
     // Updating SSAO
     s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set(
@@ -498,7 +519,7 @@ void Renderer::Begin()
 
     s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_TexNoiseMap", s_RendererStorage->SSAONoiseTexture);
 
-    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer, 0);
+    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_UBSSAO", s_RendererStorage->SSAOUniformBuffer[currentFrame], 0);
 
     // Updating SSAO-Blur
     s_RendererStorage->SSAOBlurPipeline->GetSpecification().Shader->Set(
@@ -528,9 +549,18 @@ void Renderer::Begin()
     }
 
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp(true);
-    // Clear geometry buffer contents
-    BeginRenderPass(s_RendererStorage->SetupFramebuffer, glm::vec4(0.3f, 0.56f, 0.841f, 1.0f));
-    EndRenderPass(s_RendererStorage->SetupFramebuffer);
+
+    // Clear pass
+    {
+        Ref<CommandBuffer> renderCommandBuffer = CommandBuffer::Create(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
+        renderCommandBuffer->BeginRecording(true);
+
+        BeginRenderPass(renderCommandBuffer, s_RendererStorage->SetupFramebuffer, glm::vec4(0.3f, 0.56f, 0.841f, 1.0f));
+        EndRenderPass(renderCommandBuffer, s_RendererStorage->SetupFramebuffer);
+
+        renderCommandBuffer->EndRecording();
+        renderCommandBuffer->Submit();
+    }
 
     {
         s_RendererStorage->UBGlobalLighting.Gamma = s_RendererSettings.Gamma;
@@ -542,41 +572,65 @@ void Renderer::Begin()
 
         for (uint32_t i = 0; i < s_RendererStorage->CurrentPointLightIndex; ++i)
             s_RendererStorage->UBGlobalLighting.PointLights[i] = PointLight();
+
+        s_RendererStorage->CurrentPointLightIndex = 0;
+        s_RendererStorage->CurrentDirLightIndex   = 0;
+        s_RendererStorage->CurrentSpotLightIndex  = 0;
     }
-    s_RendererStorage->CurrentPointLightIndex = 0;
-    s_RendererStorage->CurrentDirLightIndex   = 0;
-    s_RendererStorage->CurrentSpotLightIndex  = 0;
 
     s_RendererStorage->SortedGeometry.clear();
+
+    s_RendererStorage->GPUParticleSystem->OnUpdate();
 }
 
 void Renderer::Flush()
 {
+    // Particle System
+    {
+        s_RendererStorage->GPUParticleSystem->OnCompute(s_RendererSettings.ParticleCount);
+
+        struct PushConstants
+        {
+            glm::mat4 CameraProjection = glm::mat4(1.0f);
+            glm::mat4 CameraView       = glm::mat4(1.0f);
+        } u_ParticleSystemData;
+
+        u_ParticleSystemData.CameraProjection = s_RendererStorage->UBGlobalCamera.Projection;
+        u_ParticleSystemData.CameraView       = s_RendererStorage->UBGlobalCamera.View;
+
+        s_RendererStorage->GPUParticleSystem->OnRender(&u_ParticleSystemData);
+    }
+
     // SSAO-Pass
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     if (!s_RendererStorage->SortedGeometry.empty() && Renderer::GetSettings().AO.EnableSSAO)
     {
-        s_RendererStorage->SSAODataBuffer.CameraProjection = s_RendererStorage->UBGlobalCamera.Projection;
-        s_RendererStorage->SSAODataBuffer.ViewProjection   = s_RendererStorage->UBGlobalCamera.View;
-        s_RendererStorage->SSAODataBuffer.Radius           = s_RendererSettings.AO.Radius;
-        s_RendererStorage->SSAODataBuffer.Bias             = s_RendererSettings.AO.Bias;
-        s_RendererStorage->SSAODataBuffer.Magnitude        = s_RendererSettings.AO.Magnitude;
+        s_RendererStorage->SSAODataBuffer.CameraProjection  = s_RendererStorage->UBGlobalCamera.Projection;
+        s_RendererStorage->SSAODataBuffer.InvViewProjection = s_RendererStorage->UBGlobalCamera.View;
+        s_RendererStorage->SSAODataBuffer.Radius            = s_RendererSettings.AO.Radius;
+        s_RendererStorage->SSAODataBuffer.Bias              = s_RendererSettings.AO.Bias;
+        s_RendererStorage->SSAODataBuffer.Magnitude         = s_RendererSettings.AO.Magnitude;
 
-        s_RendererStorage->SSAOUniformBuffer->Update(&s_RendererStorage->SSAODataBuffer, sizeof(UBSSAO));
+        s_RendererStorage->SSAOUniformBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->Update(&s_RendererStorage->SSAODataBuffer,
+                                                                                                    sizeof(UBSSAO));
 
-        BeginRenderPass(s_RendererStorage->SSAOFramebuffer, glm::vec4(glm::vec3(0.5f), 1.0f));
+        BeginRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                        s_RendererStorage->SSAOFramebuffer, glm::vec4(glm::vec3(0.5f), 1.0f));
 
         SubmitFullscreenQuad(s_RendererStorage->SSAOPipeline);
 
-        EndRenderPass(s_RendererStorage->SSAOFramebuffer);
+        EndRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                      s_RendererStorage->SSAOFramebuffer);
 
         if (Renderer::GetSettings().AO.BlurSSAO)
         {
-            BeginRenderPass(s_RendererStorage->SSAOBlurFramebuffer, glm::vec4(glm::vec3(0.8f), 1.0f));
+            BeginRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                            s_RendererStorage->SSAOBlurFramebuffer, glm::vec4(glm::vec3(0.8f), 1.0f));
 
             SubmitFullscreenQuad(s_RendererStorage->SSAOBlurPipeline);
 
-            EndRenderPass(s_RendererStorage->SSAOBlurFramebuffer);
+            EndRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                          s_RendererStorage->SSAOBlurFramebuffer);
         }
     }
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
@@ -584,34 +638,80 @@ void Renderer::Flush()
     // Final Lighting-Pass
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     {
-        BeginRenderPass(s_RendererStorage->LightingFramebuffer, glm::vec4(0.7f, 0.7f, 0.0f, 1.0f));
+        BeginRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                        s_RendererStorage->LightingFramebuffer, glm::vec4(0.7f, 0.7f, 0.0f, 1.0f));
 
-        s_RendererStorage->LightingUniformBuffer->Update(&s_RendererStorage->UBGlobalLighting, sizeof(s_RendererStorage->UBGlobalLighting));
+        s_RendererStorage->LightingUniformBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->Update(
+            &s_RendererStorage->UBGlobalLighting, sizeof(s_RendererStorage->UBGlobalLighting));
 
         MeshPushConstants pushConstants = {};
         pushConstants.Data              = glm::vec4(s_RendererStorage->UBGlobalCamera.Position, 0.0f);
 
         SubmitFullscreenQuad(s_RendererStorage->LightingPipeline, &pushConstants);
 
-        EndRenderPass(s_RendererStorage->LightingFramebuffer);
+        EndRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                      s_RendererStorage->LightingFramebuffer);
     }
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
     // Chromatic Aberration
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     {
-        BeginRenderPass(s_RendererStorage->ChromaticAberrationFramebuffer, glm::vec4(0.23f, 0.32f, 0.0f, 1.0f));
+        BeginRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                        s_RendererStorage->ChromaticAberrationFramebuffer, glm::vec4(0.23f, 0.32f, 0.0f, 1.0f));
 
         SubmitFullscreenQuad(s_RendererStorage->ChromaticAberrationPipeline);
 
-        EndRenderPass(s_RendererStorage->ChromaticAberrationFramebuffer);
+        EndRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                      s_RendererStorage->ChromaticAberrationFramebuffer);
     }
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
-    
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp(true);
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndRecording();
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->Submit();
+
+    CollectPassStatistics();
+}
+
+void Renderer::CollectPassStatistics()
+{
+    auto& timestampResults = s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetTimestampResults();
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[1] - timestampResults[0]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "DirShadowMap Pass: " + std::to_string(time) + " (ms)";
+        s_RendererStats.PassStatistsics.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[3] - timestampResults[2]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "GBuffer Pass:   " + std::to_string(time) + " (ms)";
+        s_RendererStats.PassStatistsics.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[5] - timestampResults[4]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "SSAO Pass:      " + std::to_string(time) + " (ms)";
+        s_RendererStats.PassStatistsics.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[7] - timestampResults[6]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "Lighting Pass:  " + std::to_string(time) + " (ms)";
+        s_RendererStats.PassStatistsics.push_back(str);
+    }
+
+    {
+        const float time =
+            static_cast<float>(timestampResults[9] - timestampResults[8]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
+        const std::string str = "Chromatic Aberration: " + std::to_string(time) + " (ms)";
+        s_RendererStats.PassStatistsics.push_back(str);
+    }
 }
 
 void Renderer::BeginScene(const Camera& camera)
@@ -620,64 +720,23 @@ void Renderer::BeginScene(const Camera& camera)
     s_RendererStorage->UBGlobalCamera.View       = camera.GetViewMatrix();
     s_RendererStorage->UBGlobalCamera.Position   = camera.GetPosition();
 
-    s_RendererStorage->CameraUniformBuffer->Update(&s_RendererStorage->UBGlobalCamera, sizeof(UBCamera));
+    s_RendererStorage->CameraUniformBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->Update(&s_RendererStorage->UBGlobalCamera,
+                                                                                                  sizeof(UBCamera));
     Renderer2D::GetStorageData().CameraProjectionMatrix = camera.GetViewProjectionMatrix();
-}
-
-const std::vector<std::string> Renderer::GetPassStatistics()
-{
-    std::vector<std::string> result;
-    auto& timestampResults = s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetTimestampResults();
-
-    {
-        const float time =
-            static_cast<float>(timestampResults[1] - timestampResults[0]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
-        const std::string str = "Dir ShadowMap Pass: " + std::to_string(time) + " (ms)";
-        result.push_back(str);
-    }
-
-    {
-        const float time =
-            static_cast<float>(timestampResults[3] - timestampResults[2]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
-        const std::string str = "GPass: " + std::to_string(time) + " (ms)";
-        result.push_back(str);
-    }
-
-    {
-        const float time =
-            static_cast<float>(timestampResults[5] - timestampResults[4]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
-        const std::string str = "SSAO: " + std::to_string(time) + " (ms)";
-        result.push_back(str);
-    }
-
-    {
-        const float time =
-            static_cast<float>(timestampResults[7] - timestampResults[6]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
-        const std::string str = "Lighting: " + std::to_string(time) + " (ms)";
-        result.push_back(str);
-    }
-
-    {
-        const float time =
-            static_cast<float>(timestampResults[9] - timestampResults[8]) * GraphicsContext::Get().GetTimestampPeriod() / 1000000.0f;
-        const std::string str = "Chromatic Aberration: " + std::to_string(time) + " (ms)";
-        result.push_back(str);
-    }
-
-    return result;
 }
 
 const std::vector<std::string> Renderer::GetPipelineStatistics()
 {
-    std::vector<std::string> result = {
-        "Input assembly vertex count        ", "Input assembly primitives count    ", "Vertex shader invocations          ",
-        "Geometry Shader Invocations        ", "Geometry Shader Primitives         ", "Clipping stage primitives processed",
-        "Clipping stage primitives output   ", "Fragment shader invocations        ", "Tess. control shader patches       ",
-        "Tess. eval. shader invocations     ", "Compute shader invocations         "};
+    std::vector<std::string> result =
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetPipelineStatisticsStrings();
+    auto& statisticsResults =
+        s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetPipelineStatisticsResults();
 
-    auto& statisticsResults = s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->GetStatisticsResults();
-    for (uint32_t i = 0; i < statisticsResults.size(); ++i)
-        result[i] += std::to_string(statisticsResults[i]);
+    for (uint32_t i = 0; i < s_RendererStats.PipelineStatisticsResults.size(); ++i)
+    {
+        s_RendererStats.PipelineStatisticsResults[i] += statisticsResults[i];
+        result[i] += std::to_string(s_RendererStats.PipelineStatisticsResults[i]);
+    }
 
     return result;
 }
@@ -703,7 +762,8 @@ void Renderer::EndScene()
     // ShadowMap-Pass
     {
         s_RendererStorage->ShadowMapFramebuffer->SetDepthStencilClearColor(GetSettings().Shadows.RenderShadows ? 1.0f : 0.0f, 0);
-        BeginRenderPass(s_RendererStorage->ShadowMapFramebuffer, glm::vec4(0.2f, 0.2f, 0.2f, 1.0f));
+        BeginRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                        s_RendererStorage->ShadowMapFramebuffer, glm::vec4(0.2f, 0.2f, 0.2f, 1.0f));
 
         if (Renderer::GetSettings().Shadows.RenderShadows)
         {
@@ -726,14 +786,16 @@ void Renderer::EndScene()
             }
         }
 
-        EndRenderPass(s_RendererStorage->ShadowMapFramebuffer);
+        EndRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                      s_RendererStorage->ShadowMapFramebuffer);
     }
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginTimestamp();
     // GPass
     {
-        BeginRenderPass(s_RendererStorage->GeometryFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+        BeginRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                        s_RendererStorage->GeometryFramebuffer, glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
 
         for (auto& geometry : s_RendererStorage->SortedGeometry)
         {
@@ -745,7 +807,8 @@ void Renderer::EndScene()
             SubmitMesh(s_RendererStorage->GeometryPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &mpc);
         }
 
-        EndRenderPass(s_RendererStorage->GeometryFramebuffer);
+        EndRenderPass(s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+                      s_RendererStorage->GeometryFramebuffer);
     }
     s_RendererStorage->RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndTimestamp();
 

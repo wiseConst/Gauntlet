@@ -7,19 +7,12 @@
 #include "VulkanShader.h"
 #include "VulkanSwapchain.h"
 
-#include "Gauntlet/Core/Timer.h"
-
 namespace Gauntlet
 {
 
 VulkanPipeline::VulkanPipeline(const PipelineSpecification& pipelineSpecification) : m_Specification(pipelineSpecification)
 {
     Invalidate();
-}
-
-VulkanPipeline::~VulkanPipeline()
-{
-    // Destroy();
 }
 
 void VulkanPipeline::Invalidate()
@@ -33,9 +26,6 @@ void VulkanPipeline::Invalidate()
     const float pipelineCreationEnd = static_cast<float>(Timer::Now());
     LOG_INFO("Took %0.3f ms to create <%s> pipeline!", (pipelineCreationEnd - pipelineCreationBegin) * 1000.0f,
              m_Specification.Name.data());
-
-    // Destroying linked shaders here.
-    // TODO: Maybe I shouldn't? What if I need to recreate pipeline? Shaders are already deleted.
 }
 
 void VulkanPipeline::CreateLayout()
@@ -46,13 +36,13 @@ void VulkanPipeline::CreateLayout()
     const auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
     GNT_ASSERT(vulkanShader, "Invalid shader!");
 
-    VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    PipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(vulkanShader->GetDescriptorSetLayouts().size());
-    PipelineLayoutCreateInfo.pSetLayouts                = vulkanShader->GetDescriptorSetLayouts().data();
-    PipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(vulkanShader->GetPushConstants().size());
-    PipelineLayoutCreateInfo.pPushConstantRanges        = vulkanShader->GetPushConstants().data();
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipelineLayoutCreateInfo.setLayoutCount             = static_cast<uint32_t>(vulkanShader->GetDescriptorSetLayouts().size());
+    pipelineLayoutCreateInfo.pSetLayouts                = vulkanShader->GetDescriptorSetLayouts().data();
+    pipelineLayoutCreateInfo.pushConstantRangeCount     = static_cast<uint32_t>(vulkanShader->GetPushConstants().size());
+    pipelineLayoutCreateInfo.pPushConstantRanges        = vulkanShader->GetPushConstants().data();
 
-    VK_CHECK(vkCreatePipelineLayout(context.GetDevice()->GetLogicalDevice(), &PipelineLayoutCreateInfo, nullptr, &m_Layout),
+    VK_CHECK(vkCreatePipelineLayout(context.GetDevice()->GetLogicalDevice(), &pipelineLayoutCreateInfo, nullptr, &m_Layout),
              "Failed to create pipeline layout!");
 }
 
@@ -64,33 +54,66 @@ void VulkanPipeline::Create()
     GNT_ASSERT(m_Specification.Shader, "Not valid shader passed!");
     auto& logicalDevice = context.GetDevice()->GetLogicalDevice();
 
-    // Creating and validating pipeline cache
+    CreateOrRetrieveAndValidatePipelineCache();
+
+    const auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
+    GNT_ASSERT(vulkanShader, "Invalid shader!");
+
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+    for (size_t i = 0; i < vulkanShader->GetStages().size(); ++i)
     {
-        if (!std::filesystem::exists("Resources/Cached/Pipelines")) std::filesystem::create_directories("Resources/Cached/Pipelines");
-
-        std::vector<uint8_t> CacheData = Utility::LoadDataFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
-        VkPipelineCacheCreateInfo PipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
-        if (!CacheData.empty())
+        switch (m_Specification.PipelineType)
         {
-            bool bSamePipelineUUID = true;
-            for (uint16_t i = 0; i < VK_UUID_SIZE; ++i)
-                if (context.GetDevice()->GetGPUProperties().pipelineCacheUUID[i] != CacheData[16 + i]) bSamePipelineUUID = false;
-
-            bool bSameVendorID = true;
-            bool bSameDeviceID = true;
-            for (uint16_t i = 0; i < 4; ++i)
+            case EPipelineType::PIPELINE_TYPE_GRAPHICS:
             {
-                if (CacheData[8 + i] != ((context.GetDevice()->GetGPUProperties().vendorID >> (8 * i)) & 0xff)) bSameVendorID = false;
-                if (CacheData[12 + i] != ((context.GetDevice()->GetGPUProperties().deviceID >> (8 * i)) & 0xff)) bSameDeviceID = false;
-            }
+                if (vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_VERTEX ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_FRAGMENT ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_GEOMETRY ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_TASK ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_MESH ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_TESSELLATION_CONTROL ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_TESSELLATION_EVALUATION)
+                {
+                    auto& shaderStage = shaderStages.emplace_back();
 
-            if (bSamePipelineUUID && bSameVendorID && bSameDeviceID)
-            {
-                PipelineCacheCreateInfo.initialDataSize = CacheData.size();
-                PipelineCacheCreateInfo.pInitialData    = CacheData.data();
+                    shaderStage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+                    shaderStage.pName  = vulkanShader->GetStages()[i].EntrypointName.data();
+                    shaderStage.module = vulkanShader->GetStages()[i].Module;
+                    shaderStage.stage  = Utility::GauntletShaderStageToVulkan(vulkanShader->GetStages()[i].Stage);
+                }
+                break;
             }
+            case EPipelineType::PIPELINE_TYPE_COMPUTE:
+            {
+                if (vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_COMPUTE)
+                {
+                    auto& shaderStage = shaderStages.emplace_back();
+
+                    shaderStage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+                    shaderStage.pName  = vulkanShader->GetStages()[i].EntrypointName.data();
+                    shaderStage.module = vulkanShader->GetStages()[i].Module;
+                    shaderStage.stage  = Utility::GauntletShaderStageToVulkan(vulkanShader->GetStages()[i].Stage);
+                }
+                break;
+            }
+            case EPipelineType::PIPELINE_TYPE_RAY_TRACING:
+            {
+                if (vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_ANY_HIT ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_CLOSEST_HIT ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_RAYGEN ||
+                    vulkanShader->GetStages()[i].Stage == EShaderStage::SHADER_STAGE_MISS)
+                {
+                    auto& shaderStage = shaderStages.emplace_back();
+
+                    shaderStage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+                    shaderStage.pName  = vulkanShader->GetStages()[i].EntrypointName.data();
+                    shaderStage.module = vulkanShader->GetStages()[i].Module;
+                    shaderStage.stage  = Utility::GauntletShaderStageToVulkan(vulkanShader->GetStages()[i].Stage);
+                }
+                break;
+            }
+            default: GNT_ASSERT(false, "Unknown pipeline type!"); break;
         }
-        VK_CHECK(vkCreatePipelineCache(logicalDevice, &PipelineCacheCreateInfo, nullptr, &m_Cache), "Failed to create pipeline cache!");
     }
 
     switch (m_Specification.PipelineType)
@@ -101,18 +124,6 @@ void VulkanPipeline::Create()
             VkPipelineInputAssemblyStateCreateInfo InputAssemblyState = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
             InputAssemblyState.primitiveRestartEnable                 = m_Specification.PrimitiveRestartEnable;
             InputAssemblyState.topology = Utility::GauntletPrimitiveTopologyToVulkan(m_Specification.PrimitiveTopology);
-
-            const auto vulkanShader = std::static_pointer_cast<VulkanShader>(m_Specification.Shader);
-            GNT_ASSERT(vulkanShader, "Invalid shader!");
-
-            std::vector<VkPipelineShaderStageCreateInfo> ShaderStages(vulkanShader->GetStages().size());
-            for (size_t i = 0; i < ShaderStages.size(); ++i)
-            {
-                ShaderStages[i].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-                ShaderStages[i].pName  = "main";
-                ShaderStages[i].module = vulkanShader->GetStages()[i].Module;
-                ShaderStages[i].stage  = Utility::GauntletShaderStageToVulkan(vulkanShader->GetStages()[i].Stage);
-            }
 
             // VertexInputState
             VkPipelineVertexInputStateCreateInfo VertexInputState = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -247,6 +258,7 @@ void VulkanPipeline::Create()
             std::vector<VkDynamicState> DynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
             if (m_Specification.bDynamicPolygonMode && !RENDERDOC_DEBUG) DynamicStates.push_back(VK_DYNAMIC_STATE_POLYGON_MODE_EXT);
+            if (m_Specification.LineWidth > 0.0F) DynamicStates.push_back(VK_DYNAMIC_STATE_LINE_WIDTH);
 
             // TODO: Make it configurable?
             VkPipelineDynamicStateCreateInfo DynamicState = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
@@ -257,8 +269,8 @@ void VulkanPipeline::Create()
             pipelineCreateInfo.layout                       = m_Layout;
             pipelineCreateInfo.renderPass                   = vulkanFramebuffer->GetRenderPass();
             pipelineCreateInfo.pInputAssemblyState          = &InputAssemblyState;
-            pipelineCreateInfo.stageCount                   = static_cast<uint32_t>(ShaderStages.size());
-            pipelineCreateInfo.pStages                      = ShaderStages.data();
+            pipelineCreateInfo.stageCount                   = static_cast<uint32_t>(shaderStages.size());
+            pipelineCreateInfo.pStages                      = shaderStages.data();
             pipelineCreateInfo.pVertexInputState            = &VertexInputState;
             pipelineCreateInfo.pRasterizationState          = &RasterizationState;
             pipelineCreateInfo.pTessellationState           = &TessellationState;
@@ -268,20 +280,32 @@ void VulkanPipeline::Create()
             pipelineCreateInfo.pColorBlendState             = &ColorBlendState;
             pipelineCreateInfo.pDynamicState                = &DynamicState;
 
+            VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+
+            // TODO: Populate it
+            std::vector<VkFormat> colorAttachmentFormats;
+            VkFormat depthAttachmentFormat   = VK_FORMAT_UNDEFINED;
+            VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+
+            pipelineRenderingCreateInfo.colorAttachmentCount    = static_cast<uint32_t>(colorAttachmentFormats.size());
+            pipelineRenderingCreateInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
+
+            pipelineRenderingCreateInfo.depthAttachmentFormat   = depthAttachmentFormat;
+            pipelineRenderingCreateInfo.stencilAttachmentFormat = stencilAttachmentFormat;
+
+            //  pipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
+
             VK_CHECK(vkCreateGraphicsPipelines(logicalDevice, m_Cache, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &m_Handle),
                      "Failed to create GRAPHICS pipeline!");
-
-            vulkanShader->DestroyModulesAndReflectionGarbage();
             break;
         }
         case Gauntlet::EPipelineType::PIPELINE_TYPE_COMPUTE:
         {
-            VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-            shaderStageCreateInfo.stage                           = VK_SHADER_STAGE_COMPUTE_BIT;
-
             VkComputePipelineCreateInfo pipelineCreateInfo = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
             pipelineCreateInfo.layout                      = m_Layout;
-            pipelineCreateInfo.stage                       = shaderStageCreateInfo;
+
+            if (shaderStages.size() > 1) LOG_WARN("Compute pipeline has more than 1 compute shader??");
+            pipelineCreateInfo.stage = shaderStages[0];
 
             VK_CHECK(vkCreateComputePipelines(logicalDevice, m_Cache, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &m_Handle),
                      "Failed to create COMPUTE pipeline!");
@@ -291,24 +315,64 @@ void VulkanPipeline::Create()
         {
             VkRayTracingPipelineCreateInfoKHR pipelineCreateInfo = {VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
             pipelineCreateInfo.layout                            = m_Layout;
+            pipelineCreateInfo.stageCount                        = static_cast<uint32_t>(shaderStages.size());
+            pipelineCreateInfo.pStages                           = shaderStages.data();
 
+            // TODO: Fill here
             VkDeferredOperationKHR op = {};  // ?
 
             VK_CHECK(vkCreateRayTracingPipelinesKHR(logicalDevice, op, m_Cache, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &m_Handle),
                      "Failed to create RAY_TRACING pipeline!");
             break;
         }
-        default: LOG_WARN("Pipeline type default?"); break;
+        default: GNT_ASSERT(false, "Unknown pipeline type!"); break;
     }
-    GNT_ASSERT("Unknown pipeline type!");
+    vulkanShader->DestroyModulesAndReflectionGarbage();
 
+    SavePipelineCache();
+}
+
+void VulkanPipeline::CreateOrRetrieveAndValidatePipelineCache()
+{
+    if (!std::filesystem::exists("Resources/Cached/Pipelines")) std::filesystem::create_directories("Resources/Cached/Pipelines");
+
+    std::vector<uint8_t> cacheData = Utility::LoadDataFromDisk("Resources/Cached/Pipelines/" + m_Specification.Name + ".cache");
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
+
+    // Validate retrieved pipeline cache
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    if (!cacheData.empty())
     {
-        GNT_ASSERT(Utility::DropPipelineCacheToDisk(logicalDevice, m_Cache,
-                                                    "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
-                   "Failed to save pipeline cache to disk!");
+        bool bSamePipelineUUID = true;
+        for (uint16_t i = 0; i < VK_UUID_SIZE; ++i)
+            if (context.GetDevice()->GetGPUProperties().pipelineCacheUUID[i] != cacheData[16 + i]) bSamePipelineUUID = false;
 
-        vkDestroyPipelineCache(logicalDevice, m_Cache, nullptr);
+        bool bSameVendorID = true;
+        bool bSameDeviceID = true;
+        for (uint16_t i = 0; i < 4; ++i)
+        {
+            if (cacheData[8 + i] != ((context.GetDevice()->GetGPUProperties().vendorID >> (8 * i)) & 0xff)) bSameVendorID = false;
+            if (cacheData[12 + i] != ((context.GetDevice()->GetGPUProperties().deviceID >> (8 * i)) & 0xff)) bSameDeviceID = false;
+        }
+
+        if (bSamePipelineUUID && bSameVendorID && bSameDeviceID)
+        {
+            pipelineCacheCreateInfo.initialDataSize = cacheData.size();
+            pipelineCacheCreateInfo.pInitialData    = cacheData.data();
+        }
     }
+    VK_CHECK(vkCreatePipelineCache(context.GetDevice()->GetLogicalDevice(), &pipelineCacheCreateInfo, nullptr, &m_Cache),
+             "Failed to create pipeline cache!");
+}
+
+void VulkanPipeline::SavePipelineCache()
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+    GNT_ASSERT(Utility::DropPipelineCacheToDisk(context.GetDevice()->GetLogicalDevice(), m_Cache,
+                                                "Resources/Cached/Pipelines/" + m_Specification.Name + ".cache") == VK_TRUE,
+               "Failed to save pipeline cache to disk!");
+
+    vkDestroyPipelineCache(context.GetDevice()->GetLogicalDevice(), m_Cache, nullptr);
 }
 
 void VulkanPipeline::Destroy()

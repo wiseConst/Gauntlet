@@ -1,5 +1,7 @@
 #version 460
 
+#extension GL_KHR_vulkan_glsl : enable
+
 layout(location = 0) out float out_FragColor;
   
 layout(location = 0) in vec2 in_UV;
