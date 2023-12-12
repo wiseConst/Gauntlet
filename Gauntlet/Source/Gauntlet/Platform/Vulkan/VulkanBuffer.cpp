@@ -213,7 +213,7 @@ void VulkanUniformBuffer::Unmap()
     m_bIsMapped = false;
 }
 
-void VulkanUniformBuffer::Update(void* data, const uint64_t size)
+void VulkanUniformBuffer::SetData(void* data, const uint64_t size)
 {
     auto& context                    = (VulkanContext&)VulkanContext::Get();
     const uint32_t currentFrameIndex = context.GetCurrentFrameIndex();

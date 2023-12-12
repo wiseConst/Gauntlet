@@ -86,7 +86,7 @@ void VulkanCommandBuffer::BeginRecording(bool bOneTimeSubmit, const void* inheri
         GNT_ASSERT(inheritanceInfo, "Secondary command buffer requires inheritance info!");
     }
 
-    if (bOneTimeSubmit) commandBufferBeginInfo.flags /= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (bOneTimeSubmit) commandBufferBeginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     commandBufferBeginInfo.pInheritanceInfo = (VkCommandBufferInheritanceInfo*)inheritanceInfo;
     VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &commandBufferBeginInfo), "Failed to begin command buffer recording!");
@@ -171,6 +171,8 @@ const std::vector<std::string> VulkanCommandBuffer::GetPipelineStatisticsStrings
 
 void VulkanCommandBuffer::Destroy()
 {
+    if (!m_CommandBuffer) return;
+
     auto& context = (VulkanContext&)VulkanContext::Get();
 
     context.GetDevice()->FreeCommandBuffer(m_CommandBuffer, m_Type);
@@ -216,16 +218,16 @@ void VulkanCommandBuffer::EndTimestamp(bool bStatisticsQuery)
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const
 {
-    if (!s_bEnableValidationLayers) return;
+    if (!s_bEnableValidationLayers && !VK_FORCE_VALIDATION) return;
 
-    VkDebugUtilsLabelEXT CommandBufferLabelEXT = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
-    CommandBufferLabelEXT.pLabelName           = commandBufferLabelName;
-    CommandBufferLabelEXT.color[0]             = labelColor.r;
-    CommandBufferLabelEXT.color[1]             = labelColor.g;
-    CommandBufferLabelEXT.color[2]             = labelColor.b;
-    CommandBufferLabelEXT.color[3]             = labelColor.a;
+    VkDebugUtilsLabelEXT commandBufferLabelEXT = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+    commandBufferLabelEXT.pLabelName           = commandBufferLabelName;
+    commandBufferLabelEXT.color[0]             = labelColor.r;
+    commandBufferLabelEXT.color[1]             = labelColor.g;
+    commandBufferLabelEXT.color[2]             = labelColor.b;
+    commandBufferLabelEXT.color[3]             = labelColor.a;
 
-    vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &CommandBufferLabelEXT);
+    vkCmdBeginDebugUtilsLabelEXT(m_CommandBuffer, &commandBufferLabelEXT);
 }
 
 void VulkanCommandBuffer::BindDescriptorSets(Ref<VulkanPipeline>& pipeline, const uint32_t firstSet, const uint32_t descriptorSetCount,
@@ -260,7 +262,7 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline) const
     viewport.height = -static_cast<float>(swapchain->GetImageExtent().height);
 
     VkRect2D scissor = {{0, 0}, swapchain->GetImageExtent()};
-    if (auto& targetFramebuffer = pipeline->GetSpecification().TargetFramebuffer)
+    if (auto& targetFramebuffer = pipeline->GetSpecification().TargetFramebuffer[context.GetCurrentFrameIndex()])
     {
         scissor.extent = VkExtent2D(targetFramebuffer->GetWidth(), targetFramebuffer->GetHeight());
 

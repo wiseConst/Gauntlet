@@ -2,12 +2,13 @@
 #include "Renderer2D.h"
 
 #include "RendererAPI.h"
-#include "CoreRendererStructs.h"
+#include "CoreRendererTypes.h"
 #include "Texture.h"
 #include "Renderer.h"
 #include "Buffer.h"
 #include "GraphicsContext.h"
 #include "Pipeline.h"
+#include "Framebuffer.h"
 
 #include "Gauntlet/Platform/Vulkan/VulkanRenderer.h"
 
@@ -160,14 +161,12 @@ void Renderer2D::Flush()
     auto& vertexBuffer = currentVertexBufferArray[s_RendererStorage2D->CurrentVertexBufferIndex[s_RendererStorage2D->CurrentFrameIndex]];
     vertexBuffer->SetStagedData(rs.UploadHeap, DataSize);
 
-    Renderer::BeginRenderPass(Renderer::GetStorageData().RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
-                              Renderer::GetStorageData().GeometryFramebuffer, glm::vec4(0.8f, 0.1f, 0.1f, 1.0f));
+    rs.GeometryFramebuffer[rs.CurrentFrame]->BeginPass(rs.RenderCommandBuffer[rs.CurrentFrame]);
 
     Renderer::DrawQuad(s_RendererStorage2D->QuadPipeline, vertexBuffer, s_RendererStorage2D->QuadIndexBuffer,
                        s_RendererStorage2D->QuadIndexCount, &s_RendererStorage2D->PushConstants);
 
-    Renderer::EndRenderPass(Renderer::GetStorageData().RenderCommandBuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
-                            Renderer::GetStorageData().GeometryFramebuffer);
+    rs.GeometryFramebuffer[rs.CurrentFrame]->EndPass(rs.RenderCommandBuffer[rs.CurrentFrame]);
 
     ++Renderer::GetStats().DrawCalls;
     ++s_RendererStorage2D->CurrentVertexBufferIndex[s_RendererStorage2D->CurrentFrameIndex];

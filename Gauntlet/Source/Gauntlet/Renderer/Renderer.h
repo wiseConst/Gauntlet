@@ -5,7 +5,7 @@
 #include "Gauntlet/Core/Math.h"
 
 #include "Buffer.h"
-#include "CoreRendererStructs.h"
+#include "CoreRendererTypes.h"
 #include "GraphicsContext.h"
 
 namespace Gauntlet
@@ -48,16 +48,6 @@ class Renderer : private Uncopyable, private Unmovable
                                                  uint32_t particleCount, void* pushConstants = nullptr)
     {
         s_Renderer->SubmitParticleSystemImpl(commandBuffer, pipeline, ssbo, particleCount, pushConstants);
-    }
-
-    FORCEINLINE static void BeginRenderPass(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
-                                            const glm::vec4& debugLabelColor = glm::vec4(1.0f))
-    {
-        s_Renderer->BeginRenderPassImpl(commandBuffer, framebuffer, debugLabelColor);
-    }
-    FORCEINLINE static void EndRenderPass(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer)
-    {
-        s_Renderer->EndRenderPassImpl(commandBuffer, framebuffer);
     }
 
     FORCEINLINE static void SubmitMesh(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
@@ -187,7 +177,7 @@ class Renderer : private Uncopyable, private Unmovable
         // Viewports
         bool bFramebuffersNeedResize  = {false};
         glm::uvec2 NewFramebufferSize = {1280, 720};
-        std::vector<Ref<CommandBuffer>> RenderCommandBuffer;  // per-frame
+        RenderCommandBufferPerFrame RenderCommandBuffer;
 
         Ref<ParticleSystem> GPUParticleSystem;
 
@@ -197,54 +187,54 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Texture2D> WhiteTexture = nullptr;
 
         // Clear-Pass
-        Ref<Framebuffer> SetupFramebuffer = nullptr;
+        FramebufferPerFrame SetupFramebuffer;
 
         // GBuffer (Deferred rendering)
-        Ref<Framebuffer> GeometryFramebuffer = nullptr;
-        Ref<Pipeline> GeometryPipeline       = nullptr;
+        FramebufferPerFrame GeometryFramebuffer;
+        Ref<Pipeline> GeometryPipeline = nullptr;
 
         // PBR-Forward
-        Ref<Framebuffer> PBRFramebuffer = nullptr;
-        Ref<Pipeline> PBRPipeline       = nullptr;
+        FramebufferPerFrame PBRFramebuffer;
+        Ref<Pipeline> PBRPipeline = nullptr;
 
         // ShadowMapping
-        Ref<Framebuffer> ShadowMapFramebuffer = nullptr;
-        Ref<Pipeline> ShadowMapPipeline       = nullptr;
+        FramebufferPerFrame ShadowMapFramebuffer;
+        Ref<Pipeline> ShadowMapPipeline = nullptr;
 
         // Shadows UB
-        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> ShadowsUniformBuffer;
+        UniformBufferPerFrame ShadowsUniformBuffer;
         UBShadows MeshShadowsBuffer;
 
         // SSAO
-        Ref<Framebuffer> SSAOFramebuffer = nullptr;
-        Ref<Pipeline> SSAOPipeline       = nullptr;
+        FramebufferPerFrame SSAOFramebuffer;
+        Ref<Pipeline> SSAOPipeline = nullptr;
 
         // SSAO UB
-        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> SSAOUniformBuffer;
+        UniformBufferPerFrame SSAOUniformBuffer;
         UBSSAO SSAODataBuffer;
 
         // SSAO-Blur
-        Ref<Framebuffer> SSAOBlurFramebuffer = nullptr;
-        Ref<Pipeline> SSAOBlurPipeline       = nullptr;
-        Ref<Texture2D> SSAONoiseTexture      = nullptr;
+        FramebufferPerFrame SSAOBlurFramebuffer;
+        Ref<Pipeline> SSAOBlurPipeline  = nullptr;
+        Ref<Texture2D> SSAONoiseTexture = nullptr;
 
         // Animation
         Ref<Pipeline> AnimationPipeline = nullptr;
 
         // Final Lighting
-        Ref<Framebuffer> LightingFramebuffer = nullptr;
-        Ref<Pipeline> LightingPipeline       = nullptr;
+        FramebufferPerFrame LightingFramebuffer;
+        Ref<Pipeline> LightingPipeline = nullptr;
 
         // Chromatic Aberration
-        Ref<Framebuffer> ChromaticAberrationFramebuffer = nullptr;
-        Ref<Pipeline> ChromaticAberrationPipeline       = nullptr;
+        FramebufferPerFrame ChromaticAberrationFramebuffer;
+        Ref<Pipeline> ChromaticAberrationPipeline = nullptr;
 
         // Camera UB
-        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> CameraUniformBuffer;
+        UniformBufferPerFrame CameraUniformBuffer;
         UBCamera UBGlobalCamera;
 
         // Global lighting UB
-        std::array<Ref<UniformBuffer>, FRAMES_IN_FLIGHT> LightingUniformBuffer;
+        UniformBufferPerFrame LightingUniformBuffer;
         UBLighting UBGlobalLighting;
         uint32_t CurrentPointLightIndex = 0;
         uint32_t CurrentDirLightIndex   = 0;
@@ -253,6 +243,7 @@ class Renderer : private Uncopyable, private Unmovable
         // Misc
         std::vector<GeometryData> SortedGeometry;
         Ref<StagingBuffer> UploadHeap = nullptr;
+        uint32_t CurrentFrame         = 0;
     } static* s_RendererStorage;
 
   protected:
@@ -265,10 +256,6 @@ class Renderer : private Uncopyable, private Unmovable
                                           uint32_t particleCount, void* pushConstants = nullptr)                              = 0;
     virtual void DispatchImpl(Ref<CommandBuffer>& commandBuffer, Ref<Pipeline>& pipeline, void* pushConstants = nullptr,
                               const uint32_t groupCountX = 1, const uint32_t groupCountY = 1, const uint32_t groupCountZ = 1) = 0;
-
-    virtual void BeginRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
-                                     const glm::vec4& debugLabelColor = glm::vec4(1.0f))                         = 0;
-    virtual void EndRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer) = 0;
 
     virtual void SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants = nullptr) = 0;
     virtual void SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,

@@ -74,10 +74,10 @@ Mesh::Mesh(const std::string& meshPath)
             LoadMesh(meshPath);
 
             BufferSpecification vbInfo = {};
-            vbInfo.Usage      = EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
+            vbInfo.Usage               = EBufferUsageFlags::VERTEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
 
             BufferSpecification ibInfo = {};
-            ibInfo.Usage      = EBufferUsageFlags::INDEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
+            ibInfo.Usage               = EBufferUsageFlags::INDEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
 
             for (auto& submesh : m_Submeshes)
             {
@@ -487,7 +487,8 @@ std::vector<Ref<Texture2D>> Mesh::LoadMaterialTextures(aiMaterial* mat, aiTextur
     return Textures;
 }
 
-Mesh::~Mesh() {
+Mesh::~Mesh()
+{
     Destroy();
 }
 

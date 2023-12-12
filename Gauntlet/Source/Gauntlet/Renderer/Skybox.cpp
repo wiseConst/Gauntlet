@@ -22,7 +22,7 @@ void Skybox::Create(const std::vector<std::string>& faces)
 void Skybox::Destroy()
 {
     m_CubeMapTexture->Destroy();
-   // m_Cube->Destroy();
+    // m_Cube->Destroy();
 }
 
 }  // namespace Gauntlet

@@ -46,7 +46,7 @@ class Shader
     virtual void Set(const std::string& name, const Ref<TextureCube>& texture)                                    = 0;
     virtual void Set(const std::string& name, const Ref<Image>& image)                                            = 0;
     virtual void Set(const std::string& name, const Ref<UniformBuffer>& uniformBuffer, const uint64_t offset = 0) = 0;
-    virtual void Set(const std::string& name, const Ref<StorageBuffer>& ssbo, const uint64_t offset = 0) = 0;
+    virtual void Set(const std::string& name, const Ref<StorageBuffer>& ssbo, const uint64_t offset = 0)          = 0;
     virtual void Set(const std::string& name, const std::vector<Ref<Texture2D>>& textures)                        = 0;
 
     static Ref<Shader> Create(const std::string_view& filePath);

@@ -21,40 +21,38 @@ enum class EStoreOp : uint8_t
     DONT_CARE
 };
 
-// Always specify depth attachment as last element.
 struct FramebufferAttachmentSpecification
 {
-  public:
-    FramebufferAttachmentSpecification() = default;
-
+    EImageFormat Format   = EImageFormat::NONE;
     ETextureFilter Filter = ETextureFilter::LINEAR;
     ETextureWrap Wrap     = ETextureWrap::REPEAT;
-    EImageFormat Format   = EImageFormat::NONE;
-    glm::vec4 ClearColor  = glm::vec4(1.0f);
     ELoadOp LoadOp        = ELoadOp::CLEAR;
     EStoreOp StoreOp      = EStoreOp::STORE;
+    glm::vec4 ClearColor  = glm::vec4(1.0f);
 };
 
 struct FramebufferAttachment
 {
-    std::array<Ref<Image>, FRAMES_IN_FLIGHT> Attachments;  // Per-frame
+    Ref<Image> Attachment = nullptr;
     FramebufferAttachmentSpecification Specification;
 };
 
 struct FramebufferSpecification
 {
   public:
-    // Always specify depth attachment as last element.
     std::vector<FramebufferAttachmentSpecification> Attachments;
     std::vector<FramebufferAttachment> ExistingAttachments;
 
-    ELoadOp LoadOp   = ELoadOp::CLEAR;   // These are in case you have existing attachments
-    EStoreOp StoreOp = EStoreOp::STORE;  //
+    // These are in case you have existing attachments
+    ELoadOp LoadOp   = ELoadOp::CLEAR;
+    EStoreOp StoreOp = EStoreOp::STORE;
 
     uint32_t Width   = 0;
     uint32_t Height  = 0;
     std::string Name = "None";
 };
+
+class CommandBuffer;
 
 class Framebuffer : private Uncopyable, private Unmovable
 {
@@ -68,10 +66,9 @@ class Framebuffer : private Uncopyable, private Unmovable
     virtual void Destroy()                               = 0;
     virtual void Resize(uint32_t width, uint32_t height) = 0;
 
-    virtual void BeginPass(const Ref<class CommandBuffer>& commandBuffer) = 0;
-    virtual void EndPass(const Ref<class CommandBuffer>& commandBuffer)   = 0;
+    virtual void BeginPass(const Ref<CommandBuffer>& commandBuffer) = 0;
+    virtual void EndPass(const Ref<CommandBuffer>& commandBuffer)   = 0;
 
-    virtual void SetDepthStencilClearColor(const float depth, const uint32_t stencil)    = 0;
     FORCEINLINE virtual const std::vector<FramebufferAttachment>& GetAttachments() const = 0;
 
     virtual const uint32_t GetWidth() const  = 0;

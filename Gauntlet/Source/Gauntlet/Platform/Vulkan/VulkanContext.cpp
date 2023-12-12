@@ -36,7 +36,7 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
 
 void VulkanContext::CreateInstance()
 {
-    // volk loader
+    // Initialize vulkan loader
     {
         const auto result = volkInitialize();
         GNT_ASSERT(result == VK_SUCCESS, "Failed to initialize volk( meta-loader for Vulkan )!");
@@ -44,7 +44,8 @@ void VulkanContext::CreateInstance()
 
     GNT_ASSERT(CheckVulkanAPISupport() == true, "Vulkan is not supported!");
 
-    if (s_bEnableValidationLayers) GNT_ASSERT(CheckValidationLayerSupport() == true, "Validation layers requested but not supported!");
+    if (s_bEnableValidationLayers || VK_FORCE_VALIDATION)
+        GNT_ASSERT(CheckValidationLayerSupport() == true, "Validation layers requested but not supported!");
 
     uint32_t supportedApiVersionFromDLL = 0;
     {
@@ -69,19 +70,21 @@ void VulkanContext::CreateInstance()
     ApplicationInfo.pEngineName        = EngineName;
 
     const auto RequiredExtensions              = GetRequiredExtensions();
-    VkInstanceCreateInfo InstanceCreateInfo    = {};
-    InstanceCreateInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    VkInstanceCreateInfo InstanceCreateInfo    = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     InstanceCreateInfo.pApplicationInfo        = &ApplicationInfo;
     InstanceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(RequiredExtensions.size());
     InstanceCreateInfo.ppEnabledExtensionNames = RequiredExtensions.data();
 
-#if GNT_DEBUG
-    InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(s_InstanceLayers.size());
-    InstanceCreateInfo.ppEnabledLayerNames = s_InstanceLayers.data();
-#else
-    InstanceCreateInfo.enabledLayerCount   = 0;
-    InstanceCreateInfo.ppEnabledLayerNames = nullptr;
-#endif
+    if (s_bEnableValidationLayers || VK_FORCE_VALIDATION)
+    {
+        InstanceCreateInfo.enabledLayerCount   = static_cast<uint32_t>(s_InstanceLayers.size());
+        InstanceCreateInfo.ppEnabledLayerNames = s_InstanceLayers.data();
+    }
+    else
+    {
+        InstanceCreateInfo.enabledLayerCount   = 0;
+        InstanceCreateInfo.ppEnabledLayerNames = nullptr;
+    }
 
     {
         const auto result = vkCreateInstance(&InstanceCreateInfo, nullptr, &m_Instance);
@@ -99,7 +102,7 @@ void VulkanContext::CreateInstance()
 
 void VulkanContext::CreateDebugMessenger()
 {
-    if (!s_bEnableValidationLayers) return;
+    if (!s_bEnableValidationLayers && !VK_FORCE_VALIDATION) return;
 
     VkDebugUtilsMessengerCreateInfoEXT DebugMessengerCreateInfo = {};
     DebugMessengerCreateInfo.sType                              = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -231,7 +234,7 @@ const std::vector<const char*> VulkanContext::GetRequiredExtensions()
 
     std::vector<const char*> Extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-    if (s_bEnableValidationLayers)
+    if (s_bEnableValidationLayers || VK_FORCE_VALIDATION)
     {
         Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
@@ -344,7 +347,7 @@ void VulkanContext::Destroy()
     m_Allocator->Destroy();
     m_Device->Destroy();
 
-    if (s_bEnableValidationLayers)
+    if (s_bEnableValidationLayers || VK_FORCE_VALIDATION)
     {
         vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
     }

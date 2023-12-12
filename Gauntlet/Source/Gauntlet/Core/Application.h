@@ -22,7 +22,6 @@ struct CommandLineArguments
 
 struct ApplicationSpecification final
 {
-  public:
     ApplicationSpecification()
         : AppName("Gauntlet Engine"), WindowLogoPath(), Width(1280), Height(720), GraphicsAPI(RendererAPI::EAPI::Vulkan)
     {

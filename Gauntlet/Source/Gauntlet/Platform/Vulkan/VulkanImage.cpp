@@ -30,19 +30,7 @@ void CreateImage(AllocatedImage* image, const uint32_t width, const uint32_t hei
     imageCreateInfo.format      = format;
     imageCreateInfo.flags       = arrayLayers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
-    /*
-     * The tiling field can have one of two values:
-     * 1) VK_IMAGE_TILING_LINEAR: Texels are laid out in row-major order like our pixels array
-     * 2) VK_IMAGE_TILING_OPTIMAL: Texels are laid out in an implementation defined order for optimal access
-     *
-     * Unlike the layout of an image, the tiling mode cannot be changed at a later time. If you want to be able to directly access texels in
-     * the memory of the image, then you must use VK_IMAGE_TILING_LINEAR. We will be using a staging buffer instead of a staging image, so
-     * this won't be necessary. We will be using VK_IMAGE_TILING_OPTIMAL for efficient access from the shader.
-     *
-     * The way I understand it: It defines image texel layout in binded memory
-     */
-    imageCreateInfo.tiling = imageTiling;
-
+    imageCreateInfo.tiling        = imageTiling;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageCreateInfo.usage         = imageUsageFlags;
     imageCreateInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
@@ -78,13 +66,6 @@ void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* 
     VK_CHECK(vkCreateImageView(device, &imageViewCreateInfo, nullptr, imageView), "Failed to create an image view!");
 }
 
-/* Why surface has BGRA && images that we're rendering have RGBA:
- * RGBA is easier to work with since image loading libraries generally store the pixels in that layout,
- * but it's usually not the order that is supported by display surfaces.
- * That's why we use the BGRA order there.
- *
- * Also vulkan handles transition from RGBA to BGRA behind the scenes.
- */
 VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
 {
     switch (imageFormat)
@@ -114,13 +95,13 @@ VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat)
     return (VkFormat)0;
 }
 
-void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const uint32_t mipLevels,
+void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, EImageFormat format, const uint32_t mipLevels,
                            const bool bIsCubeMap)
 {
     GRAPHICS_GUARD_LOCK;
 
     VkImageSubresourceRange SubresourceRange = {};
-    SubresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+    SubresourceRange.aspectMask              = IsDepthFormat(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     SubresourceRange.layerCount              = bIsCubeMap ? 6 : 1;
     SubresourceRange.levelCount              = mipLevels;
 
@@ -181,6 +162,23 @@ void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayou
 
         imageMemoryBarrier.srcAccessMask = 0;
         imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
+    {
+        PipelineSourceStageFlags      = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        PipelineDestinationStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+        imageMemoryBarrier.srcAccessMask = 0;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    }
+
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+    {
+        PipelineSourceStageFlags      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // The very beginning of pipeline
+        PipelineDestinationStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        imageMemoryBarrier.srcAccessMask = 0;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     }
     else
     {
@@ -389,9 +387,13 @@ void VulkanImage::Invalidate()
 
     CreateSampler();
 
-    m_DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    m_DescriptorImageInfo.imageView   = m_Image.ImageView;
-    m_DescriptorImageInfo.sampler     = m_Sampler;
+    m_DescriptorImageInfo.imageView = m_Image.ImageView;
+    m_DescriptorImageInfo.sampler   = m_Sampler;
+
+    ImageUtils::TransitionImageLayout(m_Image.Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                      m_Specification.Format, m_Specification.Mips);
+
+    SetLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     if (m_Specification.CreateTextureID)
     {
@@ -407,9 +409,16 @@ void VulkanImage::Invalidate()
         vkUpdateDescriptorSets(context.GetDevice()->GetLogicalDevice(), 1, &TextureWriteDescriptorSet, 0, nullptr);
     }
 
-    if (!ImageUtils::IsDepthFormat(m_Specification.Format))
-        ImageUtils::TransitionImageLayout(m_Image.Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                          m_Specification.Mips);
+    /*if (m_Specification.Usage == EImageUsage::Attachment)
+    {
+        const bool bIsDepthFormat = ImageUtils::IsDepthFormat(m_Specification.Format);
+        ImageUtils::TransitionImageLayout(m_Image.Image, VK_IMAGE_LAYOUT_UNDEFINED,
+                                          bIsDepthFormat ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+                                                         : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                          m_Specification.Format, m_Specification.Mips);
+
+        SetLayout(bIsDepthFormat ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    }*/
 }
 
 // TODO: Check if SamplerMap holds samplers after image destroying!!
@@ -494,7 +503,6 @@ void VulkanImage::Destroy()
     context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 
     vkDestroyImageView(context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);
-    m_Image.ImageView = VK_NULL_HANDLE;
 }
 
 }  // namespace Gauntlet

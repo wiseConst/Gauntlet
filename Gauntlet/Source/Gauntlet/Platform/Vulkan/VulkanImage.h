@@ -32,8 +32,8 @@ void CreateImageView(const VkDevice& device, const VkImage& image, VkImageView* 
 
 VkFormat GauntletImageFormatToVulkan(EImageFormat imageFormat);
 
-void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, const uint32_t mipLevels = 1,
-                           const bool bIsCubeMap = false);
+void TransitionImageLayout(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, EImageFormat format,
+                           const uint32_t mipLevels = 1, const bool bIsCubeMap = false);
 
 void CopyBufferDataToImage(const VkBuffer& sourceBuffer, VkImage& destinationImage, const VkExtent3D& imageExtent,
                            const bool bIsCubeMap = false);
@@ -62,6 +62,13 @@ class VulkanImage final : public Image
     FORCEINLINE auto GetFormat() { return ImageUtils::GauntletImageFormatToVulkan(m_Specification.Format); }
     FORCEINLINE ImageSpecification& GetSpecification() final override { return m_Specification; }
 
+    FORCEINLINE auto GetLayout() const { return m_Layout; }
+    FORCEINLINE void SetLayout(VkImageLayout newLayout)
+    {
+        m_Layout                          = newLayout;
+        m_DescriptorImageInfo.imageLayout = m_Layout;
+    }
+
     FORCEINLINE uint32_t GetWidth() const final override { return m_Specification.Width; }
     FORCEINLINE uint32_t GetHeight() const final override { return m_Specification.Height; }
     FORCEINLINE float GetAspectRatio() const final override
@@ -81,7 +88,8 @@ class VulkanImage final : public Image
     ImageSpecification m_Specification;
 
     AllocatedImage m_Image;
-    VkSampler m_Sampler = VK_NULL_HANDLE;
+    VkSampler m_Sampler    = VK_NULL_HANDLE;
+    VkImageLayout m_Layout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkDescriptorImageInfo m_DescriptorImageInfo;
     DescriptorSet m_DescriptorSet;
 

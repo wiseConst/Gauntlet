@@ -6,7 +6,7 @@
 #include "Gauntlet/Renderer/Camera/Camera.h"
 
 #include "Buffer.h"
-#include "CoreRendererStructs.h"
+#include "CoreRendererTypes.h"
 
 namespace Gauntlet
 {
@@ -93,8 +93,9 @@ class Renderer2D : private Uncopyable, private Unmovable
 
         // Quad2D Base Stuff
         BufferLayout VertexBufferLayout;
-        std::array<QuadVertex*, FRAMES_IN_FLIGHT> QuadVertexBufferBase;
-        std::array<QuadVertex*, FRAMES_IN_FLIGHT> QuadVertexBufferPtr;
+        using VertexBufferPtrPerFrame = std::array<QuadVertex*, FRAMES_IN_FLIGHT>;
+        VertexBufferPtrPerFrame QuadVertexBufferBase;
+        VertexBufferPtrPerFrame QuadVertexBufferPtr;
         uint32_t CurrentFrameIndex = 0;
 
         std::array<std::vector<Ref<VertexBuffer>>, FRAMES_IN_FLIGHT> QuadVertexBuffers;  // Per-frame

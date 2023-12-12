@@ -23,7 +23,7 @@ VulkanMaterial::VulkanMaterial()
 
 void VulkanMaterial::Update()
 {
-    m_UBMaterial[GraphicsContext::Get().GetCurrentFrameIndex()]->Update(&m_Data, sizeof(PBRMaterial));
+    m_UBMaterial[GraphicsContext::Get().GetCurrentFrameIndex()]->SetData(&m_Data, sizeof(PBRMaterial));
 }
 
 void VulkanMaterial::Invalidate()

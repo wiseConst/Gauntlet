@@ -112,6 +112,7 @@ class Image
 
 namespace ImageUtils
 {
+
 FORCEINLINE bool IsDepthFormat(EImageFormat imageFormat)
 {
     switch (imageFormat)

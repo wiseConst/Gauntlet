@@ -24,7 +24,10 @@ enum class EEventType : uint8_t
 };
 
 #define EVENT_CLASS_TYPE(type)                                                                                                             \
-    FORCEINLINE static EEventType GetStaticType() { return EEventType::type; }
+    FORCEINLINE static EEventType GetStaticType()                                                                                          \
+    {                                                                                                                                      \
+        return EEventType::type;                                                                                                           \
+    }
 
 class EventDispatcher;
 
@@ -38,7 +41,7 @@ class Event
     Event(const Event&& e) = delete;
 
     Event& operator=(const Event& e) = delete;
-    Event& operator=(Event&& e) = delete;
+    Event& operator=(Event&& e)      = delete;
 
     FORCEINLINE const auto& GetName() const { return m_Name; }
     FORCEINLINE const auto& GetType() const { return m_Type; }

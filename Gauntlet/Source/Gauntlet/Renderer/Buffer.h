@@ -206,8 +206,8 @@ class UniformBuffer : private Uncopyable, private Unmovable
     virtual void* RetrieveMapped()             = 0;
     virtual void Unmap()                       = 0;
 
-    virtual void Update(void* data, const uint64_t size) = 0;
-    virtual size_t GetSize() const                       = 0;
+    virtual void SetData(void* data, const uint64_t size) = 0;
+    virtual size_t GetSize() const                        = 0;
 
     static Ref<UniformBuffer> Create(const uint64_t bufferSize);
 };
@@ -237,9 +237,9 @@ class StorageBuffer : private Uncopyable, private Unmovable
     virtual void Destroy()                                          = 0;
     virtual void SetData(const void* data, const uint64_t dataSize) = 0;
 
-    virtual void* Get() const          = 0;
+    virtual void* Get() const      = 0;
     virtual size_t GetSize() const = 0;
-    
+
     static Ref<StorageBuffer> Create(const BufferSpecification& bufferSpec);
 };
 

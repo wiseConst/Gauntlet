@@ -5,6 +5,7 @@
 #include "Pipeline.h"
 #include "Buffer.h"
 #include "CommandBuffer.h"
+#include "Framebuffer.h"
 
 #include "Gauntlet/Core/Random.h"
 #include "Gauntlet/Core/Application.h"
@@ -50,7 +51,7 @@ ParticleSystem::ParticleSystem()
     psRenderingPipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_POINT_LIST;
     psRenderingPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
     psRenderingPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
-    psRenderingPipelineSpec.Shader                = ShaderLibrary::Load("ParticleSystem"); // TODO: I should Get it not Load again
+    psRenderingPipelineSpec.Shader                = ShaderLibrary::Load("ParticleSystem");  // TODO: I should Get it not Load again
     psRenderingPipelineSpec.PipelineType          = EPipelineType::PIPELINE_TYPE_GRAPHICS;
     psRenderingPipelineSpec.TargetFramebuffer     = Renderer::GetStorageData().GeometryFramebuffer;
     psRenderingPipelineSpec.DepthCompareOp        = ECompareOp::COMPARE_OP_LESS;
@@ -117,21 +118,22 @@ void ParticleSystem::OnCompute(uint32_t particleCount)
 
 void ParticleSystem::OnRender(void* pushConstants)
 {
-    GNT_ASSERT(m_RenderingPipeline->GetSpecification().TargetFramebuffer, "Nowhere to render particle system!");
+    GNT_ASSERT(m_RenderingPipeline->GetSpecification().TargetFramebuffer[GraphicsContext::Get().GetCurrentFrameIndex()],
+               "Nowhere to render particle system!");
 
     Ref<CommandBuffer> renderCommandBuffer = CommandBuffer::Create(ECommandBufferType::COMMAND_BUFFER_TYPE_GRAPHICS);
     renderCommandBuffer->BeginRecording(true);
     renderCommandBuffer->BeginDebugLabel("GPU Rendering Computed Particles", glm::vec4(0.5f, 0.95f, 0.0f, 1.0f));
     renderCommandBuffer->BeginTimestamp();
 
-    Renderer::BeginRenderPass(renderCommandBuffer, m_RenderingPipeline->GetSpecification().TargetFramebuffer,
-                              glm::vec4(glm::vec3(0.5f), 1.0f));
+    m_RenderingPipeline->GetSpecification().TargetFramebuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->BeginPass(
+        renderCommandBuffer);
 
     Renderer::SubmitParticleSystem(renderCommandBuffer, m_RenderingPipeline,
                                    m_SSBOVertexBuffer[GraphicsContext::Get().GetCurrentFrameIndex()], m_CurrentParticleCount,
                                    pushConstants);
 
-    Renderer::EndRenderPass(renderCommandBuffer, m_RenderingPipeline->GetSpecification().TargetFramebuffer);
+    m_RenderingPipeline->GetSpecification().TargetFramebuffer[GraphicsContext::Get().GetCurrentFrameIndex()]->EndPass(renderCommandBuffer);
 
     renderCommandBuffer->EndTimestamp();
     renderCommandBuffer->EndDebugLabel();

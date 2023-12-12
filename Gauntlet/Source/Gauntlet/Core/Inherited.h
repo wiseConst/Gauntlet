@@ -12,7 +12,7 @@ class Uncopyable
     ~Uncopyable() = default;
 
   private:
-    Uncopyable(const Uncopyable&) = delete;
+    Uncopyable(const Uncopyable&)            = delete;
     Uncopyable& operator=(const Uncopyable&) = delete;
 };
 
@@ -23,7 +23,7 @@ class Unmovable
     ~Unmovable() = default;
 
   private:
-    Unmovable(Unmovable&&) = delete;
+    Unmovable(Unmovable&&)            = delete;
     Unmovable& operator=(Unmovable&&) = delete;
 };
 

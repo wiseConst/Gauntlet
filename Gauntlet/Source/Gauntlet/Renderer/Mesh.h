@@ -3,7 +3,7 @@
 #include "Gauntlet/Core/Core.h"
 #include "Gauntlet/Renderer/Buffer.h"
 
-#include "Gauntlet/Renderer/CoreRendererStructs.h"
+#include "Gauntlet/Renderer/CoreRendererTypes.h"
 
 struct aiNode;
 struct aiScene;

@@ -188,7 +188,8 @@ void VulkanPipeline::Create()
             // TODO: Make it configurable
             std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates;
 
-            auto vulkanFramebuffer   = std::static_pointer_cast<VulkanFramebuffer>(m_Specification.TargetFramebuffer);
+            auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(
+                m_Specification.TargetFramebuffer[context.GetCurrentFrameIndex()]);  // it doesn't matter which framebuffer to take
             uint32_t attachmentCount = (uint32_t)vulkanFramebuffer->GetAttachments().size();
             if (vulkanFramebuffer->GetDepthAttachment()) --attachmentCount;
 
@@ -267,7 +268,6 @@ void VulkanPipeline::Create()
 
             VkGraphicsPipelineCreateInfo pipelineCreateInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
             pipelineCreateInfo.layout                       = m_Layout;
-            pipelineCreateInfo.renderPass                   = vulkanFramebuffer->GetRenderPass();
             pipelineCreateInfo.pInputAssemblyState          = &InputAssemblyState;
             pipelineCreateInfo.stageCount                   = static_cast<uint32_t>(shaderStages.size());
             pipelineCreateInfo.pStages                      = shaderStages.data();
@@ -282,10 +282,18 @@ void VulkanPipeline::Create()
 
             VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
 
-            // TODO: Populate it
             std::vector<VkFormat> colorAttachmentFormats;
             VkFormat depthAttachmentFormat   = VK_FORMAT_UNDEFINED;
-            VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+            VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;  // TODO: Fill stencil
+            for (auto& attachment : m_Specification.TargetFramebuffer[context.GetCurrentFrameIndex()]->GetSpecification().Attachments)
+            {
+                depthAttachmentFormat = depthAttachmentFormat == VK_FORMAT_UNDEFINED && ImageUtils::IsDepthFormat(attachment.Format)
+                                            ? ImageUtils::GauntletImageFormatToVulkan(attachment.Format)
+                                            : depthAttachmentFormat;
+
+                if (!ImageUtils::IsDepthFormat(attachment.Format))
+                    colorAttachmentFormats.emplace_back(ImageUtils::GauntletImageFormatToVulkan(attachment.Format));
+            }
 
             pipelineRenderingCreateInfo.colorAttachmentCount    = static_cast<uint32_t>(colorAttachmentFormats.size());
             pipelineRenderingCreateInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
@@ -293,7 +301,7 @@ void VulkanPipeline::Create()
             pipelineRenderingCreateInfo.depthAttachmentFormat   = depthAttachmentFormat;
             pipelineRenderingCreateInfo.stencilAttachmentFormat = stencilAttachmentFormat;
 
-            //  pipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
+            pipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
 
             VK_CHECK(vkCreateGraphicsPipelines(logicalDevice, m_Cache, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &m_Handle),
                      "Failed to create GRAPHICS pipeline!");

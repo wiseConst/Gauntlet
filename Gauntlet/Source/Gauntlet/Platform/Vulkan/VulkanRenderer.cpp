@@ -115,28 +115,6 @@ void VulkanRenderer::DispatchImpl(Ref<CommandBuffer>& commandBuffer, Ref<Pipelin
     cmdBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
 }
 
-void VulkanRenderer::BeginRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer,
-                                         const glm::vec4& debugLabelColor)
-{
-    GNT_ASSERT(commandBuffer);
-    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
-
-    cmdBuffer->BeginDebugLabel(framebuffer->GetSpecification().Name.data(), debugLabelColor);
-    auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(framebuffer);
-    vulkanFramebuffer->BeginRenderPass(cmdBuffer->Get());
-}
-
-void VulkanRenderer::EndRenderPassImpl(const Ref<CommandBuffer>& commandBuffer, const Ref<Framebuffer>& framebuffer)
-{
-    GNT_ASSERT(commandBuffer);
-    auto cmdBuffer = std::static_pointer_cast<VulkanCommandBuffer>(commandBuffer);
-
-    auto vulkanFramebuffer = std::static_pointer_cast<VulkanFramebuffer>(framebuffer);
-    vulkanFramebuffer->EndRenderPass(cmdBuffer->Get());
-
-    cmdBuffer->EndDebugLabel();
-}
-
 void VulkanRenderer::SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                                     Ref<Material>& material, void* pushConstants)
 {

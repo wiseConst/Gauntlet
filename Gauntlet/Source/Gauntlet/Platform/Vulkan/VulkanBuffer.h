@@ -92,7 +92,7 @@ class VulkanUniformBuffer final : public UniformBuffer
     void* RetrieveMapped() final override;
     void Unmap() final override;
 
-    void Update(void* data, const uint64_t size) final override;
+    void SetData(void* data, const uint64_t size) final override;
 
     FORCEINLINE const auto& Get() const { return m_Handle.Buffer; }
     FORCEINLINE size_t GetSize() const final override { return m_Size; }

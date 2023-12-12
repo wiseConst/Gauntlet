@@ -27,6 +27,7 @@ class VulkanCommandBuffer final : public CommandBuffer
     const std::vector<std::string> GetPipelineStatisticsStrings() const final override;
 
     FORCEINLINE void Reset() final override { VK_CHECK(vkResetCommandBuffer(m_CommandBuffer, 0), "Failed to reset command buffer!"); }
+    void Destroy() final override;
 
     void BeginTimestamp(bool bStatisticsQuery = false) final override;
     void EndTimestamp(bool bStatisticsQuery = false) final override;
@@ -34,7 +35,8 @@ class VulkanCommandBuffer final : public CommandBuffer
     void BeginDebugLabel(const char* commandBufferLabelName, const glm::vec4& labelColor) const final override;
     FORCEINLINE void EndDebugLabel() const final override
     {
-        if (s_bEnableValidationLayers) vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
+        if (!s_bEnableValidationLayers && !VK_FORCE_VALIDATION) return;
+        vkCmdEndDebugUtilsLabelEXT(m_CommandBuffer);
     }
 
     void BeginRecording(bool bOneTimeSubmit = false, const void* inheritanceInfo = VK_NULL_HANDLE) final override;
@@ -152,7 +154,6 @@ class VulkanCommandBuffer final : public CommandBuffer
 
     uint32_t m_TimestampIndex = 0;
     void CreateSyncResourcesAndQueries();
-    void Destroy() final override;
 };
 
 }  // namespace Gauntlet

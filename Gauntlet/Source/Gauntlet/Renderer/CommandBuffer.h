@@ -42,12 +42,10 @@ class CommandBuffer : private Uncopyable, private Unmovable
 
     virtual void Submit(bool bWaitAfterSubmit = true) = 0;
     virtual void Reset()                              = 0;
+    virtual void Destroy()                            = 0;
 
     static Ref<CommandBuffer> Create(ECommandBufferType type,
                                      ECommandBufferLevel level = ECommandBufferLevel::COMMAND_BUFFER_LEVEL_PRIMARY);
-
-  protected:
-    virtual void Destroy() = 0;
 };
 
 }  // namespace Gauntlet

@@ -76,7 +76,8 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
      * Transfer -> shader read-only: shader read-only should wait on transfer writes operations(in our case after fragment) before
      * transitioning
      */
-    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ImageSpec.Mips);
+    ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, ImageSpec.Format,
+                                      ImageSpec.Mips);
 
     VkBuffer stagingBufferRaw = (VkBuffer)stagingBuffer->Get();
     GNT_ASSERT(stagingBufferRaw);
@@ -92,7 +93,7 @@ void VulkanTexture2D::Create(const TextureCreateInfo& textureCreateInfo)
     }
     else
         ImageUtils::TransitionImageLayout(m_Image->Get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                          ImageSpec.Mips);
+                                          ImageSpec.Format, ImageSpec.Mips);
 }
 
 }  // namespace Gauntlet

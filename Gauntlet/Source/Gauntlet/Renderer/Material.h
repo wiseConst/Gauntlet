@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Gauntlet/Core/Core.h"
-#include "CoreRendererStructs.h"
+#include "CoreRendererTypes.h"
 
 namespace Gauntlet
 {

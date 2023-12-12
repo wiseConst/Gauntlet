@@ -8,7 +8,7 @@
 #include "VulkanTexture.h"
 #include "VulkanTextureCube.h"
 #include "VulkanBuffer.h"
-#include "Gauntlet/Renderer/CoreRendererStructs.h"
+#include "Gauntlet/Renderer/CoreRendererTypes.h"
 
 #include "Gauntlet/Core/Timer.h"
 

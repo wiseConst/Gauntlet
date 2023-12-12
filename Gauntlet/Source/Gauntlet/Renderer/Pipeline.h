@@ -3,6 +3,7 @@
 #include "Gauntlet/Core/Core.h"
 #include "Shader.h"
 #include "Buffer.h"
+#include "CoreRendererTypes.h"
 
 namespace Gauntlet
 {
@@ -65,9 +66,9 @@ struct PipelineSpecification
     std::string Name           = "None";
     EPipelineType PipelineType = EPipelineType::PIPELINE_TYPE_GRAPHICS;
 
-    Ref<Shader> Shader                 = nullptr;
-    Ref<Framebuffer> TargetFramebuffer = nullptr;
+    Ref<Shader> Shader = nullptr;
     BufferLayout Layout;
+    FramebufferPerFrame TargetFramebuffer;
 
     bool PrimitiveRestartEnable          = false;
     EPrimitiveTopology PrimitiveTopology = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
