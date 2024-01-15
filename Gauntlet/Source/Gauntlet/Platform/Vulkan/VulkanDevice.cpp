@@ -283,6 +283,9 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
     // Query info about acceleration structures
     gpuInfo.RTProperties.pNext = &gpuInfo.ASProperties;
 
+    // Query info about mesh shading preferences
+    gpuInfo.ASProperties.pNext = &gpuInfo.MSProperties;
+
     vkGetPhysicalDeviceProperties2(gpuInfo.PhysicalDevice, &GPUProperties2);
 
 #if LOG_VULKAN_INFO
@@ -311,6 +314,31 @@ bool VulkanDevice::IsDeviceSuitable(GPUInfo& gpuInfo, const VkSurfaceKHR& surfac
         LOG_INFO(" [RTX]: Max Geometry Count: %llu", gpuInfo.ASProperties.maxGeometryCount);
         LOG_INFO(" [RTX]: Max Instance(BLAS) Count: %llu", gpuInfo.ASProperties.maxInstanceCount);
     }
+
+    // Mesh shader
+    LOG_INFO(" [MS]: Max Output Vertices: %u", gpuInfo.MSProperties.maxMeshOutputVertices);
+    LOG_INFO(" [MS]: Max Output Primitives: %u", gpuInfo.MSProperties.maxMeshOutputPrimitives);
+    LOG_INFO(" [MS]: Max Output Memory Size: %u", gpuInfo.MSProperties.maxMeshOutputMemorySize);
+    LOG_INFO(" [MS]: Max Mesh Work Group Count: (X, Y, Z) - (%u, %u, %u)", gpuInfo.MSProperties.maxMeshWorkGroupCount[0],
+             gpuInfo.MSProperties.maxMeshWorkGroupCount[1], gpuInfo.MSProperties.maxMeshWorkGroupCount[2]);
+    LOG_INFO(" [MS]: Max Mesh Work Group Invocations: %u", gpuInfo.MSProperties.maxMeshWorkGroupInvocations);
+    LOG_INFO(" [MS]: Max Mesh Work Group Size: (X, Y, Z) - (%u, %u, %u)", gpuInfo.MSProperties.maxMeshWorkGroupSize[0],
+             gpuInfo.MSProperties.maxMeshWorkGroupSize[1], gpuInfo.MSProperties.maxMeshWorkGroupSize[2]);
+    LOG_INFO(" [MS]: Max Mesh Work Group Total Count: %u", gpuInfo.MSProperties.maxMeshWorkGroupTotalCount);
+    LOG_WARN(" [MS]: Max Preferred Mesh Work Group Invocations: %u", gpuInfo.MSProperties.maxPreferredMeshWorkGroupInvocations);
+
+    // Task shader
+    LOG_INFO(" [TS]: Max Task Work Group Count: (X, Y, Z) - (%u, %u, %u)", gpuInfo.MSProperties.maxTaskWorkGroupCount[0],
+             gpuInfo.MSProperties.maxTaskWorkGroupCount[1], gpuInfo.MSProperties.maxTaskWorkGroupCount[2]);
+    LOG_INFO(" [TS]: Max Task Work Group Invocations: %u", gpuInfo.MSProperties.maxTaskWorkGroupInvocations);
+    LOG_INFO(" [TS]: Max Task Work Group Size: (X, Y, Z) - (%u, %u, %u)", gpuInfo.MSProperties.maxTaskWorkGroupSize[0],
+             gpuInfo.MSProperties.maxTaskWorkGroupSize[1], gpuInfo.MSProperties.maxTaskWorkGroupSize[2]);
+    LOG_INFO(" [TS]: Max Task Work Group Total Count: %u", gpuInfo.MSProperties.maxTaskWorkGroupTotalCount);
+    LOG_WARN(" [TS]: Max Preferred Task Work Group Invocations: %u", gpuInfo.MSProperties.maxPreferredTaskWorkGroupInvocations);
+    LOG_INFO(" [TS]: Max Task Payload Size: %u", gpuInfo.MSProperties.maxTaskPayloadSize);
+
+    LOG_WARN(" [MS]: Prefers Compact Primitive Output: %s", gpuInfo.MSProperties.prefersCompactPrimitiveOutput ? "TRUE" : "FALSE");
+    LOG_WARN(" [MS]: Prefers Compact Vertex Output: %s", gpuInfo.MSProperties.prefersCompactVertexOutput ? "TRUE" : "FALSE");
 
     LOG_INFO(" Memory types: %u", gpuInfo.GPUMemoryProperties.memoryTypeCount);
     for (uint32_t i = 0; i < gpuInfo.GPUMemoryProperties.memoryTypeCount; ++i)

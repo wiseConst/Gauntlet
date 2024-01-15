@@ -180,6 +180,8 @@ void VulkanCommandBuffer::Destroy()
     vkDestroyFence(context.GetDevice()->GetLogicalDevice(), m_SubmitFence, VK_NULL_HANDLE);
     vkDestroyQueryPool(context.GetDevice()->GetLogicalDevice(), m_TimestampQueryPool, VK_NULL_HANDLE);
     vkDestroyQueryPool(context.GetDevice()->GetLogicalDevice(), m_PipelineStatisticsQueryPool, VK_NULL_HANDLE);
+
+    m_CommandBuffer = nullptr;
 }
 
 void VulkanCommandBuffer::BeginTimestamp(bool bStatisticsQuery)
@@ -264,7 +266,7 @@ void VulkanCommandBuffer::BindPipeline(Ref<VulkanPipeline>& pipeline) const
     VkRect2D scissor = {{0, 0}, swapchain->GetImageExtent()};
     if (auto& targetFramebuffer = pipeline->GetSpecification().TargetFramebuffer[context.GetCurrentFrameIndex()])
     {
-        scissor.extent = VkExtent2D(targetFramebuffer->GetWidth(), targetFramebuffer->GetHeight());
+        scissor.extent = VkExtent2D{targetFramebuffer->GetWidth(), targetFramebuffer->GetHeight()};
 
         viewport.y      = static_cast<float>(scissor.extent.height);
         viewport.width  = static_cast<float>(scissor.extent.width);

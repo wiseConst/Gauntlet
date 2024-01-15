@@ -51,7 +51,7 @@ ParticleSystem::ParticleSystem()
     psRenderingPipelineSpec.PrimitiveTopology     = EPrimitiveTopology::PRIMITIVE_TOPOLOGY_POINT_LIST;
     psRenderingPipelineSpec.FrontFace             = EFrontFace::FRONT_FACE_COUNTER_CLOCKWISE;
     psRenderingPipelineSpec.CullMode              = ECullMode::CULL_MODE_BACK;
-    psRenderingPipelineSpec.Shader                = ShaderLibrary::Load("ParticleSystem");  // TODO: I should Get it not Load again
+    psRenderingPipelineSpec.Shader                = ShaderLibrary::Get("ParticleSystem");
     psRenderingPipelineSpec.PipelineType          = EPipelineType::PIPELINE_TYPE_GRAPHICS;
     psRenderingPipelineSpec.TargetFramebuffer     = Renderer::GetStorageData().GeometryFramebuffer;
     psRenderingPipelineSpec.DepthCompareOp        = ECompareOp::COMPARE_OP_LESS;

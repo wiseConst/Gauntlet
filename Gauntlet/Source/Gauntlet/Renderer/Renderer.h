@@ -50,6 +50,14 @@ class Renderer : private Uncopyable, private Unmovable
         s_Renderer->SubmitParticleSystemImpl(commandBuffer, pipeline, ssbo, particleCount, pushConstants);
     }
 
+#if MESH_SHADING_TEST
+    FORCEINLINE static void SubmitMeshShading(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
+                                              Ref<Material> material, void* pushConstants = nullptr)
+    {
+        s_Renderer->SubmitMeshShadingImpl(pipeline, vertexBuffer, indexBuffer, material, pushConstants);
+    }
+#endif
+
     FORCEINLINE static void SubmitMesh(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                                        Ref<Material> material, void* pushConstants = nullptr)
     {
@@ -106,6 +114,12 @@ class Renderer : private Uncopyable, private Unmovable
         Ref<Gauntlet::Material> Material;
         Ref<Gauntlet::VertexBuffer> VertexBuffer;
         Ref<Gauntlet::IndexBuffer> IndexBuffer;
+
+#if MESH_SHADING_TEST
+        Ref<Gauntlet::StorageBuffer> MeshletBuffer;
+        uint32_t MeshletSize;
+#endif
+
         glm::mat4 Transform;
     };
 
@@ -155,6 +169,7 @@ class Renderer : private Uncopyable, private Unmovable
 
         std::atomic<size_t> DrawCalls = 0;
         std::atomic<size_t> QuadCount = 0;
+        uint32_t SamplerCount         = 0;
 
         std::atomic<uint32_t> AllocatedDescriptorSets = 0;
         uint16_t FPS                                  = 0;
@@ -260,6 +275,11 @@ class Renderer : private Uncopyable, private Unmovable
     virtual void SubmitFullscreenQuadImpl(Ref<Pipeline>& pipeline, void* pushConstants = nullptr) = 0;
     virtual void SubmitMeshImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                                 Ref<Material>& material, void* pushConstants = nullptr)           = 0;
+
+#if MESH_SHADING_TEST
+    virtual void SubmitMeshShadingImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
+                                       Ref<Material>& material, void* pushConstants = nullptr) = 0;
+#endif
 
     virtual void DrawQuadImpl(Ref<Pipeline>& pipeline, Ref<VertexBuffer>& vertexBuffer, Ref<IndexBuffer>& indexBuffer,
                               const uint32_t indicesCount, void* pushConstants = nullptr) = 0;

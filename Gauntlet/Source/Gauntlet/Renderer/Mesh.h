@@ -193,6 +193,10 @@ class Mesh final
 
     FORCEINLINE const auto& GetVertexBuffers() const { return m_VertexBuffers; }
     FORCEINLINE const auto& GetIndexBuffers() const { return m_IndexBuffers; }
+#if MESH_SHADING_TEST
+    FORCEINLINE const auto& GetMeshletBuffers() const { return m_MeshletBuffers; }
+    FORCEINLINE const auto& GetMeshletSize() const { return m_Meshlets.size(); }
+#endif
 
     FORCEINLINE const uint32_t GetSubmeshCount() const { return static_cast<uint32_t>(m_Submeshes.size()); }
     FORCEINLINE const auto& GetSubmeshName(const uint32_t meshIndex) { return m_Submeshes[meshIndex].Name; }
@@ -215,6 +219,11 @@ class Mesh final
 
     // Optimization to prevent loading the same textures.
     std::unordered_map<std::string, Ref<Texture2D>> m_LoadedTextures;
+
+#if MESH_SHADING_TEST
+    std::vector<Meshlet> m_Meshlets;
+    std::vector<Ref<StorageBuffer>> m_MeshletBuffers;
+#endif
 
     std::vector<Ref<VertexBuffer>> m_VertexBuffers;
     std::vector<Ref<IndexBuffer>> m_IndexBuffers;

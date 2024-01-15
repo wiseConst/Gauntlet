@@ -6,6 +6,7 @@
 #include "VulkanDevice.h"
 #include "VulkanShader.h"
 #include "VulkanSwapchain.h"
+#include "VulkanImage.h"
 
 namespace Gauntlet
 {
@@ -335,7 +336,8 @@ void VulkanPipeline::Create()
         }
         default: GNT_ASSERT(false, "Unknown pipeline type!"); break;
     }
-    vulkanShader->DestroyModulesAndReflectionGarbage();
+    //   vulkanShader->DestroyModulesAndReflectionGarbage(); // TODO: It breaks shader Get, cuz reflection data and shader modules are
+    //   destroyed!
 
     SavePipelineCache();
 }

@@ -62,7 +62,7 @@ class VulkanShader final : public Shader
 
     std::vector<VkPushConstantRange> m_PushConstants;
     std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
-    std::vector<DescriptorSet> m_DescriptorSets;  // For each descriptor set layout
+    std::vector<std::array<DescriptorSet, FRAMES_IN_FLIGHT>> m_DescriptorSets;  // For each descriptor set layout
 
     VkShaderModule LoadShaderModule(const std::vector<uint8_t>& shaderCode);
     void Reflect(const std::vector<uint8_t>& shaderCode);

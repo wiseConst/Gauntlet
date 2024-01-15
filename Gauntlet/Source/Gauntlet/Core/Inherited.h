@@ -8,8 +8,8 @@ namespace Gauntlet
 class Uncopyable
 {
   protected:
-    Uncopyable()  = default;
-    ~Uncopyable() = default;
+    Uncopyable()          = default;
+    virtual ~Uncopyable() = default;
 
   private:
     Uncopyable(const Uncopyable&)            = delete;
@@ -19,8 +19,8 @@ class Uncopyable
 class Unmovable
 {
   protected:
-    Unmovable()  = default;
-    ~Unmovable() = default;
+    Unmovable()          = default;
+    virtual ~Unmovable() = default;
 
   private:
     Unmovable(Unmovable&&)            = delete;

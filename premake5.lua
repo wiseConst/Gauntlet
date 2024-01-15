@@ -30,9 +30,9 @@ Libraries = {}
 Libraries["Assimp_Debug"] =          "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Debug/assimp-vc143-mtd.lib"
 Libraries["Assimp_Release"] =        "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
 Libraries["Assimp_RelWithDebInfo"] = "%{wks.location}/Gauntlet/vendor/assimp/Binaries/Release/assimp-vc143-mt.lib"
-Libraries["Shaderc_Release"] =       "%{VULKAN_PATH}/Lib/shaderc_combined.lib" 
-Libraries["Shaderc_RelWithDebInfo"] ="%{VULKAN_PATH}/Lib/shaderc_combined.lib" 
-Libraries["Shaderc_Debug"] =         "%{VULKAN_PATH}/Lib/shaderc_combinedd.lib" 
+Libraries["Shaderc_Release"] =       "%{VULKAN_PATH}/Lib/shaderc_shared.lib" 
+Libraries["Shaderc_RelWithDebInfo"] ="%{VULKAN_PATH}/Lib/shaderc_shared.lib" 
+Libraries["Shaderc_Debug"] =         "%{VULKAN_PATH}/Lib/shaderc_sharedd.lib" 
 
 group "Dependencies"
     include "Gauntlet/vendor/GLFW"
@@ -48,7 +48,7 @@ project "Gauntlet"
     location "Gauntlet"
     kind "StaticLib"
     language "C++"
-    cppdialect "C++latest"
+    cppdialect "C++17"
     staticruntime "off"
 
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")
@@ -140,7 +140,7 @@ project "Forge"
     location "Forge"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++latest"
+    cppdialect "C++17"
     staticruntime "off"
     
     targetdir("Binaries/" .. outputdir .. "/%{prj.name}")

@@ -140,6 +140,11 @@ class VulkanCommandBuffer final : public CommandBuffer
         vkCmdBlitImage(m_CommandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
     }
 
+    FORCEINLINE void DrawMeshTasksNV(const uint32_t taskCount, const uint32_t firstTask = 0)
+    {
+        vkCmdDrawMeshTasksNV(m_CommandBuffer, taskCount, firstTask);
+    }
+
   private:
     VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
     ECommandBufferLevel m_Level     = ECommandBufferLevel::COMMAND_BUFFER_LEVEL_PRIMARY;

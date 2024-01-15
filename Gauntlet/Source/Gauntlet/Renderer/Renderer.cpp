@@ -18,6 +18,7 @@
 #include "Animation.h"
 
 #include "Gauntlet/Platform/Vulkan/VulkanRenderer.h"
+#include "Gauntlet/Platform/Vulkan/VulkanCommandBuffer.h"
 
 namespace Gauntlet
 {
@@ -33,6 +34,7 @@ Renderer::RendererStorage* Renderer::s_RendererStorage = new Renderer::RendererS
 void Renderer::Init()
 {
     ShaderLibrary::Init();
+    SamplerStorage::Initialize();
 
     switch (RendererAPI::Get())
     {
@@ -289,8 +291,6 @@ void Renderer::Init()
         }
     }
 
-    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_TexNoiseMap", s_RendererStorage->SSAONoiseTexture);
-
     // PBR
     {
         FramebufferSpecification pbrForwardFramebufferSpec = {};
@@ -366,8 +366,6 @@ void Renderer::Shutdown()
 
     for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
     {
-        s_RendererStorage->RenderCommandBuffer[frame]->Destroy();
-
         s_RendererStorage->GeometryFramebuffer[frame]->Destroy();
 
         s_RendererStorage->SetupFramebuffer[frame]->Destroy();
@@ -409,6 +407,8 @@ void Renderer::Shutdown()
         ub->Destroy();
 
     s_RendererStorage->WhiteTexture->Destroy();
+    SamplerStorage::Destroy();
+
     delete s_RendererStorage;
     s_RendererStorage = nullptr;
 
@@ -475,6 +475,7 @@ void Renderer::Begin()
     }
 
     // SSAO Enable
+    s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set("u_TexNoiseMap", s_RendererStorage->SSAONoiseTexture);
     if (Renderer::GetSettings().AO.EnableSSAO && !s_RendererStorage->SortedGeometry.empty())
     {
         if (Renderer::GetSettings().AO.BlurSSAO)
@@ -549,6 +550,14 @@ void Renderer::Flush()
     }
     // TODO: instead of creating new command buffer, insert execution dependency barrier!!
 
+    // TEMP
+    auto vulkanCommandBuffer =
+        std::static_pointer_cast<VulkanCommandBuffer>(s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]);
+    GNT_ASSERT(vulkanCommandBuffer, "Failed to cast CommandBuffer to VulkanCommandBuffer");
+
+    vulkanCommandBuffer->InsertBarrier(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                       VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 0, nullptr, 0, nullptr);
+
     // SSAO-Pass
     s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]->BeginTimestamp();
     if (!s_RendererStorage->SortedGeometry.empty() && Renderer::GetSettings().AO.EnableSSAO)
@@ -569,7 +578,7 @@ void Renderer::Flush()
             "u_NormalMap", s_RendererStorage->GeometryFramebuffer[s_RendererStorage->CurrentFrame]->GetAttachments()[1].Attachment);
 
         s_RendererStorage->SSAOPipeline->GetSpecification().Shader->Set(
-            "u_UBSSAO", s_RendererStorage->SSAOUniformBuffer[s_RendererStorage->CurrentFrame], 0);
+            "u_UBSSAO", s_RendererStorage->SSAOUniformBuffer[s_RendererStorage->CurrentFrame]);
 
         s_RendererStorage->SSAOFramebuffer[s_RendererStorage->CurrentFrame]->BeginPass(
             s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]);
@@ -595,6 +604,10 @@ void Renderer::Flush()
         }
     }
     s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]->EndTimestamp();
+
+    // TEMP
+    vulkanCommandBuffer->InsertBarrier(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                       VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 0, nullptr, 0, nullptr);
 
     // Final Lighting-Pass
     s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]->BeginTimestamp();
@@ -767,8 +780,8 @@ void Renderer::EndScene()
     }
     s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]->EndTimestamp();
 
-    s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]->BeginTimestamp();
     // GPass
+    s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]->BeginTimestamp();
     {
         s_RendererStorage->GeometryFramebuffer[s_RendererStorage->CurrentFrame]->BeginPass(
             s_RendererStorage->RenderCommandBuffer[s_RendererStorage->CurrentFrame]);
@@ -780,7 +793,11 @@ void Renderer::EndScene()
             mpc.mat2                = glm::mat4(glm::transpose(glm::inverse(glm::mat3(geometry.Transform))));
             geometry.Material->Update();  // Is it useless?
 
+#if MESH_SHADING_TEST
+            SubmitMeshShading();
+#else
             SubmitMesh(s_RendererStorage->GeometryPipeline, geometry.VertexBuffer, geometry.IndexBuffer, geometry.Material, &mpc);
+#endif
         }
 
         s_RendererStorage->GeometryFramebuffer[s_RendererStorage->CurrentFrame]->EndPass(
@@ -850,8 +867,15 @@ void Renderer::AddSpotLight(const glm::vec3& position, const glm::vec3& directio
 void Renderer::SubmitMesh(const Ref<Mesh>& mesh, const glm::mat4& transform)
 {
     for (uint32_t i = 0; i < mesh->GetSubmeshCount(); ++i)
+    {
+#if MESH_SHADING_TEST
+        s_RendererStorage->SortedGeometry.emplace_back(mesh->GetMaterial(i), mesh->GetVertexBuffers()[i], mesh->GetIndexBuffers()[i],
+                                                       mesh->GetMeshletBuffers()[i], mesh->GetMeshletSize() transform);
+#else
         s_RendererStorage->SortedGeometry.emplace_back(mesh->GetMaterial(i), mesh->GetVertexBuffers()[i], mesh->GetIndexBuffers()[i],
                                                        transform);
+#endif
+    }
 }
 
 std::vector<RendererOutput> Renderer::GetRendererOutput()

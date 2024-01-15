@@ -13,13 +13,13 @@ namespace Gauntlet
 {
 
 #define LOG_VULKAN_SHADER_REFLECTION 0
-#define LOG_VULKAN_INFO 0
+#define LOG_VULKAN_INFO 1
 #define LOG_VMA_INFO 0
 
 #define VK_FORCE_VALIDATION 0
 #define RENDERDOC_DEBUG 1
 
-#define VK_PREFER_IGPU 0
+#define VK_PREFER_IGPU 1
 #define VK_RTX 0
 #define VK_MESH_SHADING 0
 

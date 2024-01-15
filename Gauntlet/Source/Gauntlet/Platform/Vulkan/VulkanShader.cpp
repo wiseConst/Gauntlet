@@ -159,6 +159,10 @@ std::vector<uint8_t> VulkanShader::CompileOrGetSpvBinaries(const std::string& sh
         shaderType = shaderc_glsl_miss_shader;
     else if (shaderExt == "raygen")
         shaderType = shaderc_glsl_raygen_shader;
+    else if (shaderExt == "task")
+        shaderType = shaderc_task_shader;
+    else if (shaderExt == "mesh")
+        shaderType = shaderc_mesh_shader;
     else
         GNT_ASSERT(false);
 
@@ -280,10 +284,12 @@ VulkanShader::VulkanShader(const std::string_view& filePath)
 
     for (uint32_t i = 0; i < m_DescriptorSetLayouts.size(); ++i)
     {
-        DescriptorSet ds = {};
-        GNT_ASSERT(context.GetDescriptorAllocator()->Allocate(ds, m_DescriptorSetLayouts[i]),
-                   "Failed to allocate descriptor set for shader needs!");
-        m_DescriptorSets.push_back(ds);
+        auto& descriptorSets = m_DescriptorSets.emplace_back();
+        for (uint32_t frame = 0; frame < FRAMES_IN_FLIGHT; ++frame)
+        {
+            GNT_ASSERT(context.GetDescriptorAllocator()->Allocate(descriptorSets[frame], m_DescriptorSetLayouts[i]),
+                       "Failed to allocate descriptor set for shader needs!");
+        }
     }
 }
 
@@ -628,7 +634,8 @@ void VulkanShader::UpdateDescriptorSets(const std::string& name, VkWriteDescript
             const auto& currentDescriptorSetBindings = shaderStage.DescriptorSetBindings[iSet].Bindings[name];
             binding                                  = currentDescriptorSetBindings.binding;
 
-            currentVulkanDescriptorSet = m_DescriptorSets[shaderStage.DescriptorSetBindings[iSet].Set].Handle;  // Can simply search by iSet
+            currentVulkanDescriptorSet = m_DescriptorSets[shaderStage.DescriptorSetBindings[iSet].Set][context.GetCurrentFrameIndex()]
+                                             .Handle;  // Can simply search by iSet
             GNT_ASSERT(currentVulkanDescriptorSet, "Retrieved descriptor set is not valid!");
 
             // Here I assume that pImageInfo or pBufferInfo already specified to make this function "templated".

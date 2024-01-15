@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gauntlet/Core/Math.h"
+#include "Gauntlet/Core/Core.h"
 
 namespace Gauntlet
 {
@@ -139,5 +140,30 @@ struct alignas(16) MatrixPushConstants
 using UniformBufferPerFrame       = std::array<Ref<class UniformBuffer>, FRAMES_IN_FLIGHT>;
 using FramebufferPerFrame         = std::array<Ref<class Framebuffer>, FRAMES_IN_FLIGHT>;
 using RenderCommandBufferPerFrame = std::array<Ref<class CommandBuffer>, FRAMES_IN_FLIGHT>;
+
+enum class ECompareOp : uint8_t
+{
+    COMPARE_OP_NEVER            = 0,
+    COMPARE_OP_LESS             = 1,
+    COMPARE_OP_EQUAL            = 2,
+    COMPARE_OP_LESS_OR_EQUAL    = 3,
+    COMPARE_OP_GREATER          = 4,
+    COMPARE_OP_NOT_EQUAL        = 5,
+    COMPARE_OP_GREATER_OR_EQUAL = 6,
+    COMPARE_OP_ALWAYS           = 7,
+};
+
+#if MESH_SHADING_TEST
+
+// NVIDIA advice
+struct Meshlet
+{
+    uint32_t vertices[64];
+    uint8_t indices[126];  // max 42 primitives
+    uint8_t triangleCount;
+    uint8_t vertexCount;
+};
+
+#endif
 
 }  // namespace Gauntlet

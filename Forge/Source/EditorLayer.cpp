@@ -106,6 +106,8 @@ void EditorLayer::OnImGuiRender()
     {
         ImGui::Begin("Application Stats", &bShowAppStats);
 
+        ImGui::Text("ImGui FPS: %f", ImGui::GetIO().Framerate);
+
         const auto& Stats = Renderer::GetStats();
         ImGui::SeparatorText("VMA Statistics");
 
@@ -120,6 +122,7 @@ void EditorLayer::OnImGuiRender()
         ImGui::SeparatorText("General Statistics");
         ImGui::Text("FPS: (%u)", Stats.FPS);
         ImGui::Text("Allocated Descriptor Sets: (%u)", Stats.AllocatedDescriptorSets.load());
+        ImGui::Text("Image samplers: (%u)", Stats.SamplerCount);
         ImGui::Text("CPU Wait Time: %0.2f ms", Stats.CPUWaitTime * 1000.0f);
         ImGui::Text("GPU Wait Time: %0.2f ms", Stats.GPUWaitTime * 1000.0f);
         ImGui::Text("Swapchain Image Present Time: %0.2fms", Stats.PresentTime * 1000.0f);

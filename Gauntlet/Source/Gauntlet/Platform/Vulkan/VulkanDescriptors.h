@@ -13,8 +13,8 @@ class VulkanDevice;
 // Simple wrapper around the whole descriptor set situation, to make them flexible around my system.
 struct DescriptorSet
 {
-    VkDescriptorSet Handle{VK_NULL_HANDLE};  // Actual handle
-    uint32_t PoolID{UINT32_MAX};             // From which pool it is.
+    VkDescriptorSet Handle{VK_NULL_HANDLE};
+    uint32_t PoolID{UINT32_MAX};
 };
 
 class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
@@ -37,7 +37,7 @@ class VulkanDescriptorAllocator final : private Unmovable, private Uncopyable
     std::vector<VkDescriptorPool> m_Pools;
     VkDescriptorPool m_CurrentPool       = VK_NULL_HANDLE;
     uint32_t m_CurrentPoolSizeMultiplier = 250;
-    uint32_t m_BasePoolSizeMultiplier    = 500;
+    uint32_t m_BasePoolSizeMultiplier    = m_CurrentPoolSizeMultiplier;
     uint32_t m_AllocatedDescriptorSets   = 0;
 
     std::vector<std::pair<VkDescriptorType, float>> m_DefaultPoolSizes =  //

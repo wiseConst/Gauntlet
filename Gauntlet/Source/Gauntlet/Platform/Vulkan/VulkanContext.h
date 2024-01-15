@@ -22,7 +22,7 @@ class VulkanContext final : public GraphicsContext
   public:
     VulkanContext() = delete;
     VulkanContext(Scoped<Window>& window);
-    ~VulkanContext() = default;
+    ~VulkanContext();
 
     void BeginRender() final override;
     void EndRender() final override;

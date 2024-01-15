@@ -41,6 +41,8 @@
 namespace Gauntlet
 {
 
+#define MESH_SHADING_TEST 0
+
 static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
 #define MAX_WORKER_THREADS 8

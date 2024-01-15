@@ -4,6 +4,7 @@
 
 #include <volk/volk.h>
 #include "VulkanDescriptors.h"
+#include "Gauntlet/Renderer/GraphicsContext.h"
 
 namespace Gauntlet
 {
@@ -18,10 +19,13 @@ class VulkanMaterial final : public Material
 
     void Update() final override;
 
-    FORCEINLINE const void* GetDescriptorSet() const final override { return m_DescriptorSet.Handle; }
-    FORCEINLINE void* GetDescriptorSet() final override { return m_DescriptorSet.Handle; }
+    FORCEINLINE const void* GetDescriptorSet() const final override
+    {
+        return m_DescriptorSet[GraphicsContext::Get().GetCurrentFrameIndex()].Handle;
+    }
+    FORCEINLINE void* GetDescriptorSet() final override { return m_DescriptorSet[GraphicsContext::Get().GetCurrentFrameIndex()].Handle; }
 
   private:
-    DescriptorSet m_DescriptorSet;
+    std::array<DescriptorSet, FRAMES_IN_FLIGHT> m_DescriptorSet;
 };
 }  // namespace Gauntlet

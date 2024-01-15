@@ -11,11 +11,11 @@ Ref<Shader> Shader::Create(const std::string_view& filePath)
 {
     switch (RendererAPI::Get())
     {
-        case RendererAPI::EAPI::Vulkan: return Ref<VulkanShader>(new VulkanShader(filePath));
+        case RendererAPI::EAPI::Vulkan: return MakeRef<VulkanShader>(filePath);
     }
 
     GNT_ASSERT(false, "Unknown RendererAPI!");
-    return Ref<Shader>();
+    return nullptr;
 }
 
 }  // namespace Gauntlet

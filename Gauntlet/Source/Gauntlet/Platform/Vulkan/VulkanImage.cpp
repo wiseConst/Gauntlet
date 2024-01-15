@@ -421,73 +421,23 @@ void VulkanImage::Invalidate()
     }*/
 }
 
-// TODO: Check if SamplerMap holds samplers after image destroying!!
 void VulkanImage::CreateSampler()
 {
     auto& context = (VulkanContext&)VulkanContext::Get();
     GNT_ASSERT(context.GetDevice()->IsValid(), "Vulkan device is not valid!");
 
-    // Firstly check if sampler with the same specification already exists, otherwise create it.
-    VkSamplerCreateInfo samplerCreateInfo     = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+    SamplerSpecification samplerSpec = {};
+    samplerSpec.MinFilter            = m_Specification.Filter;
+    samplerSpec.MagFilter            = m_Specification.Filter;
+    samplerSpec.AddressModeU = samplerSpec.AddressModeV = samplerSpec.AddressModeW = m_Specification.Wrap;
+    samplerSpec.AnisotropyEnable                                                   = true;
+    samplerSpec.MaxAnisotropy = context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
+    samplerSpec.CompareEnable = false;
+    samplerSpec.MipmapMode    = m_Specification.Filter;
+    samplerSpec.MipLodBias    = 0.05f;
+    samplerSpec.MaxLod        = static_cast<float>(m_Specification.Mips);
 
-    const bool bIsCubeMap       = m_Specification.Layers == 6;
-    samplerCreateInfo.minFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::GauntletTextureFilterToVulkan(m_Specification.Filter);
-    samplerCreateInfo.magFilter = bIsCubeMap ? VK_FILTER_LINEAR : ImageUtils::GauntletTextureFilterToVulkan(m_Specification.Filter);
-
-    samplerCreateInfo.addressModeU =
-        bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
-    samplerCreateInfo.addressModeV =
-        bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
-    samplerCreateInfo.addressModeW =
-        bIsCubeMap ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : ImageUtils::GauntletTextureWrapToVulkan(m_Specification.Wrap);
-
-    // Anisotropic
-    samplerCreateInfo.anisotropyEnable = VK_TRUE;
-    samplerCreateInfo.maxAnisotropy    = context.GetDevice()->GetGPUProperties().limits.maxSamplerAnisotropy;
-    samplerCreateInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerCreateInfo.compareEnable    = VK_FALSE;
-    samplerCreateInfo.compareOp        = VK_COMPARE_OP_NEVER;
-    samplerCreateInfo.mipmapMode =
-        m_Specification.Filter == ETextureFilter::LINEAR ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    samplerCreateInfo.mipLodBias = 0.05f;
-    samplerCreateInfo.minLod     = 0.0f;
-    samplerCreateInfo.maxLod     = static_cast<float>(m_Specification.Mips);
-
-    for (auto& sampler : VulkanRenderer::GetVulkanStorageData().Samplers)
-    {
-        if (sampler.first.unnormalizedCoordinates == samplerCreateInfo.unnormalizedCoordinates &&  //
-
-            sampler.first.minFilter == samplerCreateInfo.minFilter &&  //
-            sampler.first.magFilter == samplerCreateInfo.magFilter &&  //
-
-            sampler.first.addressModeU == samplerCreateInfo.addressModeU &&  //
-            sampler.first.addressModeV == samplerCreateInfo.addressModeV &&  //
-            sampler.first.addressModeW == samplerCreateInfo.addressModeW &&  //
-
-            sampler.first.anisotropyEnable == samplerCreateInfo.anisotropyEnable &&  //
-            sampler.first.maxAnisotropy == samplerCreateInfo.maxAnisotropy &&        //
-
-            sampler.first.borderColor == samplerCreateInfo.borderColor &&      //
-            sampler.first.compareEnable == samplerCreateInfo.compareEnable &&  //
-            sampler.first.compareOp == samplerCreateInfo.compareOp &&          //
-
-            sampler.first.mipmapMode == samplerCreateInfo.mipmapMode &&  //
-            sampler.first.mipLodBias == samplerCreateInfo.mipLodBias &&  //
-            sampler.first.minLod == samplerCreateInfo.minLod &&          //
-            sampler.first.maxLod == samplerCreateInfo.maxLod)
-        {
-            m_Sampler = sampler.second;
-            break;
-        }
-    }
-
-    if (!m_Sampler)
-    {
-        VK_CHECK(vkCreateSampler(context.GetDevice()->GetLogicalDevice(), &samplerCreateInfo, nullptr, &m_Sampler),
-                 "Failed to create an image sampler!");
-        VulkanRenderer::GetVulkanStorageData().Samplers[samplerCreateInfo] = m_Sampler;
-    }
+    m_Sampler = (VkSampler)SamplerStorage::CreateSampler(samplerSpec).Handle;
 }
 
 void VulkanImage::Destroy()
@@ -498,11 +448,106 @@ void VulkanImage::Destroy()
         context.WaitDeviceOnFinish();
     }
 
+    SamplerStorage::DecrementSamplerRef(m_Sampler);
     if (m_DescriptorSet.Handle) context.GetDescriptorAllocator()->ReleaseDescriptorSets(&m_DescriptorSet, 1);
 
     context.GetAllocator()->DestroyImage(m_Image.Image, m_Image.Allocation);
 
     vkDestroyImageView(context.GetDevice()->GetLogicalDevice(), m_Image.ImageView, nullptr);
+}
+
+void VulkanSamplerStorage::InitializeImpl()
+{
+    auto& context     = (VulkanContext&)VulkanContext::Get();
+    s_MaxSamplerCount = context.GetDevice()->GetGPUProperties().limits.maxSamplerAllocationCount;
+}
+
+const Sampler& VulkanSamplerStorage::CreateSamplerImpl(const SamplerSpecification& samplerSpec)
+{
+    VkSamplerCreateInfo samplerCreateInfo     = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+
+    samplerCreateInfo.minFilter = ImageUtils::GauntletTextureFilterToVulkan(samplerSpec.MinFilter);
+    samplerCreateInfo.magFilter = ImageUtils::GauntletTextureFilterToVulkan(samplerSpec.MagFilter);
+
+    samplerCreateInfo.addressModeU = ImageUtils::GauntletTextureWrapToVulkan(samplerSpec.AddressModeU);
+    samplerCreateInfo.addressModeV = ImageUtils::GauntletTextureWrapToVulkan(samplerSpec.AddressModeV);
+    samplerCreateInfo.addressModeW = ImageUtils::GauntletTextureWrapToVulkan(samplerSpec.AddressModeW);
+
+    samplerCreateInfo.anisotropyEnable = samplerSpec.AnisotropyEnable;
+    samplerCreateInfo.maxAnisotropy    = samplerSpec.MaxAnisotropy;
+    samplerCreateInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerCreateInfo.compareEnable    = samplerSpec.CompareEnable;
+    samplerCreateInfo.compareOp        = Utility::GauntletCompareOpToVulkan(samplerSpec.CompareOp);
+    samplerCreateInfo.mipmapMode =
+        samplerSpec.MipmapMode == ETextureFilter::LINEAR ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerCreateInfo.mipLodBias = samplerSpec.MipLodBias;
+    samplerCreateInfo.minLod     = samplerSpec.MinLod;
+    samplerCreateInfo.maxLod     = samplerSpec.MaxLod;
+
+    for (auto& sampler : s_Samplers)
+    {
+        if (sampler.first.MinFilter == samplerSpec.MinFilter &&  //
+            sampler.first.MagFilter == samplerSpec.MagFilter &&  //
+
+            sampler.first.AddressModeU == samplerSpec.AddressModeU &&  //
+            sampler.first.AddressModeV == samplerSpec.AddressModeV &&  //
+            sampler.first.AddressModeW == samplerSpec.AddressModeW &&  //
+
+            sampler.first.AnisotropyEnable == samplerSpec.AnisotropyEnable &&  //
+            sampler.first.MaxAnisotropy == samplerSpec.MaxAnisotropy &&        //
+
+            sampler.first.CompareEnable == samplerSpec.CompareEnable &&  //
+            sampler.first.CompareOp == samplerSpec.CompareOp &&          //
+
+            sampler.first.MipmapMode == samplerSpec.MipmapMode &&  //
+            sampler.first.MipLodBias == samplerSpec.MipLodBias &&  //
+            sampler.first.MinLod == samplerSpec.MinLod &&          //
+            sampler.first.MaxLod == samplerSpec.MaxLod)
+        {
+            ++sampler.second.ImageUsedCount;
+            return sampler.second;
+        }
+    }
+
+    {
+        auto& context = (VulkanContext&)VulkanContext::Get();
+
+        Sampler sampler  = {};
+        VkSampler handle = (VkSampler)sampler.Handle;
+        VK_CHECK(vkCreateSampler(context.GetDevice()->GetLogicalDevice(), &samplerCreateInfo, nullptr, &handle),
+                 "Failed to create an image sampler!");
+
+        sampler.Handle          = handle;
+        s_Samplers[samplerSpec] = sampler;
+    }
+    ++Renderer::GetStats().SamplerCount;
+
+    ++s_Samplers[samplerSpec].ImageUsedCount;
+    return s_Samplers[samplerSpec];
+}
+
+void VulkanSamplerStorage::DestroyImpl()
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+
+    for (auto& sampler : s_Samplers)
+    {
+        if (sampler.second.ImageUsedCount != 0)
+            vkDestroySampler(context.GetDevice()->GetLogicalDevice(), (VkSampler)sampler.second.Handle, nullptr);
+
+        sampler.second.ImageUsedCount = 0;
+        --Renderer::GetStats().SamplerCount;
+    }
+}
+
+void VulkanSamplerStorage::DestroySamplerImpl(void* handle)
+{
+    auto& context = (VulkanContext&)VulkanContext::Get();
+
+    vkDestroySampler(context.GetDevice()->GetLogicalDevice(), (VkSampler)handle, nullptr);
+
+    --Renderer::GetStats().SamplerCount;
 }
 
 }  // namespace Gauntlet

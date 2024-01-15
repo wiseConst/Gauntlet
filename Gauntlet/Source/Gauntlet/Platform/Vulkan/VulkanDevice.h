@@ -74,6 +74,7 @@ struct QueueFamilyIndices
 #if LOG_VULKAN_INFO
         LOG_INFO("QueueFamilyCount:%u", QueueFamilyCount);
 
+        i          = 0;
         uint32_t k = 0;
         for (const auto& QueueFamily : QueueFamilies)
         {
@@ -126,10 +127,12 @@ struct QueueFamilyIndices
                 LOG_TRACE("  VIDEO DECODE");
             }
 
+#ifdef VK_ENABLE_BETA_EXTENSIONS
             if (QueueFamily.queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR)
             {
                 LOG_TRACE("  VIDEO ENCODE");
             }
+#endif
 
             if (QueueFamily.queueFlags & VK_QUEUE_OPTICAL_FLOW_BIT_NV)
             {
@@ -237,6 +240,8 @@ class VulkanDevice final : private Uncopyable, private Unmovable
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
         VkPhysicalDeviceAccelerationStructurePropertiesKHR ASProperties = {
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+
+        VkPhysicalDeviceMeshShaderPropertiesEXT MSProperties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT};
     } m_GPUInfo;
 
     void PickPhysicalDevice(const VkInstance& instance, const VkSurfaceKHR& surface);

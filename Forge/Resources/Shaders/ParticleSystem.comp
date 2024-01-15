@@ -32,7 +32,7 @@ void main()
 
     Particle particleIn = s_ParticleSSBOIn.particles[index];
 
-    s_ParticleSSBOOut.particles[index].position = particleIn.position + particleIn.velocity * u_ParticleSystemData.DeltaTime;
-    s_ParticleSSBOOut.particles[index].velocity = particleIn.velocity * u_ParticleSystemData.DeltaTime;
+    s_ParticleSSBOOut.particles[index].position += particleIn.position + particleIn.velocity * u_ParticleSystemData.DeltaTime;
+    s_ParticleSSBOOut.particles[index].velocity += particleIn.velocity * u_ParticleSystemData.DeltaTime;
     s_ParticleSSBOOut.particles[index].color = abs(vec3(particleIn.velocity.x * u_ParticleSystemData.DeltaTime, particleIn.velocity.y + u_ParticleSystemData.DeltaTime, particleIn.velocity.z - u_ParticleSystemData.DeltaTime));
 } 

@@ -70,4 +70,33 @@ Ref<Image> Image::Create(const ImageSpecification& imageSpecification)
     return nullptr;
 }
 
+void SamplerStorage::Initialize()
+{
+    GNT_ASSERT(!s_Instance, "Sampler storage already created!");
+    switch (RendererAPI::Get())
+    {
+        case RendererAPI::EAPI::Vulkan:
+        {
+            s_Instance = new VulkanSamplerStorage();
+            break;
+        }
+        case RendererAPI::EAPI::None:
+        {
+            LOG_ERROR("RendererAPI::EAPI::None!");
+            GNT_ASSERT(false, "Unknown RendererAPI!");
+            break;
+        }
+    }
+
+    s_Instance->InitializeImpl();
+}
+
+void SamplerStorage::Destroy()
+{
+    s_Instance->DestroyImpl();
+
+    delete s_Instance;
+    s_Instance = nullptr;
+}
+
 }  // namespace Gauntlet

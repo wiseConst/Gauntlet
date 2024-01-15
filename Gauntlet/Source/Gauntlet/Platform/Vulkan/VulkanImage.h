@@ -96,4 +96,18 @@ class VulkanImage final : public Image
     void CreateSampler();
 };
 
+class VulkanSamplerStorage final : public SamplerStorage
+{
+  public:
+    VulkanSamplerStorage()  = default;
+    ~VulkanSamplerStorage() = default;
+
+  protected:
+    void InitializeImpl() final override;
+    const Sampler& CreateSamplerImpl(const SamplerSpecification& samplerSpec) final override;
+    void DestroyImpl() final override;
+
+    void DestroySamplerImpl(void* handle) final override;
+};
+
 }  // namespace Gauntlet

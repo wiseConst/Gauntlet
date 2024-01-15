@@ -30,18 +30,6 @@ enum class EFrontFace : uint8_t
     FRONT_FACE_CLOCKWISE
 };
 
-enum class ECompareOp : uint8_t
-{
-    COMPARE_OP_NEVER            = 0,
-    COMPARE_OP_LESS             = 1,
-    COMPARE_OP_EQUAL            = 2,
-    COMPARE_OP_LESS_OR_EQUAL    = 3,
-    COMPARE_OP_GREATER          = 4,
-    COMPARE_OP_NOT_EQUAL        = 5,
-    COMPARE_OP_GREATER_OR_EQUAL = 6,
-    COMPARE_OP_ALWAYS           = 7,
-};
-
 enum class EPrimitiveTopology : uint8_t
 {
     PRIMITIVE_TOPOLOGY_POINT_LIST = 0,

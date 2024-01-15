@@ -79,6 +79,13 @@ Mesh::Mesh(const std::string& meshPath)
             BufferSpecification ibInfo = {};
             ibInfo.Usage               = EBufferUsageFlags::INDEX_BUFFER | EBufferUsageFlags::TRANSFER_DST;
 
+#if MESH_SHADING_TEST
+
+            BufferSpecification sbInfo = {};
+            sbInfo.Usage               = EBufferUsageFlags::STORAGE_BUFFER | EBufferUsageFlags::TRANSFER_DST;
+
+#endif
+
             for (auto& submesh : m_Submeshes)
             {
                 if (m_bIsAnimated)
@@ -162,7 +169,7 @@ template <> void Mesh::OptimizeMesh<AnimatedVertex>(Submesh& submesh)
     const size_t optVertexCount = meshopt_generateVertexRemap(remap.data(), submesh.Indices.data(), indexCount,
                                                               submesh.AnimatedVertices.data(), vertexCount, vertexSize);
 
-    constexpr float threshold = 0.5f;
+    constexpr float threshold = 0.75f;
     std::vector<uint32_t> optIndices(indexCount);
     std::vector<AnimatedVertex> optVertices(optVertexCount);
 
@@ -225,7 +232,7 @@ template <> void Mesh::OptimizeMesh<MeshVertex>(Submesh& submesh)
     meshopt_optimizeVertexFetch(optVertices.data(), optIndices.data(), indexCount, optVertices.data(), optVertexCount, vertexSize);
 
     // #5: Simplified version of the model
-    constexpr float threshold     = 0.4f;
+    constexpr float threshold     = 0.75f;
     const size_t targetIndexCount = indexCount * threshold;
     constexpr float targetError   = 0.2f;
     std::vector<uint32_t> simplifiedIndices(indexCount);
@@ -239,6 +246,28 @@ template <> void Mesh::OptimizeMesh<MeshVertex>(Submesh& submesh)
 
     submesh.Vertices.clear();
     submesh.Vertices = {optVertices.begin(), optVertices.end()};
+
+#if MESH_SHADING_TEST
+
+    const size_t max_vertices  = 64;
+    const size_t max_triangles = 124;
+    const float cone_weight    = 0.0f;
+
+    size_t max_meshlets = meshopt_buildMeshletsBound(submesh.Indices.size(), max_vertices, max_triangles);
+    std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+    std::vector<unsigned int> meshlet_vertices(max_meshlets * max_vertices);
+    std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+
+    size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), submesh.Indices.data(),
+                                                 submesh.Indices.size(), &submesh.Vertices[0].Position.x, submesh.Vertices.size(),
+                                                 sizeof(MeshVertex), max_vertices, max_triangles, cone_weight);
+
+    const meshopt_Meshlet& last = meshlets[meshlet_count - 1];
+
+    meshlet_vertices.resize(last.vertex_offset + last.vertex_count);
+    meshlet_triangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
+    meshlets.resize(meshlet_count);
+#endif
 }
 
 void Mesh::ProcessNode(aiNode* node, const aiScene* scene)

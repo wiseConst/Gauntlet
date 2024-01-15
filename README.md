@@ -3,4 +3,4 @@
 ![Gauntlet](./Resources/Logo/Gauntlet.png)
 
 # **Progress**
-![Gauntlet](./Resources/Showcases/summer_progress.png)
+![Gauntlet](./Resources/Showcases/ssao.png)

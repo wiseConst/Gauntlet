@@ -34,6 +34,8 @@ VulkanContext::VulkanContext(Scoped<Window>& window) : GraphicsContext(window)
     m_DescriptorAllocator = MakeScoped<VulkanDescriptorAllocator>(m_Device);
 }
 
+VulkanContext::~VulkanContext() = default;
+
 void VulkanContext::CreateInstance()
 {
     // Initialize vulkan loader

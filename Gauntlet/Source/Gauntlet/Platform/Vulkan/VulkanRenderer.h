@@ -21,44 +21,6 @@ class VulkanRenderer final : public Renderer
 
         // Misc
         Weak<Pipeline> CurrentPipelineToBind;
-
-        // Sampler handling
-        struct SamplerKeyHash
-        {
-            size_t operator()(const VkSamplerCreateInfo& samplerCreateInfo) const
-            {
-                return std::hash<size_t>()(samplerCreateInfo.magFilter) + std::hash<size_t>()(samplerCreateInfo.minFilter) +
-                       std::hash<size_t>()(samplerCreateInfo.addressModeU);
-            }
-        };
-
-        struct SamplerKeyEqual
-        {
-            bool operator()(const VkSamplerCreateInfo& lhs, const VkSamplerCreateInfo& rhs) const
-            {
-                return lhs.minFilter == rhs.minFilter &&  //
-                       lhs.magFilter == rhs.magFilter &&  //
-
-                       lhs.addressModeU == rhs.addressModeU &&  //
-                       lhs.addressModeV == rhs.addressModeV &&  //
-                       lhs.addressModeW == rhs.addressModeW &&  //
-
-                       lhs.anisotropyEnable == rhs.anisotropyEnable &&  //
-                       lhs.maxAnisotropy == rhs.maxAnisotropy &&        //
-
-                       lhs.borderColor == rhs.borderColor &&      //
-                       lhs.compareEnable == rhs.compareEnable &&  //
-                       lhs.compareOp == rhs.compareOp &&          //
-
-                       lhs.mipmapMode == rhs.mipmapMode &&  //
-                       lhs.mipLodBias == rhs.mipLodBias &&  //
-                       lhs.minLod == rhs.minLod &&          //
-                       lhs.maxLod == rhs.maxLod;
-            }
-        };
-
-        std::unordered_map<VkSamplerCreateInfo, VkSampler, SamplerKeyHash, SamplerKeyEqual>
-            Samplers;  // TODO: Make specific Sampler class with void* SamplerHandle and its Specification
     };
 
   public:

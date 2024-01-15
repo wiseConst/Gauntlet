@@ -4,7 +4,6 @@
 
 #include <volk/volk.h>
 
-#include "VulkanImage.h"
 #include "VulkanFramebuffer.h"
 
 namespace Gauntlet
